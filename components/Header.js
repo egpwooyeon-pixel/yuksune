@@ -2,10 +2,10 @@ import Link from "next/link";
 import { brand, contact } from "@/data/site";
 
 const navItems = [
-  { href: "#products", label: "육수 라인업" },
-  { href: "#why-us", label: "왜 육수네인가" },
-  { href: "#process", label: "도입 절차" },
-  { href: "#faq", label: "자주 묻는 질문" },
+  { href: "#points", label: "탁월한 선택" },
+  { href: "#ingredients", label: "자연재료" },
+  { href: "#usage", label: "사용법" },
+  { href: "#products", label: "제품 라인업" },
   { href: "#contact", label: "문의하기" },
 ];
 
