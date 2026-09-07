@@ -1,50 +1,31 @@
-import { brand, contact } from "@/data/site";
+import { seller } from "@/data/site";
 
 export default function Footer() {
-  const year = new Date().getFullYear();
-
   return (
     <footer className="site-footer">
       <div className="container">
-        <div className="footer-grid">
+        <div className="seller-info">
           <div>
-            <div className="footer-brand">{brand.name}</div>
-            <p className="footer-desc">{brand.description}</p>
+            <b>상호명</b> {seller.companyName}
           </div>
           <div>
-            <div className="footer-heading">바로가기</div>
-            <ul className="footer-list">
-              <li>
-                <a href="#products">육수 라인업</a>
-              </li>
-              <li>
-                <a href="#process">도입 절차</a>
-              </li>
-              <li>
-                <a href="#faq">자주 묻는 질문</a>
-              </li>
-              <li>
-                <a href="#contact">문의하기</a>
-              </li>
-            </ul>
+            <b>대표자</b> {seller.ceoName}
           </div>
           <div>
-            <div className="footer-heading">연락처</div>
-            <ul className="footer-list">
-              <li>대표전화 {contact.phoneDisplay}</li>
-              <li>{contact.email}</li>
-              <li>{contact.address}</li>
-            </ul>
+            <b>고객센터</b> {seller.customerCenter}
           </div>
-        </div>
-        <div className="footer-bottom">
-          <span>
-            {brand.name} · 대표 {contact.ceoName} · 사업자등록번호{" "}
-            {contact.businessRegistrationNumber}
-          </span>
-          <span>
-            © {year} {brand.name}. All rights reserved.
-          </span>
+          <div>
+            <b>사업자등록번호</b> {seller.bizRegNo}
+          </div>
+          <div>
+            <b>사업장 소재지</b> {seller.address}
+          </div>
+          <div>
+            <b>통신판매업번호</b> {seller.mailOrderNo}
+          </div>
+          <div>
+            <b>e-mail</b> {seller.email}
+          </div>
         </div>
       </div>
     </footer>

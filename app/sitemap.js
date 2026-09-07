@@ -1,3 +1,5 @@
+export const dynamic = "force-static";
+
 export default function sitemap() {
   const baseUrl = "https://yuksune.example.com"; // TODO: 실제 배포 도메인으로 교체
 
