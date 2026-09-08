@@ -26,3 +26,6 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# 쿠팡 판매자 정보 수집 결과 (개인/사업자 연락처 데이터이므로 저장소에 커밋하지 않음)
+/data-out/

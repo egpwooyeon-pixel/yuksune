@@ -40,6 +40,11 @@ npm start
   들어가 있습니다 — 실제 제품 정보로 교체해주세요.
 - 실제 배포 도메인 (`app/layout.js`, `app/robots.js`, `app/sitemap.js`의 `TODO` 주석 참고)
 
+## 부가 도구
+
+- `scripts/coupang-seller-scraper.mjs`: 쿠팡 상품 상세페이지의 판매자 정보(상호/이메일/연락처 등)를
+  자동으로 수집해 CSV로 저장하는 스크립트입니다. 사용법과 주의사항은 `scripts/README.md` 참고.
+
 ## 배포
 
 ### Vercel (권장, 별도 설정 불필요)
