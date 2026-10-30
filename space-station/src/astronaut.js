@@ -1,10 +1,16 @@
 import * as THREE from 'three';
 
-// 외부 모델 없이 기본 도형만으로 만든 우주복 캐릭터
+// 외부 모델 없이 기본 도형만으로 만든 우주복 캐릭터.
+// group.position = 몸 중심(무중력이라 발이 아니라 중심 기준).
 export function createAstronaut() {
   const group = new THREE.Group();
+  const yawG = new THREE.Group();   // 바라보는 방향(좌우)
+  const tiltG = new THREE.Group();  // 이동 방향으로 기울기
   const body = new THREE.Group();
-  group.add(body);
+  body.position.y = -1.0;           // 모델 원점(발)을 몸 중심으로 옮김
+  group.add(yawG);
+  yawG.add(tiltG);
+  tiltG.add(body);
 
   const suit = new THREE.MeshStandardMaterial({ color: 0xe9eef2, roughness: 0.55, metalness: 0.1 });
   const trim = new THREE.MeshStandardMaterial({ color: 0xff8a3d, roughness: 0.5 });
@@ -21,6 +27,11 @@ export function createAstronaut() {
   const pack = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.55, 0.2), new THREE.MeshStandardMaterial({ color: 0xaab4bb, roughness: 0.6 }));
   pack.position.set(0, 1.12, -0.33);
   body.add(pack);
+  for (const x of [-0.12, 0.12]) { // 등짐 추진 노즐
+    const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.1, 10), trim);
+    nozzle.position.set(x, 0.8, -0.35);
+    body.add(nozzle);
+  }
 
   const head = new THREE.Group();
   head.position.y = 1.62;
@@ -51,37 +62,40 @@ export function createAstronaut() {
   }
 
   let waveT = 0;
-  let walkPhase = 0;
-  let walkAmt = 0;
-  let targetYaw = 0;
-  body.rotation.y = Math.PI; // 처음엔 창(-z)을 바라봄
+  yawG.rotation.y = Math.PI; // 처음엔 창(-z)을 바라봄
+
+  const wrap = (a) => ((a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
 
   return {
     group,
     wave() { waveT = 2.2; },
-    faceTo(yaw, dt) {
-      targetYaw = yaw;
-      let d = ((targetYaw - body.rotation.y + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
-      body.rotation.y += d * Math.min(1, dt * 12);
-    },
-    update(dt, t, moving) {
-      walkAmt += ((moving ? 1 : 0) - walkAmt) * Math.min(1, dt * 10);
-      if (moving) walkPhase += dt * 9;
-      const swing = Math.sin(walkPhase) * 0.7 * walkAmt;
-      legL.rotation.x = swing;
-      legR.rotation.x = -swing;
-      armL.rotation.x = -swing * 0.8;
-      armR.rotation.x = swing * 0.8;
-      body.position.y = Math.abs(Math.sin(walkPhase)) * 0.05 * walkAmt + Math.sin(t * 1.6) * 0.008;
-      head.rotation.z = Math.sin(t * 0.8) * 0.02;
+    // vel: 현재 속도. 수평 속도가 있으면 그쪽을 바라보고, 이동 방향으로 몸을 기울인다.
+    update(dt, t, vel) {
+      const horiz = Math.hypot(vel.x, vel.z);
+      if (horiz > 0.5) {
+        const target = Math.atan2(vel.x, vel.z);
+        yawG.rotation.y += wrap(target - yawG.rotation.y) * Math.min(1, dt * 4);
+      }
+      const lean = Math.min(horiz * 0.09, 0.55) - THREE.MathUtils.clamp(vel.y * 0.06, -0.35, 0.35);
+      tiltG.rotation.x += (lean - tiltG.rotation.x) * Math.min(1, dt * 5);
+      tiltG.rotation.z = Math.sin(t * 0.7) * 0.06;
+      body.position.y = -1.0 + Math.sin(t * 1.3) * 0.05;
+
+      // 무중력 자세: 팔다리가 앞으로 살짝 떠 있고 천천히 일렁임
+      const sway = Math.sin(t * 1.4);
+      legL.rotation.x = 0.25 + sway * 0.12;
+      legR.rotation.x = 0.35 - sway * 0.12;
+      armL.rotation.x = -0.45 + Math.sin(t * 1.1 + 1) * 0.1;
+      armR.rotation.x = -0.45 + Math.sin(t * 1.1) * 0.1;
+      armL.rotation.z = 0.25;
+      armR.rotation.z = -0.25;
+      head.rotation.x = -tiltG.rotation.x * 0.5;
 
       if (waveT > 0) {
         waveT -= dt;
-        const k = Math.min(1, Math.min(waveT, 2.2 - waveT) * 4); // 올렸다 내리는 부드러운 전환
-        armR.rotation.x = 0;
+        const k = Math.min(1, Math.min(waveT, 2.2 - waveT) * 4);
+        armR.rotation.x = -0.45 * (1 - k);
         armR.rotation.z = -(Math.PI * 0.8) * k + Math.sin(t * 12) * 0.25 * k;
-      } else {
-        armR.rotation.z = 0;
       }
     },
   };

@@ -3,8 +3,8 @@ import * as THREE from 'three';
 export const ROOM = { halfX: 16, halfZ: 11, height: 7 };
 export const OBSTACLES = [];
 
-function box(minX, maxX, minZ, maxZ) {
-  OBSTACLES.push({ minX, maxX, minZ, maxZ });
+function box(minX, maxX, minZ, maxZ, maxY = ROOM.height, minY = 0) {
+  OBSTACLES.push({ minX, maxX, minZ, maxZ, minY, maxY });
 }
 
 // ---- 절차적 텍스처 ----
@@ -115,7 +115,7 @@ export function buildStation(scene) {
 
   // 천장 조명 띠
   for (let i = -2; i <= 2; i++) {
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(HX * 2 - 4, 0.08, 0.5), glow(0xcfeaff, 1.4));
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(HX * 2 - 4, 0.08, 0.5), glow(0xcfeaff, 0.7));
     strip.position.set(0, H - 0.05, i * 4.4);
     scene.add(strip);
   }
@@ -251,7 +251,7 @@ export function buildStation(scene) {
     g.add(body, slope, screen);
     scene.add(g);
     screens.push(screen);
-    box(x - 0.8, x + 0.8, z - 1.4, z + 1.4);
+    box(x - 0.8, x + 0.8, z - 1.4, z + 1.4, 2.2);
   }
   for (const z of [-6, 0, 6]) { console_(HX - 1.0, z, 1); console_(-HX + 1.0, z, -1); }
   updaters.push((dt, t) => {
@@ -265,7 +265,7 @@ export function buildStation(scene) {
     const back = new THREE.Mesh(new THREE.BoxGeometry(5, 0.08, 1.2), glow(0xff8a3d, 0.7));
     back.position.set(x, 0.54, -HZ + 1.8);
     scene.add(bench, back);
-    box(x - 2.5, x + 2.5, -HZ + 1.2, -HZ + 2.4);
+    box(x - 2.5, x + 2.5, -HZ + 1.2, -HZ + 2.4, 0.6);
   }
 
   // ---- 수경재배 화단 (남동쪽 구석) ----
@@ -285,7 +285,7 @@ export function buildStation(scene) {
   growLight.position.y = 2.2;
   planter.add(growLight);
   scene.add(planter);
-  box(HX - 5, HX - 1, HZ - 3.2, HZ - 1.2);
+  box(HX - 5, HX - 1, HZ - 3.2, HZ - 1.2, 2.3);
 
   // 보조 조명
   const warm = new THREE.PointLight(0xff9a55, 22, 14, 1.6);
