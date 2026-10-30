@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#05070d">
+  <title>정거장 — 우주정거장</title>
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+  <main id="app">
+    <div id="world"></div>
+    <header class="top">
+      <div class="brand">정거장 <small>궤도 · 408km</small></div>
+      <div class="tools">
+        <button id="sound" aria-pressed="false" aria-label="소리 켜기">소리 꺼짐</button>
+      </div>
+    </header>
+    <p id="hint" class="hint">바닥 클릭 · WASD로 이동 · 드래그로 둘러보기 · 휠로 확대/축소</p>
+    <nav class="bottom" aria-label="행동">
+      <button id="wave" aria-keyshortcuts="3">손 흔들기 <kbd>3</kbd></button>
+    </nav>
+    <div id="boot" class="boot"><span>정거장에 도킹하는 중</span></div>
+  </main>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
