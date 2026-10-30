@@ -26,6 +26,16 @@ jobs:
       - run: npm run build
         env:
           GITHUB_PAGES: "true"
+      - name: Build 고요의 바다 (달 게임) -> out/moon
+        working-directory: space-station
+        run: |
+          npm ci
+          npm run build
+          mkdir -p ../out/moon
+          cp -r dist/. ../out/moon/
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
