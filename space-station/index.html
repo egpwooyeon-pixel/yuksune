@@ -3,24 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#05070d">
-  <title>정거장 — 우주정거장</title>
+  <meta name="theme-color" content="#000000">
+  <title>고요의 바다</title>
   <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
   <main id="app">
     <div id="world"></div>
+    <div id="labels" aria-hidden="true"></div>
     <header class="top">
-      <div class="brand">정거장 <small>궤도 · 408km</small></div>
+      <div class="brand">고요의 바다 <small>달 · 모임터</small></div>
       <div class="tools">
+        <span id="people" class="pill" role="status">혼자 있어요</span>
         <button id="sound" aria-pressed="false" aria-label="소리 켜기">소리 꺼짐</button>
       </div>
     </header>
-    <p id="hint" class="hint">클릭한 곳으로 둥둥 · WASD 이동 · Space 위 · Shift 아래 · 드래그로 둘러보기</p>
+    <p id="hint" class="hint">클릭한 곳으로 걷기 · WASD 이동 · Space 점프 · Shift 달리기 · 드래그로 둘러보기</p>
+    <p id="toast" class="toast" role="status" aria-live="polite"></p>
     <nav class="bottom" aria-label="행동">
+      <button id="gather">모임터로</button>
+      <button id="jump" aria-keyshortcuts="Space">점프</button>
       <button id="wave" aria-keyshortcuts="3">손 흔들기 <kbd>3</kbd></button>
     </nav>
-    <div id="boot" class="boot"><span>정거장에 도킹하는 중</span></div>
+    <div id="boot" class="boot"><span>달에 착륙하는 중</span></div>
   </main>
   <script type="module" src="/src/main.js"></script>
 </body>
