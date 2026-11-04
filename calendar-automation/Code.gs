@@ -15,7 +15,13 @@ const CONFIG = {
   DEFAULT_DURATION_MIN: 60,       // 종료 시간을 비워두면 시작 + 60분
   SEND_INVITES: true,             // false면 고객에게 메일을 보내지 않음(캘린더에만 등록)
   TEST_EMAIL: '',                 // 값을 넣으면 모든 초대가 이 주소로만 감 (테스트용, 운영 전 반드시 비우기)
-  GUEST_NOTE: ''                  // 고객에게 보이는 초대장 설명에 덧붙일 문구 (고객이 읽는 내용임에 주의)
+  GUEST_NOTE: '',                 // 고객에게 보이는 초대장 설명에 덧붙일 문구 (고객이 읽는 내용임에 주의)
+
+  // ---- 원본 시트에서 일정 가져오기 ----
+  SOURCE_URL: '',                 // 원본(캠페인) 시트 주소 전체를 붙여넣기. 비어 있으면 가져오기 안 됨
+  SOURCE_GID: 0,                  // 원본 시트의 탭 번호(주소 끝 gid=숫자). 0이면 첫 번째 탭
+  IMPORT_STATUS: '',              // 가져온 행의 상태. '' = 검토 후 직접 '등록대기'로 변경(권장), '등록대기' = 가져오자마자 캘린더 등록까지 자동
+  SYNC_EVERY_MINUTES: 10          // 자동 가져오기 주기(분). 1, 5, 10, 15, 30 중 하나
 };
 
 // 열 번호 (A=1)
@@ -31,10 +37,12 @@ const EMAIL_RE = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
 // ============================== 메뉴 / 설치 ==============================
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('📅 방문일정')
+    .addItem('원본 시트에서 일정 가져오기', 'syncFromSource')
     .addItem('대기 중인 일정 전체 처리', 'processAllPending')
     .addSeparator()
     .addItem('① 시트 초기 설정 (최초 1회)', 'setupSheet')
     .addItem('② 자동 실행 켜기 (최초 1회)', 'installTrigger')
+    .addItem('③ 원본 자동 가져오기 켜기', 'installSyncTrigger')
     .addToUi();
 }
 
@@ -253,9 +261,9 @@ function toHHmm_(val, tz) {
     return pad2_(Math.floor(mins / 60)) + ':' + pad2_(mins % 60);
   }
   const s = String(val || '').trim();
-  let m = s.match(/^(\d{1,2}):(\d{2})$/);
+  let m = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
   if (m && +m[1] < 24 && +m[2] < 60) return pad2_(+m[1]) + ':' + m[2];
-  m = s.match(/^(오전|오후)\s*(\d{1,2}):(\d{2})$/);
+  m = s.match(/^(오전|오후)\s*(\d{1,2}):(\d{2})(?::\d{2})?$/);
   if (m && +m[2] >= 1 && +m[2] <= 12 && +m[3] < 60) {
     let h = +m[2] % 12;
     if (m[1] === '오후') h += 12;
@@ -265,3 +273,110 @@ function toHHmm_(val, tz) {
 }
 
 function pad2_(n) { return (n < 10 ? '0' : '') + n; }
+
+// ============================== 원본 시트에서 가져오기 ==============================
+/** 원본 시트의 모든 표에서 (이름, 방문일, 방문시간, 전화번호, 구분)을 읽어 새 행만 추가한다. */
+function syncFromSource() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName(CONFIG.SHEET_NAME);
+  if (!sh) return notify_('"' + CONFIG.SHEET_NAME + '" 시트가 없습니다. 먼저 ① 시트 초기 설정을 실행하세요.');
+  if (!CONFIG.SOURCE_URL) return notify_('Code.gs 상단 CONFIG.SOURCE_URL에 원본 시트 주소를 붙여넣어 주세요.');
+
+  const src = SpreadsheetApp.openByUrl(CONFIG.SOURCE_URL);
+  const srcSheet = CONFIG.SOURCE_GID
+    ? src.getSheets().filter(s => s.getSheetId() === CONFIG.SOURCE_GID)[0]
+    : src.getSheets()[0];
+  if (!srcSheet) return notify_('원본 시트에서 gid=' + CONFIG.SOURCE_GID + ' 탭을 찾지 못했습니다.');
+
+  const tz = ss.getSpreadsheetTimeZone();
+  const found = extractVisits_(srcSheet.getDataRange().getValues(), src.getSpreadsheetTimeZone());
+
+  // 이미 시트에 있는 (이름|방문일) 은 건너뜀
+  const existing = {};
+  if (sh.getLastRow() >= 2) {
+    sh.getRange(2, 1, sh.getLastRow() - 1, COL.DATE).getValues().forEach(r => {
+      const ymd = toYmd_(r[COL.DATE - 1], tz);
+      if (r[COL.NAME - 1] && ymd) existing[String(r[COL.NAME - 1]).trim() + '|' + ymd] = true;
+    });
+  }
+
+  const seen = {}, fresh = [], conflicts = [];
+  found.visits.forEach(v => {
+    const key = v.name + '|' + v.ymd;
+    if (existing[key]) return;
+    if (seen[key]) {
+      if (seen[key].hhmm !== v.hhmm) conflicts.push(v.name + ' ' + v.ymd + ' (' + seen[key].hhmm + ' vs ' + v.hhmm + ')');
+      return;
+    }
+    seen[key] = v;
+    fresh.push(v);
+  });
+
+  let startRow = 0;
+  if (fresh.length) {
+    const lock = LockService.getScriptLock();
+    if (!lock.tryLock(30000)) return notify_('다른 처리가 진행 중입니다. 잠시 후 다시 시도하세요.');
+    try {
+      startRow = Math.max(sh.getLastRow(), 1) + 1;
+      const now = new Date();
+      const rows = fresh.map(v => {
+        const past = Utilities.parseDate(v.ymd + ' ' + v.hhmm, tz, 'yyyy-MM-dd HH:mm') < now;
+        const note = '[가져옴] 원본 ' + v.srcRow + '행' + (past ? ' · 지난 일정이라 방문완료로 표시' : '');
+        return [v.name, v.type, v.ymd, v.hhmm, '', v.phone, '', '', past ? STATUS.VISITED : CONFIG.IMPORT_STATUS, '', note];
+      });
+      sh.getRange(startRow, 1, rows.length, HEADERS.length).setValues(rows);
+    } finally {
+      lock.releaseLock();
+    }
+    if (CONFIG.IMPORT_STATUS === STATUS.PENDING) processRows_(sh, startRow, startRow + fresh.length - 1);
+  }
+
+  const msg = ['새로 가져온 일정: ' + fresh.length + '건'];
+  if (found.problems.length) msg.push('가져오지 못한 행(날짜/시간 확인 필요): ' + found.problems.join(', '));
+  if (conflicts.length) msg.push('같은 사람·같은 날인데 시간이 다른 중복(먼저 나온 것만 가져옴): ' + conflicts.join(', '));
+  notify_(msg.join('\n'));
+}
+
+/** 시간 기반 자동 가져오기 트리거를 만든다. */
+function installSyncTrigger() {
+  ScriptApp.getProjectTriggers()
+    .filter(t => t.getHandlerFunction() === 'syncFromSource')
+    .forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('syncFromSource').timeBased().everyMinutes(CONFIG.SYNC_EVERY_MINUTES).create();
+  notify_('원본 시트를 ' + CONFIG.SYNC_EVERY_MINUTES + '분마다 확인해 새 일정을 가져옵니다.');
+}
+
+/**
+ * 원본 값(2차원 배열)에서 표를 찾아 방문 일정을 추출한다.
+ * "방문일"과 "이름"이 함께 있는 행을 머리글로 보고, 다음 머리글이 나올 때까지의 행을 데이터로 읽는다.
+ * 이름이 비어 있는 행은 건너뛰고, 이름은 있는데 날짜/시간이 이상한 행은 problems에 담는다.
+ */
+function extractVisits_(values, tz) {
+  const visits = [], problems = [];
+  let h = null;
+  for (let i = 0; i < values.length; i++) {
+    const row = values[i];
+    const labels = row.map(c => String(c === null || c === undefined ? '' : c).trim());
+    if (labels.indexOf('방문일') >= 0 && labels.indexOf('이름') >= 0) {
+      h = { date: labels.indexOf('방문일'), time: labels.indexOf('방문시간'), name: labels.indexOf('이름'),
+            phone: labels.indexOf('전화번호'), type: labels.indexOf('구분') };
+      continue;
+    }
+    if (!h) continue;
+    const name = labels[h.name];
+    if (!name) continue;
+    const ymd = toYmd_(row[h.date], tz);
+    const hhmm = h.time >= 0 ? toHHmm_(row[h.time], tz) : null;
+    if (!ymd || !hhmm) { problems.push(name + '(원본 ' + (i + 1) + '행)'); continue; }
+    let phone = h.phone >= 0 ? row[h.phone] : '';
+    if (typeof phone === 'number') { phone = String(phone); if (phone.length === 10 && phone[0] === '1') phone = '0' + phone; }
+    visits.push({ name: name, type: h.type >= 0 ? labels[h.type] : '', ymd: ymd, hhmm: hhmm,
+                  phone: String(phone || '').trim(), srcRow: i + 1 });
+  }
+  return { visits: visits, problems: problems };
+}
+
+/** 화면이 있으면 알림창, 트리거로 실행될 때는 로그만 남긴다. */
+function notify_(msg) {
+  try { SpreadsheetApp.getUi().alert(msg); } catch (e) { console.log(msg); }
+}
