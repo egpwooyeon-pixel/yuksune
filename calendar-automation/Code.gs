@@ -20,6 +20,7 @@ const CONFIG = {
   // ---- 원본 시트에서 일정 가져오기 ----
   SOURCE_URL: '',                 // 원본(캠페인) 시트 주소 전체를 붙여넣기. 비어 있으면 가져오기 안 됨
   SOURCE_GID: 0,                  // 원본 시트의 탭 번호(주소 끝 gid=숫자). 0이면 첫 번째 탭
+  SKIP_TYPES: ['클립체험단'],      // 구분 열에 이 글자가 들어간 행은 가져오지 않음 (예: 겹치는 표 제외). 없으면 []
   IMPORT_STATUS: '',              // 가져온 행의 상태. '' = 검토 후 직접 '등록대기'로 변경(권장), '등록대기' = 가져오자마자 캘린더 등록까지 자동
   SYNC_EVERY_MINUTES: 10          // 자동 가져오기 주기(분). 1, 5, 10, 15, 30 중 하나
 };
@@ -289,7 +290,7 @@ function syncFromSource() {
   if (!srcSheet) return notify_('원본 시트에서 gid=' + CONFIG.SOURCE_GID + ' 탭을 찾지 못했습니다.');
 
   const tz = ss.getSpreadsheetTimeZone();
-  const found = extractVisits_(srcSheet.getDataRange().getValues(), src.getSpreadsheetTimeZone());
+  const found = extractVisits_(srcSheet.getDataRange().getValues(), src.getSpreadsheetTimeZone(), CONFIG.SKIP_TYPES);
 
   // 이미 시트에 있는 (이름|방문일) 은 건너뜀
   const existing = {};
@@ -351,8 +352,9 @@ function installSyncTrigger() {
  * "방문일"과 "이름"이 함께 있는 행을 머리글로 보고, 다음 머리글이 나올 때까지의 행을 데이터로 읽는다.
  * 이름이 비어 있는 행은 건너뛰고, 이름은 있는데 날짜/시간이 이상한 행은 problems에 담는다.
  */
-function extractVisits_(values, tz) {
+function extractVisits_(values, tz, skipTypes) {
   const visits = [], problems = [];
+  skipTypes = skipTypes || [];
   let h = null;
   for (let i = 0; i < values.length; i++) {
     const row = values[i];
@@ -365,12 +367,14 @@ function extractVisits_(values, tz) {
     if (!h) continue;
     const name = labels[h.name];
     if (!name) continue;
+    const type = h.type >= 0 ? labels[h.type] : '';
+    if (skipTypes.some(k => k && type.indexOf(k) >= 0)) continue; // 제외 대상 표
     const ymd = toYmd_(row[h.date], tz);
     const hhmm = h.time >= 0 ? toHHmm_(row[h.time], tz) : null;
     if (!ymd || !hhmm) { problems.push(name + '(원본 ' + (i + 1) + '행)'); continue; }
     let phone = h.phone >= 0 ? row[h.phone] : '';
     if (typeof phone === 'number') { phone = String(phone); if (phone.length === 10 && phone[0] === '1') phone = '0' + phone; }
-    visits.push({ name: name, type: h.type >= 0 ? labels[h.type] : '', ymd: ymd, hhmm: hhmm,
+    visits.push({ name: name, type: type, ymd: ymd, hhmm: hhmm,
                   phone: String(phone || '').trim(), srcRow: i + 1 });
   }
   return { visits: visits, problems: problems };
