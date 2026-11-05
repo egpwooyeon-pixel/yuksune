@@ -39,6 +39,7 @@ const EMAIL_RE = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('📅 방문일정')
     .addItem('원본 시트에서 일정 가져오기', 'syncFromSource')
+    .addItem('방문일 순으로 정렬', 'sortByVisitDate')
     .addItem('대기 중인 일정 전체 처리', 'processAllPending')
     .addSeparator()
     .addItem('① 시트 초기 설정 (최초 1회)', 'setupSheet')
@@ -295,7 +296,8 @@ function syncFromSource() {
   if (!srcSheet) return notify_('원본 시트에서 gid=' + CONFIG.SOURCE_GID + ' 탭을 찾지 못했습니다.');
 
   const tz = tzOf_(ss);
-  const found = extractVisits_(srcSheet.getDataRange().getValues(), tzOf_(src), CONFIG.SKIP_TYPES);
+  const srcRange = srcSheet.getDataRange();
+  const found = extractVisits_(srcRange.getValues(), src.getSpreadsheetTimeZone() || 'UTC', CONFIG.SKIP_TYPES, srcRange.getDisplayValues());
 
   // 이미 시트에 있는 (이름|방문일) 은 건너뜀
   const existing = {};
@@ -335,6 +337,7 @@ function syncFromSource() {
       lock.releaseLock();
     }
     if (CONFIG.IMPORT_STATUS === STATUS.PENDING) processRows_(sh, startRow, startRow + fresh.length - 1);
+    sortByVisitDate();
   }
 
   const msg = ['새로 가져온 일정: ' + fresh.length + '건'];
@@ -346,6 +349,14 @@ function syncFromSource() {
   if (found.problems.length) msg.push('가져오지 못한 행(날짜/시간 확인 필요): ' + found.problems.join(', '));
   if (conflicts.length) msg.push('같은 사람·같은 날인데 시간이 다른 중복(먼저 나온 것만 가져옴): ' + conflicts.join(', '));
   notify_(msg.join('\n'));
+}
+
+/** 방문일 → 시작 시간 순(빠른 날짜가 위)으로 정렬한다. 이벤트ID 등은 같은 행으로 함께 이동한다. */
+function sortByVisitDate() {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_NAME);
+  if (!sh || sh.getLastRow() < 3) return;
+  sh.getRange(2, 1, sh.getLastRow() - 1, HEADERS.length)
+    .sort([{ column: COL.DATE, ascending: true }, { column: COL.START, ascending: true }]);
 }
 
 /** 시간 기반 자동 가져오기 트리거를 만든다. */
@@ -362,7 +373,7 @@ function installSyncTrigger() {
  * "방문일"과 "이름"이 함께 있는 행을 머리글로 보고, 다음 머리글이 나올 때까지의 행을 데이터로 읽는다.
  * 이름이 비어 있는 행은 건너뛰고, 이름은 있는데 날짜/시간이 이상한 행은 problems에 담는다.
  */
-function extractVisits_(values, tz, skipTypes) {
+function extractVisits_(values, tz, skipTypes, display) {
   const visits = [], problems = [];
   let headers = 0, skipped = 0;
   skipTypes = skipTypes || [];
@@ -381,13 +392,21 @@ function extractVisits_(values, tz, skipTypes) {
     if (!name) continue;
     const type = h.type >= 0 ? labels[h.type] : '';
     if (skipTypes.some(k => k && type.indexOf(k) >= 0)) { skipped++; continue; } // 제외 대상 표
-    const ymd = toYmd_(row[h.date], tz);
-    const hhmm = h.time >= 0 ? toHHmm_(row[h.time], tz) : null;
+    // 화면에 보이는 문자열(예: "2026. 11. 3", "오후 3:00:00")을 먼저 해석하고, 안 되면 셀 값으로 해석
+    const drow = display ? display[i] : null;
+    let ymd = drow ? toYmd_(drow[h.date], tz) : null;
+    if (!ymd) ymd = toYmd_(row[h.date], tz);
+    let hhmm = null;
+    if (h.time >= 0) {
+      if (drow) hhmm = toHHmm_(drow[h.time], tz);
+      if (!hhmm) hhmm = toHHmm_(row[h.time], tz);
+    }
     if (!ymd || !hhmm) { problems.push(name + '(원본 ' + (i + 1) + '행)'); continue; }
-    let phone = h.phone >= 0 ? row[h.phone] : '';
-    if (typeof phone === 'number') { phone = String(phone); if (phone.length === 10 && phone[0] === '1') phone = '0' + phone; }
-    visits.push({ name: name, type: type, ymd: ymd, hhmm: hhmm,
-                  phone: String(phone || '').trim(), srcRow: i + 1 });
+    let phone = '';
+    if (h.phone >= 0) phone = (drow && String(drow[h.phone]).trim() !== '') ? drow[h.phone] : row[h.phone];
+    phone = String(phone === null || phone === undefined ? '' : phone).trim();
+    if (/^1\d{9}$/.test(phone)) phone = '0' + phone; // 숫자로 저장돼 앞의 0이 빠진 경우
+    visits.push({ name: name, type: type, ymd: ymd, hhmm: hhmm, phone: phone, srcRow: i + 1 });
   }
   return { visits: visits, problems: problems, headers: headers, skipped: skipped };
 }
