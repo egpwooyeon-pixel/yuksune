@@ -333,6 +333,11 @@ function syncFromSource() {
   }
 
   const msg = ['새로 가져온 일정: ' + fresh.length + '건'];
+  msg.push('[진단] 읽은 탭: "' + srcSheet.getName() + '" (gid=' + srcSheet.getSheetId() + '), 표 머리글 ' + found.headers
+    + '개 발견, 원본 일정 ' + found.visits.length + '건, 제외 ' + found.skipped + '건, 중복/이미 있어 건너뜀 '
+    + (found.visits.length - fresh.length) + '건');
+  if (!found.headers) msg.push('→ 이 탭에서 "방문일"과 "이름"이 함께 있는 머리글 행을 찾지 못했습니다. 일정이 있는 탭의 gid를 SOURCE_GID에 넣어 주세요. (원본 탭 목록: '
+    + src.getSheets().map(t => t.getName() + '=' + t.getSheetId()).join(', ') + ')');
   if (found.problems.length) msg.push('가져오지 못한 행(날짜/시간 확인 필요): ' + found.problems.join(', '));
   if (conflicts.length) msg.push('같은 사람·같은 날인데 시간이 다른 중복(먼저 나온 것만 가져옴): ' + conflicts.join(', '));
   notify_(msg.join('\n'));
@@ -354,6 +359,7 @@ function installSyncTrigger() {
  */
 function extractVisits_(values, tz, skipTypes) {
   const visits = [], problems = [];
+  let headers = 0, skipped = 0;
   skipTypes = skipTypes || [];
   let h = null;
   for (let i = 0; i < values.length; i++) {
@@ -362,13 +368,14 @@ function extractVisits_(values, tz, skipTypes) {
     if (labels.indexOf('방문일') >= 0 && labels.indexOf('이름') >= 0) {
       h = { date: labels.indexOf('방문일'), time: labels.indexOf('방문시간'), name: labels.indexOf('이름'),
             phone: labels.indexOf('전화번호'), type: labels.indexOf('구분') };
+      headers++;
       continue;
     }
     if (!h) continue;
     const name = labels[h.name];
     if (!name) continue;
     const type = h.type >= 0 ? labels[h.type] : '';
-    if (skipTypes.some(k => k && type.indexOf(k) >= 0)) continue; // 제외 대상 표
+    if (skipTypes.some(k => k && type.indexOf(k) >= 0)) { skipped++; continue; } // 제외 대상 표
     const ymd = toYmd_(row[h.date], tz);
     const hhmm = h.time >= 0 ? toHHmm_(row[h.time], tz) : null;
     if (!ymd || !hhmm) { problems.push(name + '(원본 ' + (i + 1) + '행)'); continue; }
@@ -377,7 +384,7 @@ function extractVisits_(values, tz, skipTypes) {
     visits.push({ name: name, type: type, ymd: ymd, hhmm: hhmm,
                   phone: String(phone || '').trim(), srcRow: i + 1 });
   }
-  return { visits: visits, problems: problems };
+  return { visits: visits, problems: problems, headers: headers, skipped: skipped };
 }
 
 /** 화면이 있으면 알림창, 트리거로 실행될 때는 로그만 남긴다. */
