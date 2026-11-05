@@ -112,7 +112,7 @@ function processRows_(sh, firstRow, lastRow) {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(30000)) { sh.getParent().toast('다른 처리가 진행 중입니다. 잠시 후 다시 시도하세요.'); return; }
   try {
-    const tz = sh.getParent().getSpreadsheetTimeZone();
+    const tz = tzOf_(sh.getParent());
     const cal = getCalendar_();
     for (let r = firstRow; r <= lastRow; r++) {
       const status = String(sh.getRange(r, COL.STATUS).getValue()).trim();
@@ -191,7 +191,7 @@ function processRow_(sh, r, status, cal, tz) {
 
 function writeResult_(sh, r, status, note) {
   sh.getRange(r, COL.STATUS).setValue(status);
-  const stamp = Utilities.formatDate(new Date(), sh.getParent().getSpreadsheetTimeZone(), 'MM-dd HH:mm');
+  const stamp = Utilities.formatDate(new Date(), tzOf_(sh.getParent()), 'MM-dd HH:mm');
   sh.getRange(r, COL.NOTE).setValue('[' + stamp + '] ' + note);
 }
 
@@ -275,6 +275,11 @@ function toHHmm_(val, tz) {
 
 function pad2_(n) { return (n < 10 ? '0' : '') + n; }
 
+/** 스프레드시트의 시간대. 비어 있으면 스크립트 시간대, 그것도 없으면 Asia/Seoul */
+function tzOf_(spreadsheet) {
+  return spreadsheet.getSpreadsheetTimeZone() || Session.getScriptTimeZone() || 'Asia/Seoul';
+}
+
 // ============================== 원본 시트에서 가져오기 ==============================
 /** 원본 시트의 모든 표에서 (이름, 방문일, 방문시간, 전화번호, 구분)을 읽어 새 행만 추가한다. */
 function syncFromSource() {
@@ -289,8 +294,8 @@ function syncFromSource() {
     : src.getSheets()[0];
   if (!srcSheet) return notify_('원본 시트에서 gid=' + CONFIG.SOURCE_GID + ' 탭을 찾지 못했습니다.');
 
-  const tz = ss.getSpreadsheetTimeZone();
-  const found = extractVisits_(srcSheet.getDataRange().getValues(), src.getSpreadsheetTimeZone(), CONFIG.SKIP_TYPES);
+  const tz = tzOf_(ss);
+  const found = extractVisits_(srcSheet.getDataRange().getValues(), tzOf_(src), CONFIG.SKIP_TYPES);
 
   // 이미 시트에 있는 (이름|방문일) 은 건너뜀
   const existing = {};
