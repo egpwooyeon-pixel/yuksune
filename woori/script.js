@@ -56,14 +56,3 @@ document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () =>
   t.classList.add("on");
 }));
 
-// 전체 메뉴(☰) 열기/닫기 + 메뉴 위에 마우스를 올려도 열림
-const area = document.querySelector(".gnb-area"), burger = document.getElementById("burger");
-let pinned = false;
-const setOpen = v => { area.classList.toggle("open", v); burger.setAttribute("aria-expanded", v); };
-burger.addEventListener("click", () => { pinned = !pinned; setOpen(pinned); });
-document.getElementById("mclose").addEventListener("click", () => { pinned = false; setOpen(false); });
-area.addEventListener("mouseenter", () => setOpen(true));
-area.addEventListener("mouseleave", () => { if (!pinned) setOpen(false); });
-document.querySelectorAll(".mcol").forEach(c => c.addEventListener("mouseenter", () => {
-  document.querySelectorAll(".mcol").forEach(x => x.classList.remove("on")); c.classList.add("on");
-}));

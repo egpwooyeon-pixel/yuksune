@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>체험단 모집 - 우리들 체험단</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="campaigns">
+<div id="header-slot"></div>
+
+<main class="wrap camp">
+  <div class="camp-head">
+    <h1>체험단 모집</h1>
+    <p class="muted">지금 신청할 수 있는 캠페인 <b id="count">0</b>개</p>
+  </div>
+
+  <div class="tabs four" id="type-tabs" role="tablist"></div>
+
+  <div class="filters">
+    <div class="chips" id="cat-chips"></div>
+    <select id="sort" aria-label="정렬">
+      <option value="new">최신순</option>
+      <option value="deadline">마감임박순</option>
+      <option value="hot">인기순</option>
+    </select>
+  </div>
+
+  <ul class="cards" id="cards"></ul>
+  <p class="empty" id="empty" hidden>조건에 맞는 캠페인이 없어요.</p>
+  <div class="more"><button id="more" type="button">더보기</button></div>
+</main>
+
+<div id="footer-slot"></div>
+<script src="common.js"></script>
+<script src="campaigns.js"></script>
+</body>
+</html>
