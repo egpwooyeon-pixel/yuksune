@@ -1,0 +1,6 @@
+# 우리들 체험단 배포 설정: woori 폴더를 그대로(빌드 없이) 올립니다.
+# base 를 woori 로 지정하면 루트의 육수네(Next.js) 설정은 무시됩니다.
+[build]
+  base = "woori"
+  publish = "."
+  command = "echo static site"
