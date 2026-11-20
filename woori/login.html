@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>로그인 / 회원가입 - 우리들 체험단</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="">
+<div id="header-slot"></div>
+
+<main class="wrap camp">
+  <div class="panel auth">
+    <div class="tabs" role="tablist">
+      <button class="tab on" id="tab-login" type="button">로그인</button>
+      <button class="tab" id="tab-signup" type="button">회원가입</button>
+    </div>
+
+    <p class="notice-box" id="no-key" hidden>⚠ 서버 연결 키가 아직 설정되지 않았습니다. (<code>config.js</code>)</p>
+
+    <form id="form" class="reg">
+      <label id="nick-row" hidden>닉네임 <input name="nickname" maxlength="12" placeholder="2~12자"></label>
+      <label>이메일 <input name="email" type="email" required autocomplete="email"></label>
+      <label>비밀번호 <input name="password" type="password" required minlength="8" autocomplete="current-password" placeholder="8자 이상"></label>
+      <p class="msg" id="msg" role="alert"></p>
+      <button class="btn-primary submit" id="submit" type="submit">로그인</button>
+    </form>
+    <p class="muted small" style="text-align:center;margin-top:14px">광고주로 체험단을 등록하려면 가입 후 사업자등록증을 제출해 운영자 승인을 받아야 합니다.</p>
+  </div>
+</main>
+
+<div id="footer-slot"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="auth.js"></script>
+<script src="login.js"></script>
+</body>
+</html>

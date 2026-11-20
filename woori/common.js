@@ -8,7 +8,7 @@ document.getElementById("header-slot").outerHTML = `<!-- 1. 헤더 -->
       <input type="search" placeholder="원하시는 캠페인을 검색해주세요!" aria-label="검색">
       <button type="submit" aria-label="검색"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="9" r="6.5"/><path d="M14 14l4 4"/></svg></button>
     </form>
-    <nav class="util"><a href="#">로그인</a><i></i><a href="#">회원가입</a><i></i><a href="#">고객센터</a></nav>
+    <nav class="util" id="util"><a href="login.html">로그인</a><i></i><a href="login.html?mode=signup">회원가입</a><i></i><a href="#">고객센터</a></nav>
   </div>
   <div class="gnb-area">
     <nav class="gnb wrap" aria-label="주요 메뉴">
