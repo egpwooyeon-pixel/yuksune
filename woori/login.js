@@ -46,7 +46,8 @@ form.onsubmit = async e => {
       const { error } = await sb.auth.signInWithPassword({ email, password });
       if (error) throw error;
     }
-    location.href = "index.html";
+    const next = new URLSearchParams(location.search).get("next") || "";
+    location.href = /^[a-z]+\.html(\?[\w=&%.-]*)?$/.test(next) ? next : "index.html";
   } catch (err) {
     msg.style.color = ""; msg.textContent = ko(err); btn.disabled = false;
   }

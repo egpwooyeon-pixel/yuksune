@@ -13,7 +13,7 @@
   <div class="camp-head"><h1>체험단 등록하기</h1><a class="muted" href="campaigns.html">← 목록으로</a></div>
 
   <form class="panel reg" id="reg-form">
-    <p class="notice-box">⚠ 지금은 <b>화면 시험용</b>입니다. 등록한 내용은 이 브라우저에만 저장되며, 다른 사람에게는 보이지 않습니다. (서버 연결 후 실제 등록됩니다)</p>
+    <p class="notice-box" id="gate" hidden></p>
 
     <div class="row two">
       <label>체험단 종류
@@ -38,6 +38,18 @@
       <label>모집 마감일 <input name="deadline" type="date" required></label>
     </div>
 
+    <div id="visit-box">
+      <div class="row two">
+        <label>방문 가능 시작일 <small>(선택)</small> <input name="visit_start" type="date"></label>
+        <label>방문 가능 종료일 <small>(선택)</small> <input name="visit_end" type="date"></label>
+      </div>
+      <label>1팀 최대 방문 인원 <input name="max_party" type="number" min="1" max="10" value="4"></label>
+    </div>
+
+    <label>추가 미션 <small>(선택 · 예: 방문 후 24시간 내 후기 작성)</small>
+      <input name="mission" maxlength="100"></label>
+    <p class="muted small" style="margin-top:-8px">※ 대가를 받고 작성하는 후기에는 <b>광고·협찬 표기</b>가 필요합니다. 추가 미션에 표기 문구를 넣어 주세요.</p>
+
     <label>네이버 플레이스 주소 <small>(선택)</small>
       <input name="place" type="url" placeholder="https://naver.me/... 또는 https://map.naver.com/..."></label>
 
@@ -48,7 +60,7 @@
     <label>상세 안내 <small>(방문 가능 시간, 작성 조건 등)</small>
       <textarea name="desc" rows="5" maxlength="1000"></textarea></label>
 
-    <p class="muted small">신청자는 광고주가 직접 선정합니다. 구매평 체험단은 포인트가 지급되지 않습니다.</p>
+    <p class="muted small">신청자는 광고주가 직접 선정합니다. 후기는 게시일로부터 <b>6개월까지 2차 활용</b>할 수 있다는 동의를 신청자에게 받습니다. 구매평 체험단은 포인트가 지급되지 않습니다.</p>
     <button class="btn-primary submit" type="submit">등록하기</button>
   </form>
 </main>

@@ -5,28 +5,23 @@ const TITLES = {블로그:"블로그체험단", 구매평:"구매평체험단", 
 const EMOJI = {맛집:"🍜", 뷰티:"💄", 숙박:"🛏️", 카페:"☕", 놀이:"🎮", 생활:"🏠"};
 const COLOR = {맛집:"#ffe9d6", 뷰티:"#ffe0ea", 숙박:"#dff4f7", 카페:"#f1e6da", 놀이:"#e6e0ff", 생활:"#e3f3e6"};
 
-// [종류, 분야, 지역, 방식, 제목, 혜택, 남은일수, 신청, 모집, 업체명, 신규]
-const base = [
-  ["블로그","맛집","수도권","방문형","부천 돌잔치뷔페 블로그 체험단 급구! 모집!","80,000원 식사권 2인 성인 기준",14,0,30,"신통컴퍼니S",1],
-  ["블로그","맛집","수도권","방문형","인천 월미도 와일드벅스 방문형 체험단","5만원 상당의 3인 입장권 이용",4,0,20,"더블에스컨설팅",1],
-  ["블로그","숙박","수도권","방문형","가평 미엘키즈풀빌라에서 블로그 체험단을 모집합니다!","기준인원 3인 1박 숙박 제공",10,11,5,"한국펜션마케팅",0],
-  ["블로그","맛집","수도권","방문형","(인천 강화도) 낙조를 눈앞에서 보는 노을맛집","금,토요일 제외한 1일 숙박권",11,6,3,"코리아트레블마케팅",0],
-  ["블로그","맛집","서울","방문형","이층고깃집 수원영통점 블로그 체험단 모집","결제기준 4만원 상당의 식사권",4,4,4,"주식회사와글와글",0],
-  ["블로그","놀이","수도권","방문형","인천 구월동 게임 파티룸 체험단 모집 합니다","파티룸 4시간 이용권 10대",13,0,10,"다모여",0],
-  ["블로그","카페","서울","방문형","성수동 루프탑 카페 신메뉴 체험단","음료 2잔 + 디저트",6,9,6,"성수루프",0],
-  ["블로그","뷰티","서울","방문형","강남 속눈썹 펌 시술 체험단","시술권 (5만원 상당)",9,15,5,"라엘뷰티",0],
-  ["블로그","생활","배송형","배송형","저자극 세탁세제 2주 사용 체험단","제품 제공 (택배)",12,22,10,"클린홈",0],
-  ["블로그","맛집","지방","방문형","부산 해운대 횟집 방문 체험단","2인 코스 식사권",7,13,4,"해운대바다",0],
-  ["블로그","숙박","제주","방문형","제주 애월 오션뷰 독채 1박 체험단","1박 숙박권",3,40,2,"애월스테이",0],
-  ["블로그","맛집","배송형","배송형","프리미엄 닭가슴살 5종 체험단","제품 제공 (택배)",15,31,20,"푸드랩",0],
-];
-// 광고주가 등록한 캠페인(시험용: 이 브라우저에만 저장됨)
-let mine = [];
-try { mine = JSON.parse(localStorage.getItem("woori.campaigns") || "[]"); } catch (e) {}
 const daysLeft = d => Math.max(0, Math.ceil((new Date(d + "T23:59:59") - Date.now()) / 864e5));
-const registered = mine.map(m => ({...m, days: daysLeft(m.deadline), isNew: Date.now() - m.created < 3 * 864e5}));
-const campaigns = [...registered, ...base.map(([type,cat,region,mode,title,reward,days,applied,slots,biz,isNew],i) =>
-  ({id:i+1,type,cat,region,mode,title,reward,days,applied,slots,biz,isNew}))];
+let campaigns = [...window.SAMPLES];  // 먼저 샘플을 보여주고, 서버에서 불러오면 실제 캠페인을 앞에 붙임
+
+async function loadFromServer() {
+  if (!window.sbReady) return;
+  const today = new Date().toISOString().slice(0, 10);
+  const { data, error } = await sb.from("campaigns").select("*").eq("status", "open")
+    .gte("deadline", today).order("created_at", { ascending: false });
+  if (error || !data) return;
+  const { data: cnt } = await sb.rpc("campaign_counts");
+  const n = Object.fromEntries((cnt || []).map(r => [r.campaign_id, Number(r.applied)]));
+  const real = data.map(r => ({ id: r.id, type: r.type, cat: r.cat, region: r.region, mode: r.mode,
+    title: r.title, reward: r.reward, slots: r.slots, biz: r.biz, photo: r.photo_url,
+    days: daysLeft(r.deadline), applied: n[r.id] || 0, isNew: Date.now() - new Date(r.created_at) < 3 * 864e5 }));
+  campaigns = [...real, ...window.SAMPLES];
+  render();
+}
 
 const params = new URLSearchParams(location.search);
 const type = TITLES[params.get("type")] ? params.get("type") : "블로그";
@@ -47,7 +42,7 @@ function render() {
   document.getElementById("more").parentElement.hidden = list.length <= state.shown;
   document.getElementById("cards").innerHTML = list.slice(0, state.shown).map(c => `
     <li class="cc">
-      <a href="#">
+      <a href="campaign.html?id=${encodeURIComponent(c.id)}">
         <div class="thumb" style="background:${c.photo ? `#eee url(${c.photo}) center/cover` : COLOR[c.cat]}">
           ${c.photo ? "" : `<span class="emoji">${EMOJI[c.cat]}</span>`}
           ${c.isNew ? '<span class="new">N</span>' : ""}
@@ -65,7 +60,7 @@ const chips = document.getElementById("region-chips");
 function drawChips() {
   chips.innerHTML = REGIONS.map(r => `<button class="chip ${r===state.region?"on":""}" data-r="${r}">${r}</button>`).join("");
 }
-chips.onclick = e => { const r = e.target.dataset.r; if (!r) return; state.region = r; state.shown = 10; drawChips(); render(); };
+chips.onclick = e => { const r = e.target.dataset.r; if (!r) return; state.region = r; state.shown = 10; drawChips(); render(); loadFromServer(); };
 document.getElementById("search-form").onsubmit = e => { e.preventDefault(); state.q = document.getElementById("q").value.trim(); state.shown = 10; render(); };
 document.getElementById("more").onclick = () => { state.shown += 10; render(); };
-drawChips(); render();
+drawChips(); render(); loadFromServer();
