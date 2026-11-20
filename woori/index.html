@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>우리들 체험단 - 체험단·수익 인증 커뮤니티</title>
+  <meta name="description" content="우리들 체험단: 체험단 모집, 수익 인증, 체험후기를 나누는 마케팅 커뮤니티">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- 1. 헤더 -->
+<header class="site-header">
+  <div class="wrap header-top">
+    <a class="logo" href="index.html">우리들<b>체험단</b></a>
+    <form class="search" role="search">
+      <input type="search" placeholder="체험단, 후기, 키워드를 검색해보세요" aria-label="검색">
+      <button type="submit" aria-label="검색">🔍</button>
+    </form>
+    <nav class="util"><a href="#">로그인</a><a href="#">회원가입</a><a href="#">고객센터</a></nav>
+  </div>
+  <nav class="gnb wrap" aria-label="주요 메뉴">
+    <a href="#">이용안내</a>
+    <a href="#">기자단모집</a>
+    <a href="#">체험단모집</a>
+    <a href="#">작업요청&amp;외주</a>
+    <a href="#" class="on">커뮤니티</a>
+    <a href="#" class="tag hot">핫딜</a>
+    <a href="#" class="tag">우리들블로그</a>
+  </nav>
+</header>
+
+<main class="wrap layout">
+  <!-- 2. 메인(게시판) -->
+  <section class="board">
+    <h1 class="board-title">수익 인증·체험후기</h1>
+
+    <form class="board-search">
+      <select aria-label="검색 항목"><option>제목</option><option>작성자</option><option>내용</option></select>
+      <input type="search" aria-label="게시판 검색">
+      <button type="submit">검색</button>
+    </form>
+
+    <div class="tabs" role="tablist">
+      <button class="tab on" role="tab">전체</button>
+      <button class="tab" role="tab">수익 인증</button>
+      <button class="tab" role="tab">체험후기</button>
+    </div>
+
+    <div class="panel">
+      <table class="list">
+        <colgroup><col style="width:56px"><col><col style="width:110px"><col style="width:96px"><col style="width:56px"></colgroup>
+        <thead><tr><th>번호</th><th>제목</th><th>작성자</th><th>날짜</th><th>조회</th></tr></thead>
+        <tbody id="post-list"><!-- script.js 가 채웁니다 --></tbody>
+      </table>
+      <nav class="pager" id="pager" aria-label="페이지"></nav>
+    </div>
+  </section>
+
+  <!-- 3. 사이드바 -->
+  <aside class="side">
+    <div class="card login">
+      <p class="muted">우리들 체험단에 로그인하고<br>더 많은 혜택을 받아보세요.</p>
+      <a class="btn-primary" href="#">우리들 계정으로 로그인</a>
+      <p class="sub"><a href="#">아이디·비밀번호 찾기</a> | <a href="#">회원가입</a></p>
+    </div>
+
+    <div class="card">
+      <h3>포인트 리워드</h3>
+      <ul class="reward">
+        <li><span class="ico">📦</span><span>구독한 체험하기<small>상품 구경하러 가기</small></span><em>76%</em></li>
+        <li><span class="ico">💬</span><span>댓글 쓰기<small>0개 / 최대 5개</small></span><em>20</em></li>
+        <li><span class="ico">🎁</span><span>포인트몰 쇼핑<small>쿠폰으로 교환</small></span><em>3%</em></li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>실시간 게시물</h3>
+      <ul class="feed" id="live-feed"></ul>
+    </div>
+
+    <div class="card">
+      <h3>핫딜</h3>
+      <ul class="feed" id="hot-feed"></ul>
+    </div>
+  </aside>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p><b>우리들 체험단</b> · 체험단과 광고주를 잇는 마케팅 커뮤니티</p>
+    <p class="muted">© 2026 우리들 체험단. All rights reserved.</p>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
