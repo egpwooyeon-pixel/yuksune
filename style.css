@@ -207,3 +207,57 @@ ul{list-style:none;margin:0;padding:0}
 .ox{border:0;padding:0;margin:0 0 14px}
 .ox legend{font-weight:600;font-size:13px;padding:0;margin-bottom:6px}
 .ox label{display:inline-block;margin:0 18px 0 0;font-weight:400}
+
+/* 캠페인 상세 (2단 레이아웃) */
+.dv{display:grid;grid-template-columns:1fr 300px;gap:40px;align-items:start;background:#fff;border-radius:8px;padding:28px}
+.dv-main h1{font-size:22px;line-height:1.4;margin:0 0 10px}
+.dv-tags{margin:0 0 18px;font-size:13px;color:#555}
+.dv-tags i{color:#ccc;font-style:normal;margin:0 4px}
+.pt0{background:#eaf0ff;color:var(--primary);border-radius:4px;padding:1px 8px;font-weight:700;margin-left:6px}
+.dv-notice{background:#f4f6fb;border:1px solid #e6e9f2;border-radius:6px;padding:14px 18px;margin-bottom:20px;font-size:13px}
+.dv-notice summary{cursor:pointer;font-weight:700}
+.dv-notice p{margin:10px 0 0;white-space:pre-wrap;line-height:1.7;color:#444}
+.dv-rows>div{display:grid;grid-template-columns:140px 1fr;gap:16px;padding:16px 0;border-top:1px solid #eee;font-size:14px}
+.dv-rows>div:first-child{border-top:0}
+.dv-rows dt{font-weight:700}
+.dv-rows dd{margin:0;line-height:1.7;white-space:pre-wrap}
+.dv-rows a{color:var(--primary);text-decoration:underline}
+.kw-chip{display:inline-block;background:#f1f2f4;border-radius:4px;padding:6px 12px;font-size:12px;font-weight:600;margin:0 6px 6px 0}
+.dv-mission{border:1px solid #eee;border-radius:6px;overflow:hidden}
+.dv-mtype{background:#f4f5f7;text-align:center;padding:6px;font-size:13px;font-weight:700}
+.dv-micons{display:flex;flex-wrap:wrap;justify-content:space-around;gap:14px;padding:16px 8px;margin:0}
+.dv-micons li{text-align:center;font-size:12px;font-weight:700;min-width:70px}
+.dv-micons li span{display:block;font-size:24px;margin-bottom:4px}
+.dv-mextra{margin:12px 0 0;font-weight:600}
+.dv-desc{margin-top:8px;padding-top:20px;border-top:1px solid #eee;white-space:pre-wrap;line-height:1.8;font-size:14px}
+.dv-side{position:sticky;top:12px}
+.dv-photo{aspect-ratio:1/1;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:90px;margin-bottom:18px}
+.dv-cal{margin-bottom:14px}
+.dv-cal-head{display:flex;justify-content:space-between;align-items:center;font-size:14px;margin-bottom:8px}
+.dv-cal-head button{border:1px solid var(--line);background:#fff;border-radius:50%;width:24px;height:24px;cursor:pointer;margin-left:4px}
+.dv-cal-title{font-weight:700;margin:0 0 6px;font-size:14px}
+.cal{width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px}
+.cal th{padding:4px 0;font-weight:500;border:1px solid #ddd;background:#fafafa}
+.cal td{height:28px;text-align:center;border:1px solid #ddd;color:#555}
+.cal td.r1{background:#9ea2ab;color:#fff}
+.cal td.r2{background:#1e9bff;color:#fff}
+.cal td.td{outline:2px solid #ffd54a;outline-offset:-2px;font-weight:700}
+.cal-legend{font-size:11px;color:#777;margin:8px 0 0}
+.lg{display:inline-block;width:10px;height:10px;margin:0 3px 0 8px;vertical-align:middle}
+.lg.r1{background:#9ea2ab}.lg.r2{background:#1e9bff}.lg.td{border:2px solid #ffd54a;background:#fff}
+.dv-state{font-size:12px;color:var(--muted);margin:0 0 8px}
+.dv-apply{width:100%;border:0;font-size:15px;cursor:pointer}
+.dv-apply:disabled{background:#b9c7ff;cursor:default}
+.apply-dialog{border:0;border-radius:10px;padding:22px;width:min(440px,92vw);max-height:90vh;overflow:auto}
+.apply-dialog::backdrop{background:rgba(0,0,0,.45)}
+.ad-head{display:flex;justify-content:space-between;align-items:center}
+.ad-head h3{margin:0;font-size:17px}
+.ad-head button{border:0;background:none;font-size:18px;cursor:pointer}
+@media (max-width:860px){.dv{grid-template-columns:1fr;padding:18px;gap:20px}.dv-side{position:static;order:-1}.dv-rows>div{grid-template-columns:100px 1fr}}
+
+.reg-more{border:1px solid var(--line);border-radius:6px;padding:12px 14px;margin:0 0 16px}
+.reg-more summary{cursor:pointer;font-weight:700;font-size:13px;margin-bottom:6px}
+.dv-detail-img{display:block;max-width:100%;border-radius:6px;margin:0 0 20px}
+.dv-map{display:block;width:100%;height:240px;border:1px solid #ddd;border-radius:4px;margin:10px 0 6px}
+.dv-rows dd{white-space:normal}
+#d-ship,#d-when,#d-vnotes,#d-slots,#d-reuse{white-space:pre-wrap}

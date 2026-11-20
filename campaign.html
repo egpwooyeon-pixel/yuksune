@@ -10,75 +10,102 @@
 <div id="header-slot"></div>
 
 <main class="wrap camp">
-  <div class="camp-head"><h1 id="d-title-h">체험단 상세</h1><a class="muted" href="campaigns.html">← 목록으로</a></div>
-  <p class="empty" id="d-empty" hidden>캠페인을 찾을 수 없어요.</p>
+  <p class="empty" id="d-empty" hidden>캠페인을 찾을 수 없어요. <a href="campaigns.html">목록으로</a></p>
 
-  <div class="detail" id="detail" hidden>
-    <section class="panel d-main">
-      <div class="d-photo" id="d-photo"></div>
-      <div class="d-body">
-        <div class="d-tags"><span class="mode" id="d-mode"></span> <span class="d-type" id="d-type"></span></div>
-        <h2 id="d-title"></h2>
-        <p class="d-biz" id="d-biz"></p>
-        <dl class="d-info">
-          <dt>제공 혜택</dt><dd id="d-reward"></dd>
-          <dt>모집 인원</dt><dd id="d-slots"></dd>
-          <dt>모집 마감</dt><dd id="d-deadline"></dd>
-          <dt>지역</dt><dd id="d-region"></dd>
-        </dl>
-        <p class="d-desc" id="d-desc"></p>
-        <p><a id="d-place" href="#" target="_blank" rel="noopener noreferrer" hidden>네이버 플레이스 보기 ↗</a></p>
-      </div>
+  <div class="dv" id="detail" hidden>
+    <section class="dv-main">
+      <h1 id="d-title"></h1>
+      <p class="dv-tags" id="d-tags"></p>
+
+      <details class="dv-notice" id="d-notice-box" open hidden>
+        <summary id="d-notice-title">📌 안내</summary>
+        <p id="d-notice"></p>
+      </details>
+
+      <img class="dv-detail-img" id="d-detail-img" alt="" hidden>
+
+      <dl class="dv-rows">
+        <div><dt>주최자</dt><dd id="d-biz"></dd></div>
+        <div><dt>제공서비스/물품</dt><dd id="d-reward"></dd></div>
+        <div id="r-ship"><dt id="d-ship-label">안내</dt><dd id="d-ship"></dd></div>
+        <div id="r-addr" hidden><dt>방문 주소</dt><dd><span id="d-addr"></span>
+          <iframe class="dv-map" id="d-map" title="지도" loading="lazy" referrerpolicy="no-referrer"></iframe>
+          <a id="d-map-link" href="#" target="_blank" rel="noopener noreferrer">네이버 지도에서 보기 ↗</a></dd></div>
+        <div id="r-when" hidden><dt>방문 가능 일정</dt><dd id="d-when"></dd></div>
+        <div id="r-vnotes" hidden><dt>방문 및 예약 안내</dt><dd id="d-vnotes"></dd></div>
+        <div id="r-keywords" hidden><dt>키워드 정보</dt><dd id="d-keywords"></dd></div>
+        <div id="r-url" hidden><dt>상품정보 URL</dt><dd><a id="d-url" href="#" target="_blank" rel="noopener noreferrer"></a></dd></div>
+        <div><dt>모집 인원</dt><dd id="d-slots"></dd></div>
+        <div><dt>후기 2차 활용</dt><dd id="d-reuse"></dd></div>
+        <div id="r-mission"><dt>체험단 미션</dt><dd>
+          <div class="dv-mission"><div class="dv-mtype" id="d-mtype"></div>
+            <ul class="dv-micons" id="d-micons"></ul></div>
+          <p class="dv-mextra" id="d-mextra"></p>
+        </dd></div>
+      </dl>
+
+      <div class="dv-desc" id="d-desc"></div>
     </section>
 
-    <aside class="panel d-apply">
-      <h3>체험단 신청하기</h3>
-      <p class="muted small">로그인 없이 신청할 수 있어요. 신청 후 <b>광고주가 직접 선정</b>하며, 선정되면 입력하신 연락처로 안내가 가요.</p>
-      <p class="notice-box" id="d-sample" hidden>샘플 캠페인이라 신청할 수 없어요.</p>
-      <p class="notice-box" id="d-closed" hidden>마감되었거나 신청을 받지 않는 캠페인이에요.</p>
-      <form class="reg" id="apply-form">
-        <label>성함 (실명) <input name="name" required maxlength="20"></label>
-        <label>핸드폰번호 <small>(010-0000-0000)</small> <input name="phone" required inputmode="tel" maxlength="13" placeholder="010-0000-0000"></label>
-        <label>블로그(활동 채널) 주소 <small>(URL 전체)</small> <input name="channel" type="url" required placeholder="https://blog.naver.com/..."></label>
-        <label>카카오톡 아이디 <small>(카톡으로 연락드려요)</small> <input name="kakao" required maxlength="40"></label>
-
-        <div id="blog-fields">
-          <fieldset class="ox"><legend>네이버 인플루언서 여부</legend>
-            <label><input type="radio" name="influencer" value="O"> O</label>
-            <label><input type="radio" name="influencer" value="X"> X</label></fieldset>
-          <fieldset class="ox"><legend>클립 진행 가능 여부</legend>
-            <label><input type="radio" name="clip" value="O"> O</label>
-            <label><input type="radio" name="clip" value="X"> X</label></fieldset>
-        </div>
-
-        <div id="visit-fields">
-          <label>방문 희망 날짜 <small id="visit-range"></small> <input name="vdate" type="date"></label>
-          <label>방문 희망 시간 <input name="vtime" type="time"></label>
-          <label>방문 인원 <small id="party-hint"></small> <select name="party"></select></label>
-        </div>
-
-        <label class="check" id="mission-row" hidden><input type="checkbox" name="mission">
-          <span><b id="mission-text"></b><br><small>미션에 동의해야 신청할 수 있어요.</small></span></label>
-
-        <label>하고 싶은 말 <small>(선택)</small> <textarea name="message" rows="3" maxlength="500"></textarea></label>
-        <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
-
-        <label class="check"><input type="checkbox" name="reuse" required>
-          <span><b id="reuse-text"></b><br><small>광고주가 후기(글·사진·영상)를 홍보에 다시 쓸 수 있는 기간입니다.</small></span></label>
-        <label class="check"><input type="checkbox" name="consent" required>
-          <span><b>개인정보 수집·이용에 동의합니다.</b><br><small>수집 항목: 성함, 핸드폰번호, 카카오톡 아이디, 채널 주소, 방문 희망 정보 / 목적: 체험단 선정 및 안내 / 해당 광고주와 운영자에게 전달됩니다.</small></span></label>
-        <p class="msg" id="apply-msg" role="alert"></p>
-        <button class="btn-primary submit" id="apply-btn" type="submit">신청하기</button>
-      </form>
-      <div class="sent" id="apply-done" hidden>
-        <div class="sent-ico">🎉</div>
-        <h2>신청이 완료됐어요</h2>
-        <p>광고주가 확인 후 선정하면 입력하신 연락처로 안내드려요.</p>
-        <a class="btn-primary submit" href="campaigns.html" style="display:block">다른 체험단 보기</a>
+    <aside class="dv-side">
+      <div class="dv-photo" id="d-photo"></div>
+      <div class="dv-cal">
+        <div class="dv-cal-head"><b>체험단 일정</b>
+          <span><button type="button" id="cal-prev" aria-label="이전 달">‹</button><button type="button" id="cal-next" aria-label="다음 달">›</button></span></div>
+        <p class="dv-cal-title" id="cal-title"></p>
+        <table class="cal" id="cal"></table>
+        <p class="cal-legend"><i class="lg r1"></i>모집 <i class="lg r2"></i>체험·리뷰 <i class="lg td"></i>오늘</p>
       </div>
+      <p class="dv-state" id="d-state" hidden></p>
+      <button class="btn-primary dv-apply" id="apply-open" type="button">신청하기</button>
     </aside>
   </div>
 </main>
+
+<dialog id="apply-dialog" class="apply-dialog">
+  <div class="ad-head"><h3>체험단 신청하기</h3><button type="button" id="apply-close" aria-label="닫기">✕</button></div>
+  <p class="muted small">로그인 없이 신청할 수 있어요. 신청 후 <b>광고주가 직접 선정</b>하며, 선정되면 입력하신 연락처로 안내가 가요.</p>
+  <form class="reg" id="apply-form">
+    <label>성함 (실명) <input name="name" required maxlength="20"></label>
+    <label>핸드폰번호 <small>(010-0000-0000)</small> <input name="phone" required inputmode="tel" maxlength="13" placeholder="010-0000-0000"></label>
+    <label>블로그(활동 채널) 주소 <small>(URL 전체)</small> <input name="channel" type="url" required placeholder="https://blog.naver.com/..."></label>
+    <label>카카오톡 아이디 <small>(카톡으로 연락드려요)</small> <input name="kakao" required maxlength="40"></label>
+
+    <div id="blog-fields">
+      <fieldset class="ox"><legend>네이버 인플루언서 여부</legend>
+        <label><input type="radio" name="influencer" value="O"> O</label>
+        <label><input type="radio" name="influencer" value="X"> X</label></fieldset>
+      <fieldset class="ox"><legend>클립 진행 가능 여부</legend>
+        <label><input type="radio" name="clip" value="O"> O</label>
+        <label><input type="radio" name="clip" value="X"> X</label></fieldset>
+    </div>
+
+    <div id="visit-fields">
+      <label>방문 희망 날짜 <small id="visit-range"></small> <input name="vdate" type="date"></label>
+      <label id="vtime-label">방문 희망 시간 <input name="vtime" type="time"></label>
+      <label>방문 인원 <small id="party-hint"></small> <select name="party"></select></label>
+    </div>
+
+    <label class="check" id="mission-row" hidden><input type="checkbox" name="mission">
+      <span><b id="mission-text"></b><br><small>미션에 동의해야 신청할 수 있어요.</small></span></label>
+
+    <label>하고 싶은 말 <small>(선택)</small> <textarea name="message" rows="3" maxlength="500"></textarea></label>
+    <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+
+    <label class="check"><input type="checkbox" name="reuse" required>
+      <span><b id="reuse-text"></b><br><small>광고주가 후기(글·사진·영상)를 홍보에 다시 쓸 수 있는 기간입니다.</small></span></label>
+    <label class="check"><input type="checkbox" name="consent" required>
+      <span><b>개인정보 수집·이용에 동의합니다.</b><br><small>수집 항목: 성함, 핸드폰번호, 카카오톡 아이디, 채널 주소, 방문 희망 정보 / 목적: 체험단 선정 및 안내 / 해당 광고주와 운영자에게 전달됩니다.</small></span></label>
+    <p class="msg" id="apply-msg" role="alert"></p>
+    <button class="btn-primary submit" id="apply-btn" type="submit">신청하기</button>
+  </form>
+  <div class="sent" id="apply-done" hidden>
+    <div class="sent-ico">🎉</div>
+    <h2>신청이 완료됐어요</h2>
+    <p>광고주가 확인 후 선정하면 입력하신 연락처로 안내드려요.</p>
+    <a class="btn-primary submit" href="campaigns.html" style="display:block">다른 체험단 보기</a>
+  </div>
+</dialog>
 
 <div id="footer-slot"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
