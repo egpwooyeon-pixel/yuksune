@@ -2,5 +2,5 @@
 // 절대 service_role / secret 키를 여기에 넣지 마세요.
 window.WOORI = {
   SUPABASE_URL: "https://yslmnvsetuzxytevydbw.supabase.co",
-  SUPABASE_ANON_KEY: "", // TODO: anon public(Publishable) 키를 여기에 붙여넣기
+  SUPABASE_ANON_KEY: "sb_publishable__KXiHxPRWHbanj2fzAWXDg_xDUX5JMC", // 공개용(Publishable) 키
 };
