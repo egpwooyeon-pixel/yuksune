@@ -321,3 +321,17 @@ td.date.hot{color:var(--primary)}
 .post-nav{display:flex;justify-content:space-between;align-items:center;margin-top:24px;font-size:13px}
 .post-nav a{color:#555;margin-left:12px}
 .pn-btn{border:1px solid var(--line);border-radius:4px;padding:8px 20px;margin-left:0!important}
+
+a.write-btn{display:inline-block;text-decoration:none}
+a.write-btn:hover{background:var(--primary-dark);text-decoration:none}
+.cm-f .del{color:#e0457b}
+.post-actions .pa-r{display:flex;gap:12px}
+/* 글쓰기 */
+.write-form{background:#fff;border-radius:8px;padding:24px}
+.write-form label{display:block;font-weight:600;font-size:13px;margin-bottom:14px}
+.write-form input[type=text],.write-form select,.write-form textarea{display:block;width:100%;margin-top:6px;border:1px solid #d5d8de;border-radius:4px;padding:10px;font:inherit;font-weight:400}
+.write-form textarea{min-height:260px;resize:vertical}
+.write-form .count{font-weight:400;color:var(--muted);font-size:12px;float:right}
+.write-form .chk{font-weight:400}
+.write-actions{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+.write-actions .btn-primary{border:0;cursor:pointer;padding:11px 36px;font-size:14px;display:inline-block}

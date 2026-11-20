@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>글쓰기 - 우리들 체험단</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="community">
+<div id="header-slot"></div>
+
+<main class="wrap layout">
+  <section class="board">
+    <h1 class="board-title">글쓰기</h1>
+    <form class="write-form" id="wform">
+      <p class="notice-box" id="w-gate" hidden></p>
+      <label>게시판
+        <select id="w-board"><option value="free">자유게시판</option><option value="tips">꿀팁·교류</option><option value="profit">수익 인증·체험후기</option></select></label>
+      <label>제목 <span class="count" id="t-count">0/100</span><input type="text" id="w-title" maxlength="100" required></label>
+      <label>내용 <span class="count" id="b-count">0/5000</span><textarea id="w-body" maxlength="5000" required></textarea></label>
+      <label class="chk" id="w-notice-row" hidden><input type="checkbox" id="w-notice"> 공지로 등록 (운영자 전용)</label>
+      <p class="muted small">광고·홍보성 글, 개인정보가 포함된 글은 삭제될 수 있어요. 대가를 받은 후기는 광고·협찬임을 표시해 주세요.</p>
+      <p class="msg" id="w-msg" role="alert"></p>
+      <div class="write-actions"><a class="muted" id="w-cancel" href="board.html">취소</a><button class="btn-primary" id="w-btn" type="submit">등록</button></div>
+    </form>
+  </section>
+  <aside class="side" id="sidebar-slot"></aside>
+</main>
+
+<div id="footer-slot"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="auth.js"></script>
+<script src="sidebar.js"></script>
+<script src="boarddata.js"></script>
+<script src="write.js"></script>
+</body>
+</html>

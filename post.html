@@ -26,14 +26,14 @@
       <div class="post-actions">
         <button type="button" id="p-share">🔗 공유</button>
         <a href="#comments">💬 댓글(<span id="p-c2"></span>)</a>
-        <span class="pa-r"><button type="button" id="p-report">신고</button></span>
+        <span class="pa-r"><button type="button" id="p-del" hidden>삭제</button><button type="button" id="p-report">신고</button></span>
       </div>
 
       <section class="comments" id="comments">
         <h3>💬 댓글 <span class="cnt" id="p-c3"></span></h3>
         <form class="cform" id="cform">
           <textarea id="c-text" rows="3" maxlength="500" placeholder="댓글을 입력하세요" disabled></textarea>
-          <div class="cform-foot"><span class="muted small" id="c-hint">댓글은 로그인 후 쓸 수 있어요. (곧 열릴 예정)</span><button type="submit" disabled>등록</button></div>
+          <div class="cform-foot"><span class="muted small" id="c-hint"></span><button type="submit" id="c-btn" disabled>등록</button></div>
         </form>
         <ul class="clist" id="clist"></ul>
       </section>

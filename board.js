@@ -1,37 +1,58 @@
-// 커뮤니티 게시판 (자유게시판 / 꿀팁·교류 / 수익 인증·체험후기) — 지금은 샘플 글. 글쓰기·저장은 다음 단계에서 서버(DB)와 연결.
-const key = boardKey();
-const B = BOARDS[key];
-const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+// 커뮤니티 게시판: 서버(Supabase)의 글을 불러와 보여줍니다.
 const $ = id => document.getElementById(id);
-
+const key = boardKey(), B = BOARDS[key], PER = 20;
+const st = { page: 1, q: "", field: "title" };
 $("b-title").textContent = B.title;
 document.title = B.title + " - 우리들 체험단";
+$("write").href = "write.html?b=" + key;
 
-const posts = makePosts(B);
+const link = id => `post.html?b=${key}&id=${id}`;
+const rowHtml = (p, num) => `<tr><td class="num">${num}</td>
+  <td class="title"><a href="${link(p.id)}">${esc(p.title)}</a>${cntOf(p) ? ` <span class="cmt">${cntOf(p)}</span>` : ""}</td>
+  <td>${esc(nickOf(p))}</td><td class="date ${/분|시간|방금/.test(timeAgo(p.created_at)) ? "hot" : ""}">${timeAgo(p.created_at)}</td><td class="views">${p.views}</td></tr>`;
+const SEL = "id,title,views,created_at,profiles(nickname),comments(count)";
 
-// 인기글
-const popData = { m: [...posts].sort((a, b) => b.c - a.c).slice(0, 10), w: [...posts].sort((a, b) => b.views - a.views).slice(0, 10) };
-function drawPop(t) {
-  $("pop").innerHTML = popData[t].map(p => `<li><span class="pc">${esc(B.cat)}</span><a href="post.html?b=${key}&n=${p.no}">${esc(p.title)}</a><i>(${p.c})</i></li>`).join("");
+async function drawPop(range) {
+  const since = new Date(Date.now() - (range === "w" ? 7 : 30) * 864e5).toISOString();
+  const { data } = await sb.from("posts").select(SEL).eq("board", key).eq("is_notice", false)
+    .gte("created_at", since).order("views", { ascending: false }).limit(10);
+  $("pop").innerHTML = (data || []).map(p => `<li><span class="pc">${esc(B.cat)}</span><a href="${link(p.id)}">${esc(p.title)}</a><i>(${cntOf(p)})</i></li>`).join("")
+    || '<li class="muted">아직 인기글이 없어요.</li>';
 }
 document.querySelector(".pop-tabs").onclick = e => {
   const t = e.target.dataset.t; if (!t) return;
   document.querySelectorAll(".pop-tabs button").forEach(b => b.classList.toggle("on", b === e.target)); drawPop(t);
 };
-drawPop("m");
 
-// 글 목록
-function drawList(q = "", field = "title") {
-  const list = posts.filter(p => !q || String(p[field]).includes(q));
-  $("b-empty").hidden = list.length > 0;
-  const notices = q ? "" : NOTICES.map((t, i) => `<tr class="notice"><td class="num"><span class="badge notice">공지</span></td>
-    <td class="title"><a href="post.html?b=${key}&n=n${i + 1}"><b>${esc(t)}</b></a> <span class="cmt">${NOTICE_META[i].c}</span></td><td>우리들 체험단</td><td class="date">${NOTICE_META[i].date}</td><td class="views">${NOTICE_META[i].views}</td></tr>`).join("");
-  $("post-list").innerHTML = notices + list.map(p => `<tr><td class="num">${p.no}</td>
-    <td class="title">${p.isNew ? '<span class="newic">N</span>' : ""}<a href="post.html?b=${key}&n=${p.no}">${esc(p.title)}</a>${p.c ? ` <span class="cmt">${p.c}</span>` : ""}</td>
-    <td>${esc(p.author)}</td><td class="date ${/시간/.test(p.time) ? "hot" : ""}">${p.time}</td><td class="views">${p.views}</td></tr>`).join("");
+async function drawList() {
+  let notices = [];
+  if (st.page === 1 && !st.q) {
+    const r = await sb.from("posts").select(SEL).eq("board", key).eq("is_notice", true).order("created_at", { ascending: false });
+    notices = r.data || [];
+  }
+  const sel = st.q && st.field === "author" ? SEL.replace("profiles(", "profiles!inner(") : SEL;
+  let qb = sb.from("posts").select(sel, { count: "exact" }).eq("board", key).eq("is_notice", false);
+  if (st.q) qb = st.field === "author" ? qb.ilike("profiles.nickname", `%${st.q}%`) : qb.ilike("title", `%${st.q}%`);
+  const from = (st.page - 1) * PER;
+  const { data, count, error } = await qb.order("created_at", { ascending: false }).range(from, from + PER - 1);
+  if (error) { $("post-list").innerHTML = ""; $("b-empty").hidden = false; $("b-empty").textContent = "글을 불러오지 못했어요."; return; }
+  const list = data || [], total = count || 0;
+  $("b-empty").textContent = st.q ? "검색 결과가 없어요." : "아직 글이 없어요. 첫 글을 남겨 보세요!";
+  $("b-empty").hidden = list.length + notices.length > 0;
+  $("post-list").innerHTML = notices.map(p => `<tr class="notice"><td class="num"><span class="badge notice">공지</span></td>
+    <td class="title"><a href="${link(p.id)}"><b>${esc(p.title)}</b></a>${cntOf(p) ? ` <span class="cmt">${cntOf(p)}</span>` : ""}</td>
+    <td>${esc(nickOf(p))}</td><td class="date">${timeAgo(p.created_at)}</td><td class="views">${p.views}</td></tr>`).join("")
+    + list.map((p, i) => rowHtml(p, total - from - i)).join("");
+  drawPager(Math.max(1, Math.ceil(total / PER)));
 }
-drawList();
-$("b-search").onsubmit = e => { e.preventDefault(); drawList($("b-q").value.trim(), $("b-field").value); };
 
-$("pager").innerHTML = Array.from({ length: 10 }, (_, i) => `<button class="${i === 0 ? "on" : ""}">${i + 1}</button>`).join("");
-$("write").onclick = () => alert("글쓰기는 곧 열릴 예정이에요. (게시판 저장 기능을 연결하는 중입니다)");
+function drawPager(pages) {
+  const start = Math.max(1, Math.min(st.page - 4, pages - 9)), end = Math.min(pages, start + 9);
+  $("pager").innerHTML = Array.from({ length: end - start + 1 }, (_, i) => start + i)
+    .map(n => `<button data-p="${n}" class="${n === st.page ? "on" : ""}">${n}</button>`).join("");
+}
+$("pager").onclick = e => { const n = +e.target.dataset.p; if (!n) return; st.page = n; drawList(); scrollTo({ top: 0 }); };
+$("b-search").onsubmit = e => { e.preventDefault(); st.q = $("b-q").value.trim(); st.field = $("b-field").value; st.page = 1; drawList(); };
+
+if (!window.sbReady) { $("b-empty").hidden = false; $("b-empty").textContent = "서버 연결 키가 설정되지 않았습니다."; $("pop").innerHTML = ""; }
+else { drawPop("m"); drawList(); }
