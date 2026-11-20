@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>플레이스 실시간 AI분석 - 우리들 체험단</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="place">
+<div id="header-slot"></div>
+
+<section class="ph">
+  <div class="wrap ph-in">
+    <span class="ph-badge">✨ 무료 AI 진단 <i>준비 중</i></span>
+    <h1>우리 매장, 네이버 플레이스에서<br>지금 어떤 상태일까요?</h1>
+    <p class="ph-sub">플레이스 주소나 업체명만 넣으면 키워드 순위·리뷰·경쟁 매장 정보를<br>AI가 한 번에 진단하고, 지금 해야 할 일까지 알려드리는 서비스를 준비하고 있어요.</p>
+
+    <form class="ph-box" id="ph-form">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#8a93a6" stroke-width="1.6"><circle cx="9" cy="9" r="6.5"/><path d="M14 14l4 4"/></svg>
+      <input id="ph-q" placeholder="플레이스 주소, 플레이스 ID 또는 업체명" aria-label="플레이스 주소, ID 또는 업체명" autocomplete="off">
+      <button type="submit">무료 진단하기</button>
+    </form>
+    <p class="ph-ex">예) m.place.naver.com/place/37659908 · 37659908 · 필치과의원 대구</p>
+    <p class="ph-msg" id="ph-msg" role="alert" hidden></p>
+
+    <div class="ph-soon" id="ph-soon" hidden>
+      <b>🛠 AI 진단은 지금 준비 중이에요.</b>
+      <p id="ph-soon-text"></p>
+      <p class="muted small">입력하신 내용은 저장하지 않았어요. 오픈하면 이 메뉴에서 바로 이용하실 수 있어요.</p>
+    </div>
+  </div>
+</section>
+
+<main class="wrap ph-more">
+  <h2>진단에서 확인할 수 있게 준비 중인 것</h2>
+  <ul class="ph-cards">
+    <li><span>🔎</span><b>키워드 순위</b><p>내 매장이 주요 검색어에서 몇 번째로 보이는지</p></li>
+    <li><span>⭐</span><b>리뷰 분석</b><p>방문자·블로그 리뷰 수와 최근 증가 추이</p></li>
+    <li><span>🏪</span><b>경쟁 매장 비교</b><p>같은 지역·업종의 주변 매장과 비교</p></li>
+    <li><span>✅</span><b>해야 할 일</b><p>지금 우선으로 손볼 항목을 순서대로 안내</p></li>
+  </ul>
+
+  <div class="ph-cta">
+    <div><b>플레이스 홍보가 급하신가요?</b><p class="muted">체험단을 모집하면 방문 후기가 쌓여서 플레이스 노출에 도움이 될 수 있어요. (효과는 업종과 지역에 따라 달라요)</p></div>
+    <a class="btn-primary" href="register.html">체험단 등록하기</a>
+  </div>
+</main>
+
+<div id="footer-slot"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="auth.js"></script>
+<script src="place.js"></script>
+</body>
+</html>
