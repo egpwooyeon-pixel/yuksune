@@ -3,52 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>우리들 체험단 - 체험단·수익 인증 커뮤니티</title>
-  <meta name="description" content="우리들 체험단: 체험단 모집, 수익 인증, 체험후기를 나누는 마케팅 커뮤니티">
-  <link rel="stylesheet" href="style.css">
+  <title>우리들 체험단</title>
+  <meta http-equiv="refresh" content="0; url=campaigns.html">
+  <script>location.replace("campaigns.html");</script>
 </head>
-<body data-page="community">
-
-<div id="header-slot"></div>
-
-<main class="wrap layout">
-  <!-- 2. 메인(게시판) -->
-  <section class="board">
-    <h1 class="board-title">수익 인증·체험후기</h1>
-
-    <form class="board-search">
-      <select aria-label="검색 항목"><option>제목</option><option>작성자</option><option>내용</option></select>
-      <input type="search" aria-label="게시판 검색">
-      <button type="submit">검색</button>
-    </form>
-
-    <div class="tabs" role="tablist">
-      <button class="tab on" role="tab">전체</button>
-      <button class="tab" role="tab">수익 인증</button>
-      <button class="tab" role="tab">체험후기</button>
-    </div>
-
-    <div class="panel">
-      <table class="list">
-        <colgroup><col style="width:56px"><col><col style="width:110px"><col style="width:96px"><col style="width:56px"></colgroup>
-        <thead><tr><th>번호</th><th>제목</th><th>작성자</th><th>날짜</th><th>조회</th></tr></thead>
-        <tbody id="post-list"><!-- script.js 가 채웁니다 --></tbody>
-      </table>
-      <nav class="pager" id="pager" aria-label="페이지"></nav>
-    </div>
-  </section>
-
-  <!-- 3. 사이드바 -->
-  <aside class="side" id="sidebar-slot"></aside>
-</main>
-
-<div id="footer-slot"></div>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="config.js"></script>
-<script src="common.js"></script>
-<script src="auth.js"></script>
-<script src="sidebar.js"></script>
-<script src="script.js"></script>
-</body>
+<body><a href="campaigns.html">우리들 체험단 바로가기</a></body>
 </html>

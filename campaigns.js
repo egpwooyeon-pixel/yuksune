@@ -25,16 +25,19 @@ async function loadFromServer() {
 
 const params = new URLSearchParams(location.search);
 const type = TITLES[params.get("type")] ? params.get("type") : "블로그";
-const state = {region:"전체", q:"", shown:10};
+const urlQ = (params.get("q") || "").trim();
+const searchAll = !!urlQ && !params.get("type");   // 상단 검색창에서 온 경우: 모든 종류에서 검색
+const state = {region:"전체", q:urlQ, shown:10};
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
-document.getElementById("page-title").textContent = TITLES[type];
+document.getElementById("page-title").textContent = searchAll ? `"${urlQ}" 검색 결과` : TITLES[type];
+if (urlQ) document.getElementById("q").value = urlQ;
 document.getElementById("guide-title").textContent = type + " 체험단";
 if (type === "구매평") document.getElementById("point-note").innerHTML = "<br>구매평 체험단은 <b>포인트가 지급되지 않습니다.</b>";
 document.title = TITLES[type] + " - 우리들 체험단";
 
 function render() {
-  const list = campaigns.filter(c => c.type === type &&
+  const list = campaigns.filter(c => (searchAll || c.type === type) &&
     (state.region === "전체" || (state.region === "배송형" ? c.mode === "배송형" : c.region === state.region)) &&
     (!state.q || (c.title + c.biz).includes(state.q)));
 
