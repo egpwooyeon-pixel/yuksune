@@ -22,6 +22,7 @@ const KO = [
   ["User already registered", "이미 가입된 이메일입니다."],
   ["Password should be at least", "비밀번호는 8자 이상이어야 합니다."],
   ["Email not confirmed", "이메일 인증이 필요합니다. 메일함을 확인해 주세요."],
+  ["For security purposes", "보안을 위해 1분 뒤에 다시 시도해 주세요. 이미 가입 요청을 보냈다면 '로그인' 탭에서 로그인해 보세요."],
   ["rate limit", "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."],
 ];
 const ko = e => (KO.find(([k]) => (e.message || "").includes(k)) || [0, e.message])[1];
