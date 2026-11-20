@@ -181,7 +181,7 @@ $("apply-form").onsubmit = async e => {
   const visit = camp.mode === "방문형", blog = camp.type === "블로그";
   btn.disabled = true;
   const { error } = await sb.from("applications").insert({
-    campaign_id: id, applicant_name: f.name.value.trim(), contact, kakao_id: f.kakao.value.trim(),
+    campaign_id: id, applicant_name: f.name.value.trim(), contact, email: f.email.value.trim().toLowerCase(), kakao_id: f.kakao.value.trim(),
     channel_url: f.channel.value.trim(), message: f.message.value.trim() || null,
     visit_date: visit ? f.vdate.value : null, visit_time: visit ? f.vtime.value : null,
     party_size: visit ? +f.party.value : null,
