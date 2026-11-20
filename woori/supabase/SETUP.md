@@ -9,12 +9,17 @@
    - ⚠ **service_role key 는 절대 알려주지 마세요** (전체 권한 키입니다)
 5. **Authentication → Providers → Email**: 처음 시험할 때는 "Confirm email" 을 꺼두면 가입 즉시 로그인됩니다.
 
-## 사업자 인증 (운영자가 직접 처리)
-광고주가 사업자등록번호를 입력하면 `profiles.business_no` 에 저장됩니다.
-확인 후 SQL Editor 에서 아래를 실행하면 캠페인 등록 권한이 열립니다.
+## 광고주 인증 흐름
+1. 누구나 일반 회원으로 가입 (이메일 + 비밀번호 + 닉네임만)
+2. 캠페인을 올리고 싶은 회원이 **사업자등록증 파일**(사진/PDF)을 올려 "광고주 심사 요청"
+3. 운영자(본인)가 관리자 화면에서 파일을 보고 **승인 / 반려(사유 입력)**
+4. 승인된 회원만 캠페인 등록 가능 (DB 규칙으로도 막혀 있음)
 
-    update public.profiles set business_verified = true where business_no = '123-45-67890';
+사업자등록증은 비공개 저장소에 보관되고 본인과 운영자만 볼 수 있습니다.
+관리자 화면은 서버 연결 후 만듭니다. 그 전에 급하면 SQL Editor에서:
 
-본인을 운영자로 지정하려면:
+    update public.profiles set business_status = 'approved' where id = '<회원 id>';
+
+본인을 운영자로 지정하려면 (가입 후 1회):
 
     update public.profiles set role = 'admin' where id = '<내 user id>';

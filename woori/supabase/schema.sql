@@ -6,8 +6,10 @@ create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   nickname text not null default '회원',
   role text not null default 'member' check (role in ('member','admin')),
-  business_no text,                         -- 사업자등록번호 (광고주만 입력)
-  business_verified boolean not null default false,  -- 운영자가 확인하면 true
+  -- 광고주 인증: none(미신청) → pending(사업자등록증 제출) → approved(운영자 승인) / rejected(반려)
+  business_status text not null default 'none' check (business_status in ('none','pending','approved','rejected')),
+  business_doc_path text,                   -- 비공개 저장소의 사업자등록증 파일 경로
+  business_note text,                       -- 반려 사유 등 운영자 메모
   created_at timestamptz not null default now()
 );
 
@@ -22,14 +24,22 @@ end $$;
 create trigger on_auth_user_created after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- 본인이 role / business_verified 를 직접 바꾸지 못하게 막기 (운영자만 SQL Editor 에서 변경)
+-- 일반 회원은 role / 승인 상태를 직접 바꿀 수 없음. 단, 사업자등록증을 올리고 '심사 요청(pending)'만 가능.
 create function public.protect_profile() returns trigger
 language plpgsql as $$
+declare is_admin boolean;
 begin
-  if auth.uid() is not null and not exists
-     (select 1 from public.profiles where id = auth.uid() and role = 'admin') then
+  select exists (select 1 from public.profiles where id = auth.uid() and role = 'admin') into is_admin;
+  if auth.uid() is not null and not is_admin then
     new.role := old.role;
-    new.business_verified := old.business_verified;
+    new.business_note := old.business_note;
+    if not (new.business_status = 'pending' and old.business_status in ('none','rejected')
+            and new.business_doc_path is not null) then
+      new.business_status := old.business_status;
+      if old.business_status in ('approved','pending') then
+        new.business_doc_path := old.business_doc_path;   -- 승인/심사 중에는 파일 교체 불가
+      end if;
+    end if;
   end if;
   return new;
 end $$;
@@ -74,11 +84,13 @@ alter table public.applications enable row level security;
 
 create policy "프로필: 누구나 조회" on public.profiles for select using (true);
 create policy "프로필: 본인만 수정" on public.profiles for update using (auth.uid() = id);
+create policy "프로필: 운영자는 전체 수정" on public.profiles for update
+  using (exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin'));
 
 create policy "캠페인: 누구나 조회" on public.campaigns for select using (true);
-create policy "캠페인: 사업자 확인된 회원만 등록" on public.campaigns for insert
+create policy "캠페인: 운영자가 승인한 광고주만 등록" on public.campaigns for insert
   with check (owner_id = auth.uid() and exists
-    (select 1 from public.profiles where id = auth.uid() and business_verified));
+    (select 1 from public.profiles where id = auth.uid() and business_status = 'approved'));
 create policy "캠페인: 작성자만 수정" on public.campaigns for update using (owner_id = auth.uid());
 create policy "캠페인: 작성자만 삭제" on public.campaigns for delete using (owner_id = auth.uid());
 
@@ -97,3 +109,13 @@ insert into storage.buckets (id, name, public) values ('campaign-photos','campai
 create policy "사진: 누구나 보기" on storage.objects for select using (bucket_id = 'campaign-photos');
 create policy "사진: 본인 폴더에만 업로드" on storage.objects for insert to authenticated
   with check (bucket_id = 'campaign-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- 6) 사업자등록증 (비공개: 본인과 운영자만 열람. 대표자 이름·주소 등 개인정보가 들어 있음)
+insert into storage.buckets (id, name, public) values ('business-docs','business-docs', false)
+  on conflict do nothing;
+create policy "서류: 본인 폴더에만 업로드" on storage.objects for insert to authenticated
+  with check (bucket_id = 'business-docs' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "서류: 본인 또는 운영자만 열람" on storage.objects for select to authenticated
+  using (bucket_id = 'business-docs' and (
+    (storage.foldername(name))[1] = auth.uid()::text
+    or exists (select 1 from public.profiles p where p.id = auth.uid() and p.role = 'admin')));
