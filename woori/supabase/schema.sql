@@ -103,6 +103,13 @@ create policy "신청: 로그인 회원이 모집 중인 캠페인에만" on pub
 create policy "신청: 광고주만 선정/탈락 처리" on public.applications for update
   using (exists (select 1 from public.campaigns c where c.id = campaign_id and c.owner_id = auth.uid()));
 
+-- 4-1) API 접근 허용 (프로젝트 만들 때 자동 허용을 껐어도 동작하도록 명시). 실제 접근은 위 RLS 규칙이 다시 걸러냄
+grant usage on schema public to anon, authenticated;
+grant select on public.profiles, public.campaigns to anon;
+grant select, update on public.profiles to authenticated;
+grant select, insert, update, delete on public.campaigns to authenticated;
+grant select, insert, update on public.applications to authenticated;
+
 -- 5) 사진 저장소 (공개 읽기, 로그인 회원은 자기 폴더에만 업로드)
 insert into storage.buckets (id, name, public) values ('campaign-photos','campaign-photos', true)
   on conflict do nothing;
