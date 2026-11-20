@@ -20,8 +20,13 @@ const base = [
   ["블로그","숙박","제주","방문형","제주 애월 오션뷰 독채 1박 체험단","1박 숙박권",3,40,2,"애월스테이",0],
   ["블로그","맛집","배송형","배송형","프리미엄 닭가슴살 5종 체험단","제품 제공 (택배)",15,31,20,"푸드랩",0],
 ];
-const campaigns = base.map(([type,cat,region,mode,title,reward,days,applied,slots,biz,isNew],i) =>
-  ({id:i+1,type,cat,region,mode,title,reward,days,applied,slots,biz,isNew}));
+// 광고주가 등록한 캠페인(시험용: 이 브라우저에만 저장됨)
+let mine = [];
+try { mine = JSON.parse(localStorage.getItem("woori.campaigns") || "[]"); } catch (e) {}
+const daysLeft = d => Math.max(0, Math.ceil((new Date(d + "T23:59:59") - Date.now()) / 864e5));
+const registered = mine.map(m => ({...m, days: daysLeft(m.deadline), isNew: Date.now() - m.created < 3 * 864e5}));
+const campaigns = [...registered, ...base.map(([type,cat,region,mode,title,reward,days,applied,slots,biz,isNew],i) =>
+  ({id:i+1,type,cat,region,mode,title,reward,days,applied,slots,biz,isNew}))];
 
 const params = new URLSearchParams(location.search);
 const type = TITLES[params.get("type")] ? params.get("type") : "블로그";
@@ -43,8 +48,8 @@ function render() {
   document.getElementById("cards").innerHTML = list.slice(0, state.shown).map(c => `
     <li class="cc">
       <a href="#">
-        <div class="thumb" style="background:${COLOR[c.cat]}">
-          <span class="emoji">${EMOJI[c.cat]}</span>
+        <div class="thumb" style="background:${c.photo ? `#eee url(${c.photo}) center/cover` : COLOR[c.cat]}">
+          ${c.photo ? "" : `<span class="emoji">${EMOJI[c.cat]}</span>`}
           ${c.isNew ? '<span class="new">N</span>' : ""}
         </div>
         <span class="mode ${c.mode === "배송형" ? "ship" : ""}">${c.mode}</span>
