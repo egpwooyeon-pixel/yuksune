@@ -39,35 +39,7 @@
   </section>
 
   <!-- 3. 사이드바 -->
-  <aside class="side">
-    <div class="card login">
-      <p class="muted">우리들 체험단에 로그인하고<br>더 많은 혜택을 받아보세요.</p>
-      <a class="btn-primary" href="#">우리들 계정으로 로그인</a>
-      <p class="sub"><a href="#">아이디·비밀번호 찾기</a> | <a href="#">회원가입</a></p>
-    </div>
-
-    <div class="card">
-      <h3>포인트 리워드</h3>
-      <ul class="reward">
-        <li><span class="ico">📦</span><span>구독한 체험하기<small>상품 구경하러 가기</small></span><em>76%</em></li>
-        <li><span class="ico">💬</span><span>댓글 쓰기<small>0개 / 최대 5개</small></span><em>20</em></li>
-        <li><span class="ico">🎁</span><span>포인트몰 쇼핑<small>쿠폰으로 교환</small></span><em>3%</em></li>
-      </ul>
-    </div>
-
-    <h3 class="out">키워드 조회</h3>
-    <form class="kw"><input placeholder="키워드를 입력하세요" aria-label="키워드"><button type="submit">검색</button></form>
-
-    <div class="card">
-      <h3>실시간 게시물</h3>
-      <ul class="feed" id="live-feed"></ul>
-    </div>
-
-    <div class="card">
-      <h3>핫딜</h3>
-      <ul class="feed" id="hot-feed"></ul>
-    </div>
-  </aside>
+  <aside class="side" id="sidebar-slot"></aside>
 </main>
 
 <div id="footer-slot"></div>
@@ -76,6 +48,7 @@
 <script src="config.js"></script>
 <script src="common.js"></script>
 <script src="auth.js"></script>
+<script src="sidebar.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

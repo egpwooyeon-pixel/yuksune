@@ -13,19 +13,7 @@ const posts = [
   {type:"profit", title:"초보 블로거 첫 달 수익 인증", c:6, author:"새내기", date:"2026.09.12", views:2212},
   {type:"review", title:"펫용품 체험단 솔직 후기", c:2, author:"댕댕맘", date:"2026.09.09", views:1099},
 ];
-const live = [
-  ["맛집","서울 강남 신규 오픈 맛집 체험단 모집"],
-  ["뷰티","립 틴트 신제품 체험단 10명"],
-  ["여행","제주 숙소 1박 체험단 모집"],
-  ["생활","주방용품 세트 후기단"],
-  ["디지털","무선 이어폰 체험 리뷰어 모집"],
-];
-const hot = [
-  ["핫딜","에어프라이어 40% 할인"],
-  ["핫딜","프리미엄 닭가슴살 1kg 특가"],
-  ["핫딜","유기농 샐러드 정기배송 쿠폰"],
-  ["핫딜","무선 청소기 한정 수량 특가"],
-];
+
 
 const BADGE = {profit:["수익","profit"], review:["후기","review"]};
 const tbody = document.getElementById("post-list");
@@ -41,10 +29,6 @@ tbody.innerHTML = posts.map(p => {
     <td>${p.author}</td><td class="date">${p.date}</td><td class="views">${p.views}</td></tr>`;
 }).join("");
 
-const feed = (id, items) => document.getElementById(id).innerHTML =
-  items.map(([c,t]) => `<li><span class="cat">${c}</span><a href="#">${esc(t)}</a></li>`).join("");
-feed("live-feed", live);
-feed("hot-feed", hot);
 
 // 페이지 번호(표시만 — 실제 이동은 게시판 기능 단계에서)
 document.getElementById("pager").innerHTML =
