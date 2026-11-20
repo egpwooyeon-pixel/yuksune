@@ -426,3 +426,27 @@ a.write-btn:hover{background:var(--primary-dark);text-decoration:none}
 .pr-actions .btn-primary{padding:12px 28px}
 .btn-line{border:1px solid #cfd3da;background:#fff;border-radius:4px;padding:12px 28px;cursor:pointer;font:inherit}
 @media (max-width:800px){.pd-grid{grid-template-columns:1fr}#pd-checks{grid-template-columns:1fr}.pr-score{grid-template-columns:1fr}.pr-sum{grid-template-columns:1fr}.pr-item p{margin-left:0}.pi-top em{display:none}}
+
+/* 내 체험단 관리 */
+.my-new{display:inline-block;padding:10px 20px;font-size:13px}
+.my-list{display:grid;gap:10px;margin-bottom:24px}
+.my-item{display:flex;justify-content:space-between;align-items:center;gap:16px;background:#fff;border-radius:8px;padding:16px 20px}
+.mi-title{margin-left:8px;font-size:15px}
+.my-item p{margin:6px 0 0}
+.mi-btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.mi-btns a.btn-line,.mi-btns button.btn-line{padding:7px 12px;font-size:12px;text-decoration:none;color:inherit;display:inline-block}
+.btn-line.danger{color:#d63a3a;border-color:#f3c4c4}
+.my-apps{background:#fff;border-radius:8px;padding:22px}
+.apps-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
+.apps-head h2{margin:0;font-size:17px}
+.apps-btns{display:flex;gap:6px}.apps-btns .btn-line{padding:8px 14px;font-size:12px}
+.apps-scroll{overflow-x:auto}
+.apps{width:100%;border-collapse:collapse;font-size:12px;min-width:760px}
+.apps th{text-align:left;color:var(--muted);font-weight:500;padding:8px 8px;border-bottom:1px solid #ddd;white-space:nowrap}
+.apps td{padding:10px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top}
+.apps .ap-msg{max-width:200px;white-space:pre-wrap;word-break:break-word}
+.ap-btns{white-space:nowrap}.ap-btns button{border:1px solid #cfd3da;background:#fff;border-radius:4px;padding:5px 10px;font-size:12px;cursor:pointer;margin-right:4px}
+.ap-btns button[data-st=selected]:not(:disabled){border-color:#12b886;color:#0c8f66}
+.ap-btns button[data-st=rejected]:not(:disabled){border-color:#f3c4c4;color:#d63a3a}
+.ap-btns button:disabled{opacity:.4;cursor:default}
+@media (max-width:800px){.my-item{flex-direction:column;align-items:flex-start}.mi-btns{justify-content:flex-start}}

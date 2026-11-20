@@ -13,7 +13,7 @@
     window.currentUser = user || null;
     if (!user || !util) return;
     const nick = (user.user_metadata && user.user_metadata.nickname) || user.email.split("@")[0];
-    util.innerHTML = `<span><b>${esc(nick)}</b>님</span><i></i><a href="#" id="logout">로그아웃</a>`;
+    util.innerHTML = `<span><b>${esc(nick)}</b>님</span><i></i><a href="my.html">내 체험단</a><i></i><a href="#" id="logout">로그아웃</a>`;
     document.getElementById("logout").onclick = async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); };
   });
 })();

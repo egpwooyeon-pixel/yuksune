@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>내 체험단 관리 - 우리들 체험단</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="campaigns">
+<div id="header-slot"></div>
+
+<main class="wrap camp">
+  <div class="camp-head"><h1>내 체험단 관리</h1><a class="btn-primary my-new" href="register.html">+ 체험단 등록하기</a></div>
+  <p class="empty" id="my-msg" hidden></p>
+
+  <section id="my-list-wrap" hidden>
+    <ul class="my-list" id="my-list"></ul>
+  </section>
+
+  <section class="my-apps" id="apps-wrap" hidden>
+    <div class="apps-head">
+      <div><h2 id="apps-title"></h2><p class="muted small" id="apps-sum"></p></div>
+      <div class="apps-btns"><button type="button" class="btn-line" id="csv">엑셀(CSV) 내려받기</button><button type="button" class="btn-line" id="apps-close">닫기</button></div>
+    </div>
+    <p class="notice-box small">⚠ 신청자의 이름·연락처는 개인정보예요. 핸드폰·카카오톡은 <b>선정 처리한 신청자만</b> 보여요. 선정 안내 외의 목적으로 쓰거나 다른 곳에 공유하지 마세요.</p>
+    <div class="apps-scroll"><table class="apps" id="apps"></table></div>
+    <p class="empty" id="apps-empty" hidden>아직 신청자가 없어요.</p>
+  </section>
+</main>
+
+<div id="footer-slot"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="auth.js"></script>
+<script src="boarddata.js"></script>
+<script src="my.js"></script>
+</body>
+</html>
