@@ -14,11 +14,11 @@ document.getElementById("header-slot").outerHTML = `<!-- 1. 헤더 -->
     <nav class="gnb wrap" aria-label="주요 메뉴">
       <button class="burger" id="burger" aria-label="전체 메뉴" aria-expanded="false"><svg width="14" height="12" viewBox="0 0 14 12" stroke="currentColor" stroke-width="1.3"><path d="M0 1h14M0 6h9M0 11h14"/></svg></button>
       <div class="gnb-dd"><a href="campaigns.html" data-key="campaigns">체험단모집</a><ul class="dd"><li><a href="campaigns.html?type=구매평">구매평체험단</a></li><li><a href="campaigns.html?type=블로그">블로그체험단</a></li><li><a href="campaigns.html?type=인스타">인스타체험단</a></li></ul></div>
-      <a href="place.html" data-key="place">플레이스 실시간 AI분석 <span class="free-badge">무료</span></a>
+      <a href="place.html" data-key="place">플레이스 무료 진단</a>
       <div class="gnb-dd sepwrap"><a href="board.html?b=free" class="sep" data-key="community">커뮤니티</a><ul class="dd"><li><a href="board.html?b=free">자유게시판</a></li><li><a href="board.html?b=tips">꿀팁·교류</a></li><li><a href="board.html?b=profit">수익 인증·체험후기</a></li></ul></div>
     </nav>
     <div class="mega wrap" id="mega"><div class="mega-in">
-      <div class="mgrid"><div class="mcol on"><a class="mh" href="campaigns.html">체험단모집</a><ul><li><a href="campaigns.html?type=구매평">구매평체험단</a></li><li><a href="campaigns.html?type=블로그">블로그체험단</a></li><li><a href="campaigns.html?type=인스타">인스타체험단</a></li></ul></div><div class="mcol"><a class="mh" href="place.html">플레이스 분석</a><ul><li><a href="place.html">실시간 AI분석</a></li></ul></div><div class="mcol"><a class="mh" href="board.html?b=free">커뮤니티</a><ul><li><a href="board.html?b=free">자유게시판</a></li><li><a href="board.html?b=tips">꿀팁·교류</a></li><li><a href="board.html?b=profit">수익 인증·체험후기</a></li></ul></div></div>
+      <div class="mgrid"><div class="mcol on"><a class="mh" href="campaigns.html">체험단모집</a><ul><li><a href="campaigns.html?type=구매평">구매평체험단</a></li><li><a href="campaigns.html?type=블로그">블로그체험단</a></li><li><a href="campaigns.html?type=인스타">인스타체험단</a></li></ul></div><div class="mcol"><a class="mh" href="place.html">플레이스 분석</a><ul><li><a href="place.html">플레이스 무료 진단</a></li></ul></div><div class="mcol"><a class="mh" href="board.html?b=free">커뮤니티</a><ul><li><a href="board.html?b=free">자유게시판</a></li><li><a href="board.html?b=tips">꿀팁·교류</a></li><li><a href="board.html?b=profit">수익 인증·체험후기</a></li></ul></div></div>
       <button class="mclose" id="mclose" aria-label="메뉴 닫기"><svg width="12" height="8" viewBox="0 0 12 8" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 7l5-5 5 5"/></svg></button>
     </div></div>
   </div>
