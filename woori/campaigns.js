@@ -1,71 +1,66 @@
-// 체험단 모집 목록 — 샘플 데이터 (나중에 DB/서버 데이터로 교체)
-const TYPES = ["전체", "구매평", "블로그", "인스타"];
-const CATS  = ["전체", "맛집", "뷰티", "생활", "디지털", "여행", "반려"];
-const EMOJI = {맛집:"🍜", 뷰티:"💄", 생활:"🏠", 디지털:"🎧", 여행:"🏝️", 반려:"🐶"};
-const COLOR = {맛집:"#ffe9d6", 뷰티:"#ffe0ea", 생활:"#e3f3e6", 디지털:"#e0e9ff", 여행:"#dff4f7", 반려:"#fff3cf"};
+// 체험단 모집 목록 — 샘플 데이터 (나중에 DB에서 불러오기)
+// 실제 서비스에서는 업체가 네이버 플레이스 주소를 등록하면 이 항목이 자동으로 만들어집니다.
+const REGIONS = ["전체", "서울", "수도권", "지방", "제주", "배송형"];
+const TITLES = {블로그:"블로그체험단", 구매평:"구매평체험단", 인스타:"인스타체험단"};
+const EMOJI = {맛집:"🍜", 뷰티:"💄", 숙박:"🛏️", 카페:"☕", 놀이:"🎮", 생활:"🏠"};
+const COLOR = {맛집:"#ffe9d6", 뷰티:"#ffe0ea", 숙박:"#dff4f7", 카페:"#f1e6da", 놀이:"#e6e0ff", 생활:"#e3f3e6"};
 
+// [종류, 분야, 지역, 방식, 제목, 혜택, 남은일수, 신청, 모집, 업체명, 신규]
 const base = [
-  ["블로그","맛집","[서울 강남] 신규 오픈 파스타 맛집 방문 체험단","식사권 5만원",8,23,3],
-  ["인스타","뷰티","립 틴트 신제품 릴스 체험단","제품 제공 + 3만원",10,41,5],
-  ["구매평","생활","주방 정리함 세트 구매평 체험단","제품 제공",15,12,9],
-  ["블로그","여행","제주 오션뷰 숙소 1박 체험단","숙박권 1박",3,88,2],
-  ["인스타","맛집","수제 디저트 카페 포토 체험단","디저트 세트",12,15,7],
-  ["구매평","디지털","무선 이어폰 구매평 체험단","제품 제공",20,35,4],
-  ["블로그","뷰티","저자극 선크림 2주 사용 후기단","제품 제공 + 2만원",10,52,1],
-  ["인스타","반려","강아지 간식 체험 리뷰어","간식 3종",20,9,12],
-  ["구매평","맛집","프리미엄 닭가슴살 구매평 체험단","제품 제공",30,64,6],
-  ["블로그","생활","공기청정기 렌탈 체험 후기단","설치 + 체험",5,70,10],
-  ["인스타","디지털","스마트워치 언박싱 릴스단","제품 제공",8,27,8],
-  ["구매평","반려","고양이 모래 구매평 체험단","제품 제공",25,18,11],
+  ["블로그","맛집","수도권","방문형","부천 돌잔치뷔페 블로그 체험단 급구! 모집!","80,000원 식사권 2인 성인 기준",14,0,30,"신통컴퍼니S",1],
+  ["블로그","맛집","수도권","방문형","인천 월미도 와일드벅스 방문형 체험단","5만원 상당의 3인 입장권 이용",4,0,20,"더블에스컨설팅",1],
+  ["블로그","숙박","수도권","방문형","가평 미엘키즈풀빌라에서 블로그 체험단을 모집합니다!","기준인원 3인 1박 숙박 제공",10,11,5,"한국펜션마케팅",0],
+  ["블로그","맛집","수도권","방문형","(인천 강화도) 낙조를 눈앞에서 보는 노을맛집","금,토요일 제외한 1일 숙박권",11,6,3,"코리아트레블마케팅",0],
+  ["블로그","맛집","서울","방문형","이층고깃집 수원영통점 블로그 체험단 모집","결제기준 4만원 상당의 식사권",4,4,4,"주식회사와글와글",0],
+  ["블로그","놀이","수도권","방문형","인천 구월동 게임 파티룸 체험단 모집 합니다","파티룸 4시간 이용권 10대",13,0,10,"다모여",0],
+  ["블로그","카페","서울","방문형","성수동 루프탑 카페 신메뉴 체험단","음료 2잔 + 디저트",6,9,6,"성수루프",0],
+  ["블로그","뷰티","서울","방문형","강남 속눈썹 펌 시술 체험단","시술권 (5만원 상당)",9,15,5,"라엘뷰티",0],
+  ["블로그","생활","배송형","배송형","저자극 세탁세제 2주 사용 체험단","제품 제공 (택배)",12,22,10,"클린홈",0],
+  ["블로그","맛집","지방","방문형","부산 해운대 횟집 방문 체험단","2인 코스 식사권",7,13,4,"해운대바다",0],
+  ["블로그","숙박","제주","방문형","제주 애월 오션뷰 독채 1박 체험단","1박 숙박권",3,40,2,"애월스테이",0],
+  ["블로그","맛집","배송형","배송형","프리미엄 닭가슴살 5종 체험단","제품 제공 (택배)",15,31,20,"푸드랩",0],
 ];
-const campaigns = base.map(([type,cat,title,reward,slots,applied,days],i) =>
-  ({id:i+1,type,cat,title,reward,slots,applied,days}));
+const campaigns = base.map(([type,cat,region,mode,title,reward,days,applied,slots,biz,isNew],i) =>
+  ({id:i+1,type,cat,region,mode,title,reward,days,applied,slots,biz,isNew}));
 
 const params = new URLSearchParams(location.search);
-const state = {
-  type: TYPES.includes(params.get("type")) ? params.get("type") : "전체",
-  cat: "전체", sort: "new", shown: 8,
-};
+const type = TITLES[params.get("type")] ? params.get("type") : "블로그";
+const state = {region:"전체", q:"", shown:10};
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
-function render() {
-  let list = campaigns.filter(c =>
-    (state.type === "전체" || c.type === state.type) && (state.cat === "전체" || c.cat === state.cat));
-  if (state.sort === "new") list.sort((a,b) => b.id - a.id);
-  if (state.sort === "deadline") list.sort((a,b) => a.days - b.days);
-  if (state.sort === "hot") list.sort((a,b) => b.applied/b.slots - a.applied/a.slots);
+document.getElementById("page-title").textContent = TITLES[type];
+document.getElementById("guide-title").textContent = type + " 체험단";
+if (type === "구매평") document.getElementById("point-note").innerHTML = "<br>구매평 체험단은 <b>포인트가 지급되지 않습니다.</b>";
+document.title = TITLES[type] + " - 우리들 체험단";
 
-  document.getElementById("count").textContent = list.length;
+function render() {
+  const list = campaigns.filter(c => c.type === type &&
+    (state.region === "전체" || (state.region === "배송형" ? c.mode === "배송형" : c.region === state.region)) &&
+    (!state.q || (c.title + c.biz).includes(state.q)));
+
   document.getElementById("empty").hidden = list.length > 0;
   document.getElementById("more").parentElement.hidden = list.length <= state.shown;
-
   document.getElementById("cards").innerHTML = list.slice(0, state.shown).map(c => `
     <li class="cc">
       <a href="#">
         <div class="thumb" style="background:${COLOR[c.cat]}">
           <span class="emoji">${EMOJI[c.cat]}</span>
-          <span class="dday ${c.days <= 3 ? "urgent" : ""}">D-${c.days}</span>
-          <span class="ctype">${c.type}</span>
+          ${c.isNew ? '<span class="new">N</span>' : ""}
         </div>
-        <p class="ccat">${c.cat}</p>
+        <span class="mode ${c.mode === "배송형" ? "ship" : ""}">${c.mode}</span>
         <p class="ctitle">${esc(c.title)}</p>
-        <p class="creward">🎁 ${esc(c.reward)}</p>
-        <p class="capply">신청 <b>${c.applied}</b> / 모집 ${c.slots}명</p>
+        <p class="creward">${esc(c.reward)}</p>
+        <p class="capply"><b>${c.days}일</b> 남음 <i></i> 신청 <b>${c.applied}</b>/${c.slots}</p>
+        <p class="biz"><span>등록업체</span><span>${esc(c.biz)}</span></p>
       </a>
     </li>`).join("");
 }
 
-function tabs() {
-  const el = document.getElementById("type-tabs");
-  el.innerHTML = TYPES.map(t => `<button class="tab ${t===state.type?"on":""}" data-t="${t}">${t==="전체"?"전체":t+"체험단"}</button>`).join("");
-  el.onclick = e => { const t = e.target.dataset.t; if (!t) return; state.type = t; state.shown = 8; tabs(); render(); };
+const chips = document.getElementById("region-chips");
+function drawChips() {
+  chips.innerHTML = REGIONS.map(r => `<button class="chip ${r===state.region?"on":""}" data-r="${r}">${r}</button>`).join("");
 }
-function chips() {
-  const el = document.getElementById("cat-chips");
-  el.innerHTML = CATS.map(c => `<button class="chip ${c===state.cat?"on":""}" data-c="${c}">${c}</button>`).join("");
-  el.onclick = e => { const c = e.target.dataset.c; if (!c) return; state.cat = c; state.shown = 8; chips(); render(); };
-}
-document.getElementById("sort").onchange = e => { state.sort = e.target.value; render(); };
-document.getElementById("more").onclick = () => { state.shown += 8; render(); };
-
-tabs(); chips(); render();
+chips.onclick = e => { const r = e.target.dataset.r; if (!r) return; state.region = r; state.shown = 10; drawChips(); render(); };
+document.getElementById("search-form").onsubmit = e => { e.preventDefault(); state.q = document.getElementById("q").value.trim(); state.shown = 10; render(); };
+document.getElementById("more").onclick = () => { state.shown += 10; render(); };
+drawChips(); render();

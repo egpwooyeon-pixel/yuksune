@@ -11,24 +11,27 @@
 
 <main class="wrap camp">
   <div class="camp-head">
-    <h1>체험단 모집</h1>
-    <p class="muted">지금 신청할 수 있는 캠페인 <b id="count">0</b>개</p>
+    <h1 id="page-title">블로그체험단</h1>
+    <div class="head-tools">
+      <div class="chips" id="region-chips"></div>
+      <form class="mini-search" id="search-form"><input id="q" placeholder="블로그 체험단 검색" aria-label="검색"><button aria-label="검색">🔍</button></form>
+    </div>
   </div>
 
-  <div class="tabs four" id="type-tabs" role="tablist"></div>
+  <div class="panel camp-panel">
+    <div class="guide">
+      <div class="guide-text">
+        <h2>❗ <span id="guide-title">블로그 체험단</span> 안내</h2>
+        <p><b>사업자인증 받은 업체만</b> 등록할 수 있으며,<br><b>우리들 체험단 회원</b>이라면 누구나 참여가 가능합니다.<br>체험하고 싶은 캠페인에 신청하면 <b>광고주가 직접 선정</b>합니다.<span id="point-note"></span></p>
+      </div>
+      <a class="guide-btn" href="#"><small>| 사업자 전용</small><b>체험단 등록하기<br>(네이버 플레이스)</b></a>
+      <a class="guide-btn" href="#"><small>| 회원 전용</small><b>체험단<br>기본 가이드</b></a>
+    </div>
 
-  <div class="filters">
-    <div class="chips" id="cat-chips"></div>
-    <select id="sort" aria-label="정렬">
-      <option value="new">최신순</option>
-      <option value="deadline">마감임박순</option>
-      <option value="hot">인기순</option>
-    </select>
+    <ul class="cards five" id="cards"></ul>
+    <p class="empty" id="empty" hidden>조건에 맞는 캠페인이 없어요.</p>
+    <div class="more"><button id="more" type="button">더보기</button></div>
   </div>
-
-  <ul class="cards" id="cards"></ul>
-  <p class="empty" id="empty" hidden>조건에 맞는 캠페인이 없어요.</p>
-  <div class="more"><button id="more" type="button">더보기</button></div>
 </main>
 
 <div id="footer-slot"></div>
