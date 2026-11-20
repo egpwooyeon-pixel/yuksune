@@ -1,12 +1,11 @@
 // 게시판 공통 값/도구 (board.js, post.js, write.js 에서 같이 씀)
 const BOARDS = {
-  free:   { title: "자유게시판", cat: "자유게시판" },
-  tips:   { title: "꿀팁·교류", cat: "꿀팁·교류" },
-  profit: { title: "수익 인증·체험후기", cat: "수익인증" },
+  place: { title: "플레이스 사장님 커뮤니티", cat: "플레이스" },
+  ecom:  { title: "E-커머스 사장님 커뮤니티", cat: "E-커머스" },
 };
 function boardKey(k) {
   k = k || new URLSearchParams(location.search).get("b");
-  return BOARDS[k] ? k : "free";
+  return BOARDS[k] ? k : "place";
 }
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 // 방금 / N분 전 / N시간 전 / N일 전 / 날짜

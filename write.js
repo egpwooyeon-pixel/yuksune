@@ -26,6 +26,7 @@ $("wform").onsubmit = async e => {
   const { data, error } = await sb.from("posts").insert({ board, author_id: me.id, title, body, is_notice: isAdmin && $("w-notice").checked }).select("id").single();
   if (error) {
     msg.textContent = /too_fast/.test(error.message) ? "글을 너무 빨리 올렸어요. 잠시 후 다시 시도해 주세요."
+      : /posts_board_check|violates check/.test(error.message) ? "이 게시판은 아직 준비 중이에요. 운영자에게 문의해 주세요."
       : /row-level security/.test(error.message) ? "글을 쓸 권한이 없어요." : "등록하지 못했어요: " + error.message;
     btn.disabled = false; return;
   }
