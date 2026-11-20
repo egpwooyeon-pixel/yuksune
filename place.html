@@ -11,9 +11,9 @@
 
 <section class="ph">
   <div class="wrap ph-in">
-    <span class="ph-badge">✨ 무료 AI 진단 <i>준비 중</i></span>
+    <span class="ph-badge">✨ 무료 진단 <i>AI 요약은 준비 중</i></span>
     <h1>우리 매장, 네이버 플레이스에서<br>지금 어떤 상태일까요?</h1>
-    <p class="ph-sub">플레이스 주소나 업체명만 넣으면 키워드 순위·리뷰·경쟁 매장 정보를<br>AI가 한 번에 진단하고, 지금 해야 할 일까지 알려드리는 서비스를 준비하고 있어요.</p>
+    <p class="ph-sub">매장 정보를 입력하면 리뷰·활동성·정보 완성도를 점수로 진단하고,<br>지금 해야 할 일까지 순서대로 알려드려요. (입력하신 숫자로 계산해요)</p>
 
     <form class="ph-box" id="ph-form">
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#8a93a6" stroke-width="1.6"><circle cx="9" cy="9" r="6.5"/><path d="M14 14l4 4"/></svg>
@@ -22,17 +22,36 @@
     </form>
     <p class="ph-ex">예) m.place.naver.com/place/37659908 · 37659908 · 필치과의원 대구</p>
     <p class="ph-msg" id="ph-msg" role="alert" hidden></p>
-
-    <div class="ph-soon" id="ph-soon" hidden>
-      <b>🛠 AI 진단은 지금 준비 중이에요.</b>
-      <p id="ph-soon-text"></p>
-      <p class="muted small">입력하신 내용은 저장하지 않았어요. 오픈하면 이 메뉴에서 바로 이용하실 수 있어요.</p>
-    </div>
   </div>
 </section>
 
+<section class="wrap pd" id="pd-wrap" hidden>
+  <form class="pd-form" id="pd-form">
+    <h2>매장 정보 입력</h2>
+    <p class="muted small" id="pd-id-hint"></p>
+    <div class="pd-grid">
+      <label>업체명 <input name="name" required maxlength="40"></label>
+      <label>업종 <select name="cat"><option>음식점</option><option>카페·디저트</option><option>미용·뷰티</option><option>병원·의원</option><option>숙박</option><option>학원·교육</option><option>기타</option></select></label>
+      <label>지역 <input name="region" maxlength="30" placeholder="예) 서울 서초구 잠원동"></label>
+      <label>방문자 리뷰 수 <input name="visitor" type="number" min="0" max="999999" required placeholder="0"></label>
+      <label>블로그 리뷰 수 <input name="blog" type="number" min="0" max="999999" required placeholder="0"></label>
+      <label>최근 30일 새 리뷰 수 <input name="r30" type="number" min="0" max="9999" required placeholder="0"></label>
+      <label>마지막 리뷰 작성일 <small>(리뷰가 없으면 비워 두세요)</small> <input name="last" type="date"></label>
+      <label>대표 키워드 <small>(선택)</small> <input name="kw" maxlength="30" placeholder="예) 잠원육류"></label>
+      <label>그 키워드 검색 순위 <small>(선택 · 모르면 비워 두세요)</small> <input name="rank" type="number" min="1" max="500" placeholder="예) 29"></label>
+      <label>같은 지역·업종 매장의 방문자 리뷰 중간값 <small>(선택)</small> <input name="median" type="number" min="0" max="999999" placeholder="예) 1240"></label>
+    </div>
+    <fieldset class="pd-check"><legend>플레이스에 채워져 있는 항목을 모두 체크하세요</legend>
+      <div id="pd-checks"></div></fieldset>
+    <p class="muted small">입력한 내용은 이 화면에서 점수 계산에만 쓰이고 서버에 저장되지 않아요. 점수는 우리들 체험단이 정한 기준으로 계산한 것으로, 네이버가 제공하는 공식 점수가 아니에요.</p>
+    <p class="ph-msg" id="pd-msg" role="alert" hidden></p>
+    <button class="btn-primary pd-go" type="submit">진단 결과 보기</button>
+  </form>
+  <div id="pd-result" hidden></div>
+</section>
+
 <main class="wrap ph-more">
-  <h2>진단에서 확인할 수 있게 준비 중인 것</h2>
+  <h2>다음에 추가할 기능 (준비 중)</h2>
   <ul class="ph-cards">
     <li><span>🔎</span><b>키워드 순위</b><p>내 매장이 주요 검색어에서 몇 번째로 보이는지</p></li>
     <li><span>⭐</span><b>리뷰 분석</b><p>방문자·블로그 리뷰 수와 최근 증가 추이</p></li>
