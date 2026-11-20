@@ -36,9 +36,12 @@ form.onsubmit = async e => {
     if (mode === "signup") {
       const nickname = form.nickname.value.trim();
       if (nickname.length < 2) throw new Error("닉네임은 2자 이상 입력해 주세요.");
-      const { data, error } = await sb.auth.signUp({ email, password, options: { data: { nickname } } });
+      const options = { data: { nickname } };
+      // 인증 후 돌아올 주소 (인터넷 주소로 접속 중일 때만. Supabase 'Redirect URLs'에 등록된 주소여야 적용됨)
+      if (location.protocol.startsWith("http")) options.emailRedirectTo = location.origin + location.pathname;
+      const { data, error } = await sb.auth.signUp({ email, password, options });
       if (error) throw error;
-      if (!data.session) { msg.style.color = "#2db27a"; msg.textContent = "가입 완료! 이메일로 온 인증 링크를 눌러 주세요."; btn.disabled = false; return; }
+      if (!data.session) { showSent(email); return; }
     } else {
       const { error } = await sb.auth.signInWithPassword({ email, password });
       if (error) throw error;
@@ -48,3 +51,17 @@ form.onsubmit = async e => {
     msg.style.color = ""; msg.textContent = ko(err); btn.disabled = false;
   }
 };
+
+// 인증 메일 안내 화면
+function showSent(email) {
+  form.hidden = true; $("foot-note").hidden = true; document.querySelector(".tabs").hidden = true;
+  $("sent-email").textContent = email; $("sent").hidden = false;
+  $("goto-login").onclick = () => { location.href = "login.html"; };
+  $("resend").onclick = async () => {
+    const out = $("resend-msg"), b = $("resend"); b.disabled = true; out.style.color = ""; out.textContent = "";
+    const { error } = await sb.auth.resend({ type: "signup", email });
+    if (error) { out.textContent = ko(error); b.disabled = false; return; }
+    out.style.color = "#2db27a"; out.textContent = "인증 메일을 다시 보냈어요.";
+    setTimeout(() => { b.disabled = false; }, 60000);  // 서버 제한(약 1분)에 맞춤
+  };
+}
