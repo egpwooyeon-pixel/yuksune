@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>게시글 - 우리들 체험단</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="community">
+<div id="header-slot"></div>
+
+<main class="wrap layout">
+  <section class="board">
+    <h1 class="board-title"><a id="p-board" href="board.html">자유게시판</a></h1>
+
+    <p class="empty" id="p-empty" hidden>글을 찾을 수 없어요. <a href="board.html">목록으로</a></p>
+
+    <article class="post" id="post" hidden>
+      <h2 id="p-title"></h2>
+      <div class="post-meta">
+        <span id="p-author"></span>
+        <span class="pm-r"><i>💬</i> <b id="p-c"></b> <i>👁</i> <b id="p-v"></b></span>
+        <span class="pm-time" id="p-time"></span>
+      </div>
+      <div class="post-body" id="p-body"></div>
+      <div class="post-actions">
+        <button type="button" id="p-share">🔗 공유</button>
+        <a href="#comments">💬 댓글(<span id="p-c2"></span>)</a>
+        <span class="pa-r"><button type="button" id="p-report">신고</button></span>
+      </div>
+
+      <section class="comments" id="comments">
+        <h3>💬 댓글 <span class="cnt" id="p-c3"></span></h3>
+        <form class="cform" id="cform">
+          <textarea id="c-text" rows="3" maxlength="500" placeholder="댓글을 입력하세요" disabled></textarea>
+          <div class="cform-foot"><span class="muted small" id="c-hint">댓글은 로그인 후 쓸 수 있어요. (곧 열릴 예정)</span><button type="submit" disabled>등록</button></div>
+        </form>
+        <ul class="clist" id="clist"></ul>
+      </section>
+
+      <div class="post-nav">
+        <a class="pn-btn" href="board.html" id="p-list">목록</a>
+        <span><a id="p-prev" href="#" hidden>◀ 이전글</a> <a id="p-next" href="#" hidden>다음글 ▶</a></span>
+      </div>
+    </article>
+  </section>
+
+  <aside class="side" id="sidebar-slot"></aside>
+</main>
+
+<div id="footer-slot"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="auth.js"></script>
+<script src="sidebar.js"></script>
+<script src="boarddata.js"></script>
+<script src="post.js"></script>
+</body>
+</html>
