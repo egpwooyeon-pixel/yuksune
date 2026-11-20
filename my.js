@@ -1,5 +1,6 @@
 // 내 체험단 관리: 내가 올린 체험단 목록, 신청자 보기, 선정/탈락, 모집 마감, 삭제, CSV 내려받기
 const $ = id => document.getElementById(id);
+const EMAIL_ON = !!(window.WOORI && window.WOORI.EMAIL_NOTIFY);   // 선정 안내 메일 기능 스위치 (config.js)
 const todayStr = () => new Date().toISOString().slice(0, 10);
 let me = null, camps = [], counts = {}, openId = null, apps = [];
 
@@ -72,16 +73,16 @@ async function showApps(id) {
   $("apps-sum").textContent = `신청 ${apps.length}명 · 선정 ${sel}/${c.slots}명`;
   $("apps-empty").hidden = apps.length > 0;
   const oxs = v => v == null ? "-" : v ? "O" : "X";
-  const head = ["신청일", "이름", "핸드폰", "카카오톡", "이메일", "채널", ...(visit ? ["방문 희망"] : []), ...(blog ? ["인플루언서", "클립"] : []), ...(c.mission ? ["미션"] : []), "하고 싶은 말", "상태", "처리"];
+  const head = ["신청일", "이름", "핸드폰", "카카오톡", ...(EMAIL_ON ? ["이메일"] : []), "채널", ...(visit ? ["방문 희망"] : []), ...(blog ? ["인플루언서", "클립"] : []), ...(c.mission ? ["미션"] : []), "하고 싶은 말", "상태", "처리"];
   $("apps").innerHTML = apps.length ? `<thead><tr>${head.map(h => `<th>${h}</th>`).join("")}</tr></thead><tbody>` + apps.map(a => {
     const [t, k] = ST[a.status] || ST.applied, url = /^https?:\/\//.test(a.channel_url || "") ? a.channel_url : "";
-    return `<tr data-id="${a.id}"><td>${fmt(a.created_at)}</td><td><b>${esc(a.applicant_name || "-")}</b></td><td>${a.contact ? esc(a.contact) : '<span class="muted">선정 후 공개</span>'}</td><td>${a.kakao_id ? esc(a.kakao_id) : '<span class="muted">선정 후 공개</span>'}</td><td>${a.email ? esc(a.email) : '<span class="muted">선정 후 공개</span>'}</td>
+    return `<tr data-id="${a.id}"><td>${fmt(a.created_at)}</td><td><b>${esc(a.applicant_name || "-")}</b></td><td>${a.contact ? esc(a.contact) : '<span class="muted">선정 후 공개</span>'}</td><td>${a.kakao_id ? esc(a.kakao_id) : '<span class="muted">선정 후 공개</span>'}</td>${EMAIL_ON ? `<td>${a.email ? esc(a.email) : '<span class="muted">선정 후 공개</span>'}</td>` : ""}
       <td>${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">열기 ↗</a>` : "-"}</td>
       ${visit ? `<td>${esc(a.visit_date || "-")} ${esc(a.visit_time || "")}<br>${a.party_size ? a.party_size + "명" : ""}</td>` : ""}
       ${blog ? `<td>${oxs(a.is_naver_influencer)}</td><td>${oxs(a.clip_ok)}</td>` : ""}
       ${c.mission ? `<td>${oxs(a.mission_agreed)}</td>` : ""}
-      <td class="ap-msg">${esc(a.message || "")}</td><td><span class="tag ${k}">${t}</span>${a.status === "selected" ? `<br><small class="muted">${a.notified_at ? "메일 발송됨" : "메일 미발송"}</small>` : ""}</td>
-      <td class="ap-btns"><button type="button" data-st="selected" ${a.status === "selected" ? "disabled" : ""}>선정</button><button type="button" data-st="rejected" ${a.status === "rejected" ? "disabled" : ""}>탈락</button>${a.status === "selected" ? '<button type="button" data-mail="1">메일 보내기</button>' : ""}</td></tr>`;
+      <td class="ap-msg">${esc(a.message || "")}</td><td><span class="tag ${k}">${t}</span>${EMAIL_ON && a.status === "selected" ? `<br><small class="muted">${a.notified_at ? "메일 발송됨" : "메일 미발송"}</small>` : ""}</td>
+      <td class="ap-btns"><button type="button" data-st="selected" ${a.status === "selected" ? "disabled" : ""}>선정</button><button type="button" data-st="rejected" ${a.status === "rejected" ? "disabled" : ""}>탈락</button>${EMAIL_ON && a.status === "selected" ? '<button type="button" data-mail="1">메일 보내기</button>' : ""}</td></tr>`;
   }).join("") + "</tbody>" : "";
   $("apps-wrap").scrollIntoView({ behavior: "smooth" });
 }
@@ -105,17 +106,17 @@ $("apps").onclick = async e => {
   const { error } = await sb.from("applications").update({ status: st }).eq("id", id);
   if (error) { alert("처리하지 못했어요."); e.target.disabled = false; return; }
   await loadCampaigns();                    // 선정되면 연락처·이메일이 채워져 옴
-  if (st === "selected") { await notify(id); await showApps(openId); }
+  if (EMAIL_ON && st === "selected") { await notify(id); await showApps(openId); }
 };
 
 // CSV: 엑셀에서 한글이 깨지지 않게 BOM 추가, 수식으로 해석될 수 있는 값은 앞에 ' 를 붙여 무력화
 const cell = v => { let s = v == null ? "" : String(v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
 $("csv").onclick = () => {
   const c = camps.find(x => x.id === openId); if (!c) return;
-  const cols = [["신청일", a => fmt(a.created_at)], ["이름", a => a.applicant_name], ["핸드폰", a => a.contact], ["카카오톡", a => a.kakao_id], ["이메일", a => a.email], ["채널 주소", a => a.channel_url],
+  const cols = [["신청일", a => fmt(a.created_at)], ["이름", a => a.applicant_name], ["핸드폰", a => a.contact], ["카카오톡", a => a.kakao_id], ...(EMAIL_ON ? [["이메일", a => a.email]] : []), ["채널 주소", a => a.channel_url],
     ["방문 희망일", a => a.visit_date], ["방문 희망 시간", a => a.visit_time], ["방문 인원", a => a.party_size],
     ["네이버 인플루언서", a => a.is_naver_influencer == null ? "" : a.is_naver_influencer ? "O" : "X"], ["클립 가능", a => a.clip_ok == null ? "" : a.clip_ok ? "O" : "X"],
-    ["미션 동의", a => a.mission_agreed == null ? "" : a.mission_agreed ? "O" : "X"], ["하고 싶은 말", a => a.message], ["상태", a => (ST[a.status] || ST.applied)[0]], ["안내 메일", a => a.status === "selected" ? (a.notified_at ? "발송됨" : "미발송") : ""]];
+    ["미션 동의", a => a.mission_agreed == null ? "" : a.mission_agreed ? "O" : "X"], ["하고 싶은 말", a => a.message], ["상태", a => (ST[a.status] || ST.applied)[0]], ...(EMAIL_ON ? [["안내 메일", a => a.status === "selected" ? (a.notified_at ? "발송됨" : "미발송") : ""]] : [])];
   const csv = "﻿" + [cols.map(x => cell(x[0])).join(","), ...apps.map(a => cols.map(x => cell(x[1](a))).join(","))].join("\r\n");
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
   const a = document.createElement("a"); a.href = url; a.download = `신청자_${c.title.slice(0, 20).replace(/[\\/:*?"<>|]/g, "")}_${todayStr()}.csv`; document.body.appendChild(a); a.click(); a.remove();

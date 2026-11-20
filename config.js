@@ -3,4 +3,5 @@
 window.WOORI = {
   SUPABASE_URL: "https://yslmnvsetuzxytevydbw.supabase.co",
   SUPABASE_ANON_KEY: "sb_publishable__KXiHxPRWHbanj2fzAWXDg_xDUX5JMC", // 공개용(Publishable) 키
+  EMAIL_NOTIFY: false, // 선정 안내 메일 기능 스위치. 메일 설정(supabase/EMAIL_SETUP.md)을 끝낸 뒤 true 로 바꾸면 켜집니다.
 };

@@ -1,4 +1,5 @@
 const $ = id => document.getElementById(id);
+const EMAIL_ON = !!(window.WOORI && window.WOORI.EMAIL_NOTIFY);   // 메일 기능이 켜졌을 때만 이메일 칸을 받음
 const id = new URLSearchParams(location.search).get("id") || "";
 const EMOJI = {맛집:"🍜", 뷰티:"💄", 숙박:"🛏️", 카페:"☕", 놀이:"🎮", 생활:"🏠"};
 const COLOR = {맛집:"#ffe9d6", 뷰티:"#ffe0ea", 숙박:"#dff4f7", 카페:"#f1e6da", 놀이:"#e6e0ff", 생활:"#e3f3e6"};
@@ -59,6 +60,10 @@ function drawCal() {
 $("cal-prev").onclick = () => { calMonth.setMonth(calMonth.getMonth() - 1); drawCal(); };
 $("cal-next").onclick = () => { calMonth.setMonth(calMonth.getMonth() + 1); drawCal(); };
 
+if (EMAIL_ON) {
+  $("email-row").hidden = false; $("apply-form").email.required = true;
+  $("consent-detail").textContent = "수집 항목: 성함, 핸드폰번호, 이메일, 카카오톡 아이디, 채널 주소, 방문 희망 정보 / 목적: 체험단 선정 및 안내 / 이름·채널 주소 등은 해당 광고주에게, 핸드폰번호·이메일·카카오톡 아이디는 선정된 경우에만 광고주에게 전달되고, 선정되면 이메일로 안내 메일이 발송됩니다.";
+}
 (async () => {
   const c = await load();
   if (!c) { $("d-empty").hidden = false; return; }
@@ -181,7 +186,7 @@ $("apply-form").onsubmit = async e => {
   const visit = camp.mode === "방문형", blog = camp.type === "블로그";
   btn.disabled = true;
   const { error } = await sb.from("applications").insert({
-    campaign_id: id, applicant_name: f.name.value.trim(), contact, email: f.email.value.trim().toLowerCase(), kakao_id: f.kakao.value.trim(),
+    campaign_id: id, applicant_name: f.name.value.trim(), contact, ...(EMAIL_ON ? { email: f.email.value.trim().toLowerCase() } : {}), kakao_id: f.kakao.value.trim(),
     channel_url: f.channel.value.trim(), message: f.message.value.trim() || null,
     visit_date: visit ? f.vdate.value : null, visit_time: visit ? f.vtime.value : null,
     party_size: visit ? +f.party.value : null,

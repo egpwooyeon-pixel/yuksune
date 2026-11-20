@@ -68,7 +68,7 @@
   <form class="reg" id="apply-form">
     <label>성함 (실명) <input name="name" required maxlength="20"></label>
     <label>핸드폰번호 <small>(010-0000-0000)</small> <input name="phone" required inputmode="tel" maxlength="13" placeholder="010-0000-0000"></label>
-    <label>이메일 <small>(선정되면 안내 메일을 보내드려요)</small> <input name="email" type="email" required maxlength="120" autocomplete="email" placeholder="abc@naver.com"></label>
+    <label id="email-row" hidden>이메일 <small>(선정되면 안내 메일을 보내드려요)</small> <input name="email" type="email" maxlength="120" autocomplete="email" placeholder="abc@naver.com"></label>
     <label>블로그(활동 채널) 주소 <small>(URL 전체)</small> <input name="channel" type="url" required placeholder="https://blog.naver.com/..."></label>
     <label>카카오톡 아이디 <small>(카톡으로 연락드려요)</small> <input name="kakao" required maxlength="40"></label>
 
@@ -96,7 +96,7 @@
     <label class="check"><input type="checkbox" name="reuse" required>
       <span><b id="reuse-text"></b><br><small>광고주가 후기(글·사진·영상)를 홍보에 다시 쓸 수 있는 기간입니다.</small></span></label>
     <label class="check"><input type="checkbox" name="consent" required>
-      <span><b>개인정보 수집·이용에 동의합니다.</b><br><small>수집 항목: 성함, 핸드폰번호, 이메일, 카카오톡 아이디, 채널 주소, 방문 희망 정보 / 목적: 체험단 선정 및 안내 / 이름·채널 주소 등은 해당 광고주에게, 핸드폰번호·이메일·카카오톡 아이디는 선정된 경우에만 광고주에게 전달되고, 선정되면 이메일로 안내 메일이 발송됩니다.</small></span></label>
+      <span><b>개인정보 수집·이용에 동의합니다.</b><br><small id="consent-detail">수집 항목: 성함, 핸드폰번호, 카카오톡 아이디, 채널 주소, 방문 희망 정보 / 목적: 체험단 선정 및 안내 / 이름·채널 주소 등은 해당 광고주에게, 핸드폰번호·카카오톡 아이디는 선정된 경우에만 광고주에게 전달됩니다.</small></span></label>
     <p class="msg" id="apply-msg" role="alert"></p>
     <button class="btn-primary submit" id="apply-btn" type="submit">신청하기</button>
   </form>

@@ -15,3 +15,4 @@
 - 광고주 인증: 일반 가입은 누구나 → 사업자등록증 파일 업로드 → **운영자가 승인**해야 캠페인 등록 가능
 - 신청: **비회원도 가능** (성함·핸드폰·채널주소·카카오톡ID 등). 후기 **2차 활용은 게시일로부터 6개월까지** 동의를 받음 (캠페인별 `reuse_months`, 기본 6)
 - DB 변경 순서: `supabase/schema.sql` → `supabase/002_guest_apply.sql`
+- 선정 안내 이메일: 코드는 준비되어 있으나 **보류** (config.js 의 `EMAIL_NOTIFY` 가 false). 켜려면 `supabase/EMAIL_SETUP.md` 순서대로 설정 후 true 로 변경
