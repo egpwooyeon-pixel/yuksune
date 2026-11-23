@@ -261,9 +261,15 @@ $("rk-add").onsubmit = async e => {
   const fresh = kws.filter(k => !have.has(k.toLowerCase()));
   if (!fresh.length) return alert("입력한 키워드가 모두 이미 등록되어 있어요.");
   if (fresh.length < kws.length) alert(`이미 등록된 키워드 ${kws.length - fresh.length}개는 건너뛰고 ${fresh.length}개만 등록할게요.`);
-  const rows = fresh.map(k => ({ owner_id: owner, campaign_id: camp ? camp.id : null, keyword: k, place_name: name, place_id: pid.id, place_url: /^https?:\/\//.test(url) ? url : null }));
+  const rows = fresh.map(k => ({ owner_id: owner, campaign_id: camp ? camp.id : null, keyword: k, place_name: name, place_id: pid.id, place_url: /^https?:\/\//.test(url) && url.length <= 300 ? url : null }));
   const { error } = await sb.from("rank_trackers").insert(rows);
-  if (error) return alert(/duplicate|unique/i.test(error.message) ? "이미 같은 매장에 등록된 키워드가 있어요. 키워드를 확인해 주세요." : "등록하지 못했어요. (017 SQL 실행 여부를 확인해 주세요)");
+  if (error) {
+    const m = error.message || "";
+    return alert(/duplicate|unique/i.test(m) ? "이미 같은 매장에 등록된 키워드가 있어요. 키워드를 확인해 주세요."
+      : /column|schema cache/i.test(m) ? "순위 추적용 DB 칸이 아직 없어요. Supabase에서 017 SQL을 실행해 주세요.\n(" + m + ")"
+      : /row-level security|permission/i.test(m) ? "등록 권한이 없어요. 운영자(admin) 계정으로 로그인했는지 확인해 주세요.\n(" + m + ")"
+      : "등록하지 못했어요.\n(" + m + ")");
+  }
   $("rk-keywords").value = ""; loadRank();
 };
 
