@@ -280,6 +280,45 @@ $("rk-prov").innerHTML = "조회 조건: <b>네이버 통합검색 · 모바일 
 document.querySelectorAll('input[name="rkmode"]').forEach(r => r.onchange = () => { const camp = document.querySelector('input[name="rkmode"]:checked').value === "camp"; $("rk-camp").hidden = !camp; $("rk-ownerbox").hidden = camp; });
 $("rk-showstop").onchange = e => { rk.stopped = e.target.checked; drawRank(); };
 
+// 매장 찾기: 서버(search-place)가 NAVER API HUB 지역 검색을 대신 호출. 결과는 화면에만 표시 (저장 안 함, 순위와 무관)
+let psBusy = false;
+function psShow(msg, kind) { const el = $("ps-msg"); el.hidden = !msg; el.textContent = msg || ""; el.className = "ps-msg " + (kind || ""); }
+function psDraw(items) {
+  const ul = $("ps-list"); ul.replaceChildren(); ul.hidden = !items.length;
+  for (const it of items) {                          // textContent 만 사용 (매장명에 섞인 문자가 화면 코드로 실행되지 않게)
+    const li = document.createElement("li"), t = document.createElement("div"); t.className = "ps-t";
+    const b = document.createElement("b"); b.textContent = it.name;
+    const a = document.createElement("span"); a.textContent = it.roadAddress || it.address || "주소 정보 없음";
+    const c = document.createElement("span"); c.textContent = it.category || "업종 정보 없음";
+    t.append(b, a, c);
+    const btn = document.createElement("button"); btn.type = "button"; btn.className = "btn"; btn.textContent = "선택";
+    btn.onclick = () => { $("rk-pname").value = it.name.slice(0, 60); $("rk-purl").focus(); psShow("매장명만 채웠어요. 플레이스 주소/ID는 직접 붙여 넣어 주세요.", "ok"); };   // 플레이스 URL/ID 는 건드리지 않음
+    li.append(t, btn); ul.append(li);
+  }
+}
+async function psSearch() {
+  if (psBusy) return;
+  const q = $("ps-q").value.trim(); if (q.length < 2) return psShow("매장명을 2글자 이상 입력해 주세요.");
+  psBusy = true; $("ps-go").disabled = true; $("ps-go").textContent = "검색 중…"; psShow("검색하는 중이에요…"); psDraw([]);
+  try {
+    const { data, error } = await sb.functions.invoke("search-place", { body: { query: q } });
+    let r = data; if (error && !r) { try { r = await error.context.json(); } catch (_) { r = null; } }
+    const err = r && r.error;
+    if (!r) psShow("검색 서비스에 연결하지 못했어요. (search-place 함수가 배포되어 있는지 확인해 주세요) 아래에 직접 입력해서 등록할 수 있어요.", "warn");
+    else if (err === "not_configured") psShow("네이버 API 키가 서버에 설정되지 않았어요. Supabase > Edge Functions > Secrets 에 NAVER_APIHUB_CLIENT_ID, NAVER_APIHUB_CLIENT_SECRET 를 등록해 주세요. 지금은 아래에 직접 입력해서 등록할 수 있어요.", "warn");
+    else if (err === "auth_failed") psShow("네이버 API 키가 올바르지 않거나 사용 권한이 없어요. 키를 다시 확인해 주세요. 직접 입력해서 등록할 수도 있어요.", "warn");
+    else if (err === "rate_limited") psShow("검색 요청이 많아 잠시 막혔어요. 잠시 후 다시 시도해 주세요.", "warn");
+    else if (err === "unauthorized") psShow("권한이 없어요. 운영자 계정으로 로그인했는지 확인해 주세요.", "warn");
+    else if (err === "bad_query") psShow("검색어는 2~40글자로 입력해 주세요.", "warn");
+    else if (err) psShow("검색하지 못했어요. 직접 입력해서 등록할 수 있어요. (" + err + ")", "warn");
+    else if (!(r.items || []).length) psShow("검색 결과가 없어요. 이름을 바꿔 다시 검색하거나, 아래에 매장명과 플레이스 주소/ID를 직접 입력해 등록할 수 있어요.");
+    else { psShow(`후보 ${r.items.length}곳 — 주소를 보고 맞는 지점을 골라 주세요. (순서는 순위가 아니에요)`, "ok"); psDraw(r.items); }
+  } catch (_) { psShow("검색 서비스에 연결하지 못했어요. 직접 입력해서 등록할 수 있어요.", "warn"); }
+  finally { psBusy = false; $("ps-go").disabled = false; $("ps-go").textContent = "검색"; }
+}
+$("ps-go").onclick = psSearch;
+$("ps-q").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); psSearch(); } };
+
 $("rk-example").onclick = async () => {            // 첫 검증용: 갓구운빵공장 명동점 / 명동 빵집 (내 계정으로 등록해서 시험)
   document.querySelector('input[name="rkmode"][value="owner"]').checked = true; $("rk-camp").hidden = true; $("rk-ownerbox").hidden = false;
   $("rk-owner").innerHTML = `<option value="${me.id}">테스트용: 내 운영자 계정</option>`;

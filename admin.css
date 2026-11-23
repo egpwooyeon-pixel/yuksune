@@ -119,6 +119,11 @@ button,input,select{font-family:inherit}
 .rk-mode{grid-column:1/-1;display:flex;gap:18px;font-size:13px}
 .rk-find{display:flex;gap:6px;flex-wrap:wrap}.rk-find input{flex:1;min-width:140px}.rk-find select{flex:1.2;min-width:160px}
 #rk-camp{grid-column:1/-1}
+.ps-box,.ps-full{grid-column:1/-1}.ps-note{margin:6px 0 0;font-size:12px}
+.ps-msg{margin:8px 0 0;padding:8px 10px;border-radius:8px;background:#fff7e6;font-size:13px}.ps-msg.ok{background:#eef8f0}
+.ps-list{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:6px}
+.ps-list li{display:flex;gap:8px;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fff}
+.ps-list .ps-t{min-width:0;font-size:13px;line-height:1.5}.ps-list .ps-t b{display:block}.ps-list .ps-t span{display:block;color:#666;word-break:break-all}
 .rk-submit{grid-column:1/-1;padding:11px;font-size:14px}
 .rk-filter{background:#eef2ff;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .rk-scroll{overflow-x:auto}

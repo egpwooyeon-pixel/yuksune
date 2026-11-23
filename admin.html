@@ -79,8 +79,15 @@
           <div class="rk-mode"><label><input type="radio" name="rkmode" value="camp" checked> 캠페인에서 선택</label><label><input type="radio" name="rkmode" value="owner"> 광고주 직접 선택</label></div>
           <select id="rk-camp" aria-label="캠페인"></select>
           <div class="rk-find" id="rk-ownerbox" hidden><input id="rk-q" placeholder="광고주 닉네임·이메일 검색" aria-label="광고주 검색"><button type="button" class="btn" id="rk-find">찾기</button><select id="rk-owner"><option value="">광고주를 먼저 검색해 선택하세요</option></select></div>
+          <div class="ps-box">
+            <div class="rk-find"><input id="ps-q" placeholder="매장 찾기: 매장명 또는 매장명 + 지점명 (예: 갓구운빵공장 명동점)" maxlength="40" aria-label="매장 찾기"><button type="button" class="btn" id="ps-go">검색</button></div>
+            <p class="muted ps-note">네이버 지역 검색 결과예요. 같은 이름의 지점은 주소로 구분하세요. 목록 순서는 순위가 아니고, 저장되지 않아요.</p>
+            <p class="ps-msg" id="ps-msg" role="status" aria-live="polite" hidden></p>
+            <ul class="ps-list" id="ps-list" hidden></ul>
+          </div>
           <input id="rk-pname" placeholder="매장명" maxlength="60" aria-label="매장명">
           <input id="rk-purl" placeholder="네이버 플레이스 주소 또는 플레이스 ID" maxlength="300" aria-label="플레이스 주소 또는 ID">
+          <p class="muted ps-note ps-full">플레이스 주소/ID는 자동으로 채워지지 않아요. 네이버 플레이스에서 해당 지점 주소를 복사해 직접 붙여 넣어 주세요. (검색해서 고른 매장명이 맞는 지점인지 주소로 꼭 확인)</p>
           <textarea id="rk-keywords" rows="3" placeholder="추적할 키워드 (줄바꿈 또는 쉼표로 여러 개) 예) 명동 빵집, 명동 베이커리" aria-label="키워드"></textarea>
           <button class="btn ok rk-submit" type="submit">키워드 등록</button>
         </form>
