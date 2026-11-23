@@ -6,20 +6,22 @@ const EMOJI = {맛집:"🍜", 뷰티:"💄", 숙박:"🛏️", 카페:"☕", 놀
 const COLOR = {맛집:"#ffe9d6", 뷰티:"#ffe0ea", 숙박:"#dff4f7", 카페:"#f1e6da", 놀이:"#e6e0ff", 생활:"#e3f3e6"};
 
 const daysLeft = d => Math.max(0, Math.ceil((new Date(d + "T23:59:59") - Date.now()) / 864e5));
-let campaigns = [...window.SAMPLES];  // 먼저 샘플을 보여주고, 서버에서 불러오면 실제 캠페인을 앞에 붙임
+let campaigns = [];
+let loaded = false;   // 서버에서 불러오기 전에는 "없어요" 문구를 보이지 않음
 
 async function loadFromServer() {
-  if (!window.sbReady) return;
+  if (!window.sbReady) { loaded = true; render(); return; }
   const today = new Date().toISOString().slice(0, 10);
   const { data, error } = await sb.from("campaigns").select("*").eq("status", "open")
     .gte("deadline", today).order("created_at", { ascending: false });
-  if (error || !data) return;
+  if (error || !data) { loaded = true; render(); return; }
   const { data: cnt } = await sb.rpc("campaign_counts");
   const n = Object.fromEntries((cnt || []).map(r => [r.campaign_id, Number(r.applied)]));
   const real = data.map(r => ({ id: r.id, type: r.type, cat: r.cat, region: r.region, mode: r.mode,
     title: r.title, reward: r.reward, slots: r.slots, biz: r.biz, photo: r.photo_url,
     days: daysLeft(r.deadline), applied: n[r.id] || 0, isNew: Date.now() - new Date(r.created_at) < 3 * 864e5 }));
-  campaigns = [...real, ...window.SAMPLES];
+  campaigns = real;
+  loaded = true;
   render();
 }
 
@@ -41,7 +43,8 @@ function render() {
     (state.region === "전체" || (state.region === "배송형" ? c.mode === "배송형" : c.region === state.region)) &&
     (!state.q || (c.title + c.biz).includes(state.q)));
 
-  document.getElementById("empty").hidden = list.length > 0;
+  document.getElementById("empty").hidden = !loaded || list.length > 0;
+  document.getElementById("empty").textContent = state.q ? "검색 결과가 없어요." : "지금 모집 중인 체험단이 없어요.";
   document.getElementById("more").parentElement.hidden = list.length <= state.shown;
   document.getElementById("cards").innerHTML = list.slice(0, state.shown).map(c => `
     <li class="cc">

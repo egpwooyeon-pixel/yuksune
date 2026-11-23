@@ -10,13 +10,6 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":
 let canApply = false, camp = null;
 
 async function load() {
-  if (id.startsWith("s")) {                       // 샘플: 일부 값은 보기 좋게 채움
-    const s = window.SAMPLES.find(x => x.id === id);
-    if (!s) return null;
-    const t = new Date();
-    return { ...s, sampleOnly: true, created: ymd(t), deadline: ymd(new Date(t.getTime() + s.days * 864e5)),
-      photos: 10, chars: 500, disclosure: true, keywords: "", ship: "", notice: "" };
-  }
   if (!window.sbReady) return null;
   const { data, error } = await sb.from("campaigns").select("*").eq("id", id).maybeSingle();
   if (error || !data) return null;
@@ -163,13 +156,13 @@ if (EMAIL_ON) {
     ? `작성한 후기를 광고주가 후기 게시일로부터 ${months}개월까지 2차 활용(자사 블로그·SNS·홈페이지 등 홍보 게시)하는 것에 동의합니다.`
     : "작성한 후기의 2차 활용은 없습니다. (확인했습니다)";
 
-  canApply = !c.sampleOnly && window.sbReady && c.open;
+  canApply = window.sbReady && c.open;
   const btn = $("apply-open");
   if (!canApply) {
     btn.disabled = true;
-    btn.textContent = c.sampleOnly ? "샘플 캠페인입니다" : "마감되었어요";
+    btn.textContent = "마감되었어요";
     $("d-state").hidden = false;
-    $("d-state").textContent = c.sampleOnly ? "화면 확인용 샘플이라 신청할 수 없어요." : "마감되었거나 신청을 받지 않는 캠페인이에요.";
+    $("d-state").textContent = "마감되었거나 신청을 받지 않는 캠페인이에요.";
   }
 })();
 
