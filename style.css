@@ -463,3 +463,38 @@ a.write-btn:hover{background:var(--primary-dark);text-decoration:none}
 .biz-go{display:inline-block;margin-top:12px;padding:11px 24px}
 .biz .reg{margin-top:20px;padding-top:20px;border-top:1px solid #eee}
 .tag{display:inline-block;border-radius:4px;font-size:11px;font-weight:700;padding:3px 9px}
+
+/* 상세 페이지: 참고 화면처럼 정돈 (색·글꼴은 우리 디자인 유지) */
+.dv-titlebar{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}
+.dv-titlebar h1{margin:0}
+.dv-icon{flex:none;width:34px;height:34px;border:1px solid var(--line);background:#fff;border-radius:50%;cursor:pointer;font-size:15px;color:#555}
+.dv-icon:hover{background:#f4f6fa}
+.dv-notice{background:#f4f6fb;border:1px solid #e6e9f2;border-radius:8px;padding:16px 20px}
+.dv-notice summary{cursor:pointer;font-weight:500;font-size:14px;list-style:none;display:flex;justify-content:space-between;gap:10px}
+.dv-notice summary::after{content:"▴";color:#666;font-size:12px}
+.dv-notice:not([open]) summary::after{content:"▾"}
+.dv-notice summary b{color:var(--primary)}
+.dv-notice p{margin:10px 0 0;font-size:13px;line-height:1.6;color:#444}
+.dv-steps{list-style:none;margin:10px 0 0;padding:0;font-size:12.5px;line-height:1.8;color:#444}
+.dv-steps b{color:#3a86ff}
+.dv-notice-extra{white-space:pre-wrap}
+.dv-notice-extra:empty{display:none}
+.dv-host{display:flex!important;align-items:center;gap:12px}
+.dv-avatar{flex:none;width:36px;height:36px;border-radius:50%;background:#e9efff;color:var(--primary);font-weight:700;display:flex;align-items:center;justify-content:center}
+.dv-copy{margin-left:8px;border:1px solid #ccd0d8;background:#fff;border-radius:4px;padding:5px 12px;font-size:12px;cursor:pointer;vertical-align:middle}
+.dv-copy:hover{background:#f4f6fa}
+#d-keywords{vertical-align:middle}
+.dv-rows dt{width:auto}
+.dv-cal-toggle{display:flex;justify-content:space-between;align-items:center;width:100%;border:0;background:none;padding:0 0 10px;font:inherit;font-size:14px;cursor:pointer;text-align:left}
+.dv-cal-toggle i{font-style:normal;color:#555}
+.dv-cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.dv-cal-head .dv-cal-title{margin:0}
+.cal th{border:0;border-bottom:1px solid #e3e5e8;background:#fff;font-weight:600;padding:6px 0;font-size:11px}
+.cal td.dn{border:1px solid #e3e5e8;border-bottom:0;height:22px;padding:3px 4px 0;text-align:right;font-size:11px;color:#444;vertical-align:top}
+.cal td.dn.o{background:#fafafa}
+.cal td.dn.td{background:#fff3c4;font-weight:700}
+.cal td.bn{border:1px solid #e3e5e8;border-top:0;height:16px;padding:0;font-size:10px;color:#fff;text-align:center;line-height:16px}
+.cal td.bn.r1{background:#9ea2ab}
+.cal td.bn.r2{background:#1e9bff}
+.cal td.r1,.cal td.r2{background:transparent}
+.cal-legend{white-space:nowrap;font-size:11px}

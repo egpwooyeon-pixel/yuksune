@@ -43,17 +43,17 @@ function drawCal() {
   const end2 = c.reviewDeadline || c.vend;
   const r2 = end2 ? [new Date(D(c.deadline).getTime() + 864e5), D(end2)] : null;
   const today = D(ymd(new Date())), inR = (d, r) => r && d >= r[0] && d <= r[1];
+  const first = new Date(y, m, 1).getDay(), last = new Date(y, m + 1, 0).getDate(), weeks = Math.ceil((first + last) / 7);
   let h = "<tr>" + "일월화수목금토".split("").map(w => `<th>${w}</th>`).join("") + "</tr>";
-  const first = new Date(y, m, 1).getDay(), last = new Date(y, m + 1, 0).getDate();
-  for (let cell = 0; cell < Math.ceil((first + last) / 7) * 7; cell++) {
-    if (cell % 7 === 0) h += "<tr>";
-    const day = cell - first + 1;
-    if (day < 1 || day > last) h += "<td class='o'></td>";
-    else {
-      const d = new Date(y, m, day), cls = [inR(d, r1) ? "r1" : "", inR(d, r2) ? "r2" : "", +d === +today ? "td" : ""].join(" ");
-      h += `<td class="${cls}">${day}</td>`;
+  for (let w = 0; w < weeks; w++) {
+    const cells = Array.from({ length: 7 }, (_, i) => { const day = w * 7 + i - first + 1; return day < 1 || day > last ? null : new Date(y, m, day); });
+    h += "<tr>" + cells.map(d => d ? `<td class="dn${+d === +today ? " td" : ""}">${d.getDate()}</td>` : '<td class="dn o"></td>').join("") + "</tr><tr>";
+    for (let i = 0; i < 7;) {                   // 같은 기간이 이어지는 칸은 하나의 막대로 합침
+      const t = d => d ? (inR(d, r1) ? "r1" : inR(d, r2) ? "r2" : "") : "";
+      const type = t(cells[i]); let n = 1; while (i + n < 7 && t(cells[i + n]) === type) n++;
+      h += `<td class="bn ${type}" colspan="${n}">${type === "r1" ? "모집" : type === "r2" ? "체험·리뷰" : ""}</td>`; i += n;
     }
-    if (cell % 7 === 6) h += "</tr>";
+    h += "</tr>";
   }
   $("cal").innerHTML = h;
 }
@@ -75,15 +75,25 @@ if (EMAIL_ON) {
   // 제목·태그
   $("d-title").textContent = c.title;
   $("d-tags").innerHTML = [c.type, c.mode, c.cat].map(esc).join(" <i>|</i> ") + (c.type === "구매평" ? ' <span class="pt0">0P</span>' : "");
-  if (c.notice) { $("d-notice-box").hidden = false; $("d-notice").textContent = c.notice; $("d-notice-title").textContent = "📌 광고주 안내"; }
+  const sk = { 블로그: "블로그", 구매평: "구매평", 인스타: "인스타" }[c.type] || c.type;
+  $("d-notice-title").innerHTML = `📌 해당 체험단은 <b>${visit ? "방문형" : "배송형"}</b> 체험단입니다.`;
+  $("d-notice-lead").textContent = visit
+    ? `선정되면 광고주와 일정을 맞춰 매장을 방문하고, 체험 후 ${sk} 후기를 작성합니다.`
+    : `선정되면 광고주가 제품을 보내 드리고, 제품을 받은 뒤 ${sk} 후기를 작성합니다.`;
+  $("d-steps").innerHTML = (visit
+    ? ["신청하면 광고주가 직접 선정해요.", "선정되면 입력하신 연락처로 안내가 가요. 방문 일정을 맞춰 방문해 주세요.", "방문 후 마감일까지 후기를 작성하고 등록해 주세요."]
+    : ["신청하면 광고주가 직접 선정해요.", "선정되면 입력하신 연락처로 안내가 가요. 배송지를 알려 주세요.", "제품 수령 후 마감일까지 후기를 작성하고 등록해 주세요."])
+    .map((t, i) => `<li><b>STEP${i + 1}.</b> ${esc(t)}</li>`).join("");
+  $("d-notice").textContent = c.notice || "";
 
   // 정보 행
   $("d-biz").textContent = c.biz;
+  $("d-avatar").textContent = String(c.biz || "?").trim().slice(0, 1);
   $("d-reward").textContent = c.reward;
   $("d-ship-label").textContent = visit ? "방문 안내" : "배송 및 구매 안내";
   $("d-ship").textContent = c.ship || (visit
-    ? `방문 희망 날짜·시간은 신청할 때 입력해 주세요.${c.vstart && c.vend ? ` 방문 가능 기간: ${c.vstart} ~ ${c.vend}` : ""}`
-    : "선정 후 안내드리는 연락처로 배송지를 알려주세요.");
+    ? `🚨방문 일정은 선정 후 광고주와 연락하여 조율해 주세요.\n- 신청할 때 방문 희망 날짜·시간을 입력해 주세요.${c.vstart && c.vend ? `\n- 방문 가능 기간: ${c.vstart} ~ ${c.vend}` : ""}`
+    : "🚨배송 관련 문의는 선정 후 광고주 연락처로 조율해 주세요.\n- 선정되면 입력하신 연락처로 안내가 가요.\n- 배송지는 선정 후 광고주에게 직접 알려 주세요.");
   const WD = ["일","월","화","수","목","금","토"];
   const wdList = (c.weekdays || "").split(",").filter(x => x !== "").map(Number);
   const timeList = (c.times || "").split(",").map(t => t.trim()).filter(Boolean);
@@ -105,6 +115,7 @@ if (EMAIL_ON) {
   if (c.keywords) { $("r-keywords").hidden = false;
     $("d-keywords").innerHTML = c.keywords.split(",").map(k => k.trim()).filter(Boolean).map(k => `<span class="kw-chip">${esc(k)}</span>`).join(""); }
   const url = c.url || c.place;
+  window.__kw = (c.keywords || "").split(",").map(k => k.trim()).filter(Boolean).join(", "); window.__url = url || "";
   if (url && /^https?:\/\//.test(url)) { $("r-url").hidden = false; const a = $("d-url"); a.href = url; a.textContent = "상품정보 링크 바로가기"; }
   $("d-slots").textContent = `${c.slots}명 (현재 신청 ${c.applied}명) · 마감 ${c.deadline} (${Math.max(0, c.days)}일 남음)`;
   $("d-reuse").textContent = months > 0 ? `후기 게시일로부터 ${months}개월까지 광고주가 홍보에 활용할 수 있어요.` : "2차 활용 없음";
@@ -201,3 +212,15 @@ $("apply-form").onsubmit = async e => {
   }
   f.hidden = true; $("apply-done").hidden = false;
 };
+
+// 복사 / 공유 / 달력 접기
+async function copyText(t, btn) {
+  const old = btn.textContent;
+  try { await navigator.clipboard.writeText(t); btn.textContent = "복사됨"; }
+  catch (e) { prompt("아래 내용을 복사하세요", t); }
+  setTimeout(() => { btn.textContent = old; }, 1200);
+}
+$("kw-copy").onclick = e => copyText(window.__kw || "", e.target);
+$("url-copy").onclick = e => copyText(window.__url || "", e.target);
+$("d-share").onclick = async e => { try { await navigator.clipboard.writeText(location.href); alert("주소를 복사했어요."); } catch (err) { prompt("아래 주소를 복사하세요", location.href); } };
+$("cal-toggle").onclick = e => { const b = $("cal-body"); b.hidden = !b.hidden; e.currentTarget.setAttribute("aria-expanded", !b.hidden); e.currentTarget.querySelector("i").textContent = b.hidden ? "▸" : "▾"; };
