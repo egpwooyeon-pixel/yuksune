@@ -74,11 +74,13 @@ async function showApps(id) {
   $("apps-sum").textContent = `신청 ${apps.length}명 · 선정 ${sel}/${c.slots}명`;
   $("apps-empty").hidden = apps.length > 0;
   const oxs = v => v == null ? "-" : v ? "O" : "X";
-  const head = ["신청일", "이름", "핸드폰", "카카오톡", ...(EMAIL_ON ? ["이메일"] : []), "채널", ...(visit ? ["방문 희망"] : []), ...(blog ? ["인플루언서", "클립"] : []), ...(c.mission ? ["미션"] : []), "하고 싶은 말", "상태", "처리"];
+  const sns = c.type === "인스타" || c.type === "유튜브", folLabel = c.type === "유튜브" ? "구독자" : "팔로워";
+  const head = ["신청일", "이름", "핸드폰", "카카오톡", ...(EMAIL_ON ? ["이메일"] : []), "채널", ...(sns ? [folLabel] : []), ...(visit ? ["방문 희망"] : []), ...(blog ? ["인플루언서", "클립"] : []), ...(c.mission ? ["미션"] : []), "하고 싶은 말", "상태", "처리"];
   $("apps").innerHTML = apps.length ? `<thead><tr>${head.map(h => `<th>${h}</th>`).join("")}</tr></thead><tbody>` + apps.map(a => {
     const [t, k] = ST[a.status] || ST.applied, url = /^https?:\/\//.test(a.channel_url || "") ? a.channel_url : "";
     return `<tr data-id="${a.id}"><td>${fmt(a.created_at)}</td><td><b>${esc(a.applicant_name || "-")}</b></td><td>${a.contact ? esc(a.contact) : '<span class="muted">선정 후 공개</span>'}</td><td>${a.kakao_id ? esc(a.kakao_id) : '<span class="muted">선정 후 공개</span>'}</td>${EMAIL_ON ? `<td>${a.email ? esc(a.email) : '<span class="muted">선정 후 공개</span>'}</td>` : ""}
       <td>${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">열기 ↗</a>` : "-"}</td>
+      ${sns ? `<td>${a.followers != null ? Number(a.followers).toLocaleString("ko-KR") : "-"}</td>` : ""}
       ${visit ? `<td>${esc(a.visit_date || "-")} ${esc(a.visit_time || "")}<br>${a.party_size ? a.party_size + "명" : ""}</td>` : ""}
       ${blog ? `<td>${oxs(a.is_naver_influencer)}</td><td>${oxs(a.clip_ok)}</td>` : ""}
       ${c.mission ? `<td>${oxs(a.mission_agreed)}</td>` : ""}
@@ -114,7 +116,7 @@ $("apps").onclick = async e => {
 const cell = v => { let s = v == null ? "" : String(v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
 $("csv").onclick = () => {
   const c = camps.find(x => x.id === openId); if (!c) return;
-  const cols = [["신청일", a => fmt(a.created_at)], ["이름", a => a.applicant_name], ["핸드폰", a => a.contact], ["카카오톡", a => a.kakao_id], ...(EMAIL_ON ? [["이메일", a => a.email]] : []), ["채널 주소", a => a.channel_url],
+  const cols = [["신청일", a => fmt(a.created_at)], ["이름", a => a.applicant_name], ["핸드폰", a => a.contact], ["카카오톡", a => a.kakao_id], ...(EMAIL_ON ? [["이메일", a => a.email]] : []), ["채널 주소", a => a.channel_url], ["팔로워/구독자", a => a.followers],
     ["방문 희망일", a => a.visit_date], ["방문 희망 시간", a => a.visit_time], ["방문 인원", a => a.party_size],
     ["네이버 인플루언서", a => a.is_naver_influencer == null ? "" : a.is_naver_influencer ? "O" : "X"], ["클립 가능", a => a.clip_ok == null ? "" : a.clip_ok ? "O" : "X"],
     ["미션 동의", a => a.mission_agreed == null ? "" : a.mission_agreed ? "O" : "X"], ["하고 싶은 말", a => a.message], ["상태", a => (ST[a.status] || ST.applied)[0]], ...(EMAIL_ON ? [["안내 메일", a => a.status === "selected" ? (a.notified_at ? "발송됨" : "미발송") : ""]] : [])];

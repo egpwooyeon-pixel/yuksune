@@ -26,6 +26,8 @@ document.getElementById("header-slot").outerHTML = `<!-- 1. 헤더 -->
 document.getElementById("footer-slot").outerHTML = `<footer class="site-footer">
   <div class="wrap">
     <p><b>우리들 체험단</b> · 체험단과 광고주를 잇는 마케팅 커뮤니티</p>
+    <p class="foot-links"><a href="privacy.html"><b>개인정보처리방침</b></a><i></i><a href="terms.html">이용약관</a></p>
+    <p class="muted" id="foot-co"></p>
     <p class="muted">© 2026 우리들 체험단. All rights reserved.</p>
   </div>
 </footer>`;
@@ -53,3 +55,11 @@ if (topSearch) topSearch.addEventListener("submit", e => {
   const q = topSearch.querySelector("input").value.trim();
   location.href = "campaigns.html" + (q ? "?q=" + encodeURIComponent(q) : "");
 });
+
+// 하단 운영자 정보 (config.js 의 COMPANY 가 채워져 있을 때만 표시)
+(function () {
+  const co = (window.WOORI && window.WOORI.COMPANY) || {}, el = document.getElementById("foot-co");
+  if (!el) return;
+  const parts = [co.name, co.ceo && "대표 " + co.ceo, co.bizNo && "사업자등록번호 " + co.bizNo, co.address, co.email, co.phone].filter(Boolean);
+  el.textContent = parts.join(" · ");
+})();

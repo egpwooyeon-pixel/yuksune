@@ -6,6 +6,7 @@ function setMode(m) {
   $("tab-login").classList.toggle("on", m === "login");
   $("tab-signup").classList.toggle("on", m === "signup");
   $("nick-row").hidden = m !== "signup";
+  $("agree-row").hidden = m !== "signup"; form.agree.required = m === "signup";
   form.nickname.required = m === "signup";
   form.password.autocomplete = m === "signup" ? "new-password" : "current-password";
   $("submit").textContent = m === "signup" ? "가입하기" : "로그인";

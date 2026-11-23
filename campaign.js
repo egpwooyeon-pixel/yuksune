@@ -135,6 +135,9 @@ if (EMAIL_ON) {
 
   // 신청 폼(대화창) 준비
   $("visit-fields").hidden = !visit; $("blog-fields").hidden = c.type !== "블로그";
+  const sns = c.type === "인스타" || c.type === "유튜브";           // 인스타그램·유튜브: 팔로워/구독자 수를 받음
+  $("sns-fields").hidden = !sns;
+  if (sns) { $("fol-label").textContent = c.type === "유튜브" ? "유튜브 구독자 수" : "인스타그램 팔로워 수"; $("apply-form").followers.required = true; }
   if (visit) {
     const f = $("apply-form"), today = new Date().toISOString().slice(0, 10);
     f.vdate.min = c.vstart && c.vstart > today ? c.vstart : today; if (c.vend) f.vdate.max = c.vend;
@@ -199,6 +202,7 @@ $("apply-form").onsubmit = async e => {
     party_size: visit ? +f.party.value : null,
     is_naver_influencer: blog ? f.influencer.value === "O" : null, clip_ok: blog ? f.clip.value === "O" : null,
     mission_agreed: camp.mission ? f.mission.checked : null,
+    ...((camp.type === "인스타" || camp.type === "유튜브") ? { followers: Number(f.followers.value) } : {}),
     consent_at: new Date().toISOString(), reuse_consent_at: new Date().toISOString(),
   });
   if (error) {
