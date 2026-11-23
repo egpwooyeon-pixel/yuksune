@@ -63,11 +63,18 @@
 
     <!-- 순위 추적 -->
     <section id="s-rank" hidden>
-      <div class="ad-top"><div><small class="kick">RANK</small><h1>플레이스 순위 추적</h1></div>
+      <div class="ad-top"><div><small class="kick">RANK</small><h1>플레이스 순위 추적</h1><p class="muted rk-metric">지표: <b>네이버 통합검색 플레이스 노출 순서</b> (모바일)</p></div>
         <label class="rk-stopped"><input type="checkbox" id="rk-showstop"> 중지된 추적도 보기</label></div>
       <p class="note" id="rk-prov"></p>
+      <div class="box rk-usage" id="rk-usage">
+        <div class="ru-item"><small>오늘 남은 조회</small><b id="ru-day">-</b></div>
+        <div class="ru-item"><small>이번 달 남은 조회</small><b id="ru-month">-</b></div>
+        <div class="ru-item"><small>활성 검색 키워드</small><b id="ru-kw">-</b></div>
+        <label class="ru-auto"><input type="checkbox" id="ru-auto"> 자동 수집 (하루 한 번)<small>기본은 꺼짐. 켜면 예약 작업이 하루 한 번 조회해요.</small></label>
+      </div>
+      <p class="rk-toast" id="rk-toast" role="status" aria-live="polite" hidden></p>
       <div class="box">
-        <div class="box-h"><b>키워드 등록</b><span class="muted">캠페인(매장) 하나에 키워드를 여러 개 등록할 수 있어요</span></div>
+        <div class="box-h"><b>키워드 등록</b><span class="rk-bh"><button type="button" class="btn" id="rk-example">테스트 예시 채우기</button> <span class="muted">활성 검색 키워드는 최대 5개</span></span></div>
         <form class="rk-form" id="rk-add">
           <div class="rk-mode"><label><input type="radio" name="rkmode" value="camp" checked> 캠페인에서 선택</label><label><input type="radio" name="rkmode" value="owner"> 광고주 직접 선택</label></div>
           <select id="rk-camp" aria-label="캠페인"></select>

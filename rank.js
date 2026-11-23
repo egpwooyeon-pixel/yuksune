@@ -6,7 +6,7 @@ const msg = t => { $("rk-msg").hidden = !t; $("rk-msg").textContent = t || ""; }
 let logs = {};   // 날짜 → 기록 (지금 보고 있는 키워드)
 let trackers = [], cur = null;
 
-const rankText = l => !l ? null : l.status === "out" || l.out_of_rank ? "순위 밖" : l.status === "failed" ? null : l.rank != null ? l.rank : null;
+const rankText = l => !l ? null : l.status === "out" || l.out_of_rank ? (l.source === "provider" ? "미노출" : "순위 밖") : l.status === "failed" ? null : l.rank != null ? l.rank : null;
 function delta(day, i, days) {            // 전날과 비교: 숫자가 작아지면 순위 상승(▲)
   const prev = logs[days[i + 1]];
   const c = logs[day];

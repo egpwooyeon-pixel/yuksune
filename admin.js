@@ -214,8 +214,55 @@ async function loadApps() {
 }
 
 /* ---------- 순위 추적 ---------- */
+const KW_LIMIT_MSG = "활성 검색 키워드는 최대 5개까지예요. 쓰지 않는 키워드는 '추적 중지'한 뒤 등록해 주세요.";
+const rkErr = (error, fallback) => /keyword_limit/.test(error.message || "") ? KW_LIMIT_MSG : /duplicate|unique/i.test(error.message || "") ? "같은 매장에 이미 있는 키워드예요." : fallback;
+function toast(t, kind) { const el = $("rk-toast"); el.hidden = !t; el.textContent = t || ""; el.className = "rk-toast " + (kind || ""); }
+async function loadUsage() {                      // 오늘/이번 달 남은 조회 횟수, 활성 키워드 수, 자동 수집 스위치
+  const [u, s] = await Promise.all([sb.rpc("serp_usage"), sb.from("app_settings").select("value").eq("key", "rank_auto").maybeSingle()]);
+  if (u.error || !u.data) { $("ru-day").textContent = $("ru-month").textContent = $("ru-kw").textContent = "-"; toast("조회 한도 정보를 불러오지 못했어요. (020 SQL 실행 여부를 확인해 주세요)", "warn"); return; }
+  const d = u.data; rk.usage = d;
+  $("ru-day").textContent = `${Math.max(0, d.daily_limit - d.daily_used)} / ${d.daily_limit}회`;
+  $("ru-month").textContent = `${Math.max(0, d.monthly_limit - d.monthly_used)} / ${d.monthly_limit}회`;
+  $("ru-kw").textContent = `${d.active_keywords} / ${d.keyword_limit}개`;
+  $("ru-auto").checked = !!(s.data && s.data.value === true);
+}
+$("ru-auto").onchange = async e => {
+  const on = e.target.checked;
+  if (on && !confirm("자동 수집을 켤까요?\n예약 작업이 하루 한 번, 활성 키워드를 조회해요. (조회 한도는 수동 조회와 함께 계산돼요)")) { e.target.checked = false; return; }
+  const { error } = await sb.from("app_settings").upsert({ key: "rank_auto", value: on, updated_at: new Date().toISOString() });
+  if (error) { e.target.checked = !on; return alert("설정을 바꾸지 못했어요. (020 SQL 실행 여부를 확인해 주세요)"); }
+  toast(on ? "자동 수집을 켰어요. 예약 작업이 설정되어 있어야 실제로 조회돼요." : "자동 수집을 껐어요.", "ok");
+};
+const rkBusy = new Set();
+async function lookupNow(id, btn) {                // '지금 조회': 서버가 한도·중복을 먼저 확인한 뒤에만 SerpApi 를 부름
+  if (rkBusy.has(id)) return;                     // 같은 매장을 연속으로 눌러도 한 번만 보냄
+  rkBusy.add(id); btn.disabled = true; const old = btn.textContent; btn.textContent = "조회 중…"; toast("조회하는 중이에요…");
+  let msg = "", kind = "";
+  try {
+    const { data, error } = await sb.functions.invoke("collect-ranks", { body: { tracker_id: id } });
+    let r = data;
+    if (error && !r) { try { r = await error.context.json(); } catch (_) { r = null; } }
+    if (!r) { msg = "조회 서비스에 연결하지 못했어요. (collect-ranks 함수가 배포되어 있는지 확인해 주세요)"; kind = "warn"; }
+    else if (r.error === "provider_not_configured") { msg = "SerpApi 키가 서버에 설정되지 않았어요. Supabase > Edge Functions > Secrets 에 SERPAPI_API_KEY 를 등록해 주세요. (조회 횟수는 사용되지 않았어요)"; kind = "warn"; }
+    else if (r.error === "unauthorized") { msg = "권한이 없어요. 운영자 계정으로 로그인했는지 확인해 주세요."; kind = "warn"; }
+    else if (r.error === "inactive") { msg = "추적이 중지된 키워드예요. 먼저 '추적 재개'를 눌러 주세요."; kind = "warn"; }
+    else if (r.error) { msg = "조회하지 못했어요. (" + r.error + ")"; kind = "warn"; }
+    else if (r.denied === "daily_limit") { msg = "오늘 조회 한도(5회)에 도달해서 SerpApi를 호출하지 않았어요. 내일 다시 조회해 주세요."; kind = "warn"; }
+    else if (r.denied === "monthly_limit") { msg = "이번 달 조회 한도(200회)에 도달해서 SerpApi를 호출하지 않았어요."; kind = "warn"; }
+    else if (r.denied === "in_progress") { msg = "같은 키워드를 조회하는 중이에요. 잠시 후 새로고침해 주세요."; kind = "warn"; }
+    else if (r.cached) { msg = "오늘 이미 조회한 결과예요. 저장된 결과를 보여 드려요. (조회 횟수는 사용되지 않았어요)"; kind = "ok"; }
+    else if (r.failed) { msg = r.error === "no_place_id" ? "이 매장에는 플레이스 ID가 없어서 조회할 수 없어요. 플레이스 주소나 ID를 등록해 주세요." : "조회에 실패했어요. 실패한 호출도 한도에 포함돼요. (" + (r.error || "") + ")"; kind = "warn"; }
+    else if (r.called) {
+      const mine = (r.results || []).find(x => x.id === id);
+      msg = mine ? (mine.found ? `조회했어요: 네이버 통합검색 플레이스 ${mine.position}번째로 노출돼요.` : "조회했어요: 이번 조회 결과에 미노출이에요.") : "조회했어요.";
+      if ((r.results || []).length > 1) msg += ` (같은 키워드의 매장 ${(r.results || []).length}곳을 한 번에 확인했어요)`; kind = "ok";
+    }
+  } catch (e) { msg = "조회 서비스에 연결하지 못했어요."; kind = "warn"; }
+  finally { rkBusy.delete(id); btn.disabled = false; btn.textContent = old; }
+  toast(msg, kind);
+  await loadRank(); loadUsage();
+}
 // 데이터 구조: rank_trackers(매장·키워드 한 줄) + rank_logs(날짜별 기록: status ok/out/failed, source manual/provider)
-const RK_PROVIDER = !!(window.WOORI && window.WOORI.RANK_PROVIDER);
 const kstDay = d => new Date(new Date(d).getTime() + 9 * 3600e3).toISOString().slice(0, 10);
 const dayMinus = (day, n) => { const d = new Date(day + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() - n); return d.toISOString().slice(0, 10); };
 const hm = iso => { const d = new Date(iso); return `${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
@@ -226,14 +273,19 @@ function parsePlaceId(v) {
   if (/naver\.me\//i.test(v)) return { err: "단축 주소(naver.me)로는 플레이스 ID를 알 수 없어요. 전체 주소나 ID 숫자를 넣어 주세요." };
   const m = v.match(/\/(\d{5,15})(?:[\/?#]|$)/); return m ? { id: m[1] } : { err: "주소에서 플레이스 ID를 찾지 못했어요. 주소 전체나 ID 숫자를 확인해 주세요." };
 }
-const rkText = l => !l ? "미수집" : l.status === "out" ? "조회 범위 밖" : l.status === "failed" ? "조회 실패" : l.rank + "위";
-let rk = { trackers: [], logs: {}, camps: [], open: new Set(), camp: null, stopped: false };
+const rkText = l => !l ? "미수집" : l.status === "out" ? (l.source === "provider" ? "이번 조회 결과에 미노출" : "조회 범위 밖") : l.status === "failed" ? "조회 실패" : l.rank + "번째";
+let rk = { trackers: [], logs: {}, camps: [], open: new Set(), camp: null, stopped: false, usage: null };
 
-$("rk-prov").innerHTML = RK_PROVIDER ? "자동 조회: 데이터 제공처 연동됨. 하루 한 번 조회해 기록해요. (수동 확인도 함께 기록할 수 있어요)"
-  : "⚠ <b>데이터 제공처 미연동</b>: 지금은 운영자가 모바일 네이버 플레이스에서 직접 확인한 순위를 기록해요. 기록에는 출처가 <b>수동 확인</b>으로 표시돼요.";
+$("rk-prov").innerHTML = "조회 조건: <b>네이버 통합검색 · 모바일 · 등록한 키워드 그대로</b> (SerpApi). 한도(한국 시간): 하루 5회 · 월 200회 · 실패한 호출 포함. 같은 키워드의 여러 매장은 한 번의 조회로 확인해요. 조회하지 않은 날은 직접 확인한 값을 '수동 확인'으로 기록할 수도 있어요.";
 document.querySelectorAll('input[name="rkmode"]').forEach(r => r.onchange = () => { const camp = document.querySelector('input[name="rkmode"]:checked').value === "camp"; $("rk-camp").hidden = !camp; $("rk-ownerbox").hidden = camp; });
 $("rk-showstop").onchange = e => { rk.stopped = e.target.checked; drawRank(); };
 
+$("rk-example").onclick = async () => {            // 첫 검증용: 갓구운빵공장 명동점 / 명동 빵집 (내 계정으로 등록해서 시험)
+  document.querySelector('input[name="rkmode"][value="owner"]').checked = true; $("rk-camp").hidden = true; $("rk-ownerbox").hidden = false;
+  $("rk-owner").innerHTML = `<option value="${me.id}">테스트용: 내 운영자 계정</option>`;
+  $("rk-pname").value = "갓구운빵공장 명동점"; $("rk-keywords").value = "명동 빵집"; $("rk-purl").value = "";
+  $("rk-purl").focus(); toast("매장명과 키워드를 채웠어요. 네이버 플레이스 주소(또는 ID)를 붙여 넣고 '키워드 등록'을 누른 뒤, 목록에서 '지금 조회'를 눌러 보세요.", "ok");
+};
 $("rk-camp").onchange = () => {                     // 캠페인을 고르면 매장명·플레이스 주소를 가져옴 (다시 입력하지 않음)
   const c = rk.camps.find(x => x.id === $("rk-camp").value);
   $("rk-pname").value = c ? c.biz : ""; $("rk-purl").value = c && c.place_url ? c.place_url : "";
@@ -265,7 +317,7 @@ $("rk-add").onsubmit = async e => {
   const { error } = await sb.from("rank_trackers").insert(rows);
   if (error) {
     const m = error.message || "";
-    return alert(/duplicate|unique/i.test(m) ? "이미 같은 매장에 등록된 키워드가 있어요. 키워드를 확인해 주세요."
+    return alert(/keyword_limit/.test(m) ? KW_LIMIT_MSG : /duplicate|unique/i.test(m) ? "이미 같은 매장에 등록된 키워드가 있어요. 키워드를 확인해 주세요."
       : /column|schema cache/i.test(m) ? "순위 추적용 DB 칸이 아직 없어요. Supabase에서 017 SQL을 실행해 주세요.\n(" + m + ")"
       : /row-level security|permission/i.test(m) ? "등록 권한이 없어요. 운영자(admin) 계정으로 로그인했는지 확인해 주세요.\n(" + m + ")"
       : "등록하지 못했어요.\n(" + m + ")");
@@ -274,6 +326,7 @@ $("rk-add").onsubmit = async e => {
 };
 
 async function loadRank() {
+  if (!rk.usage) loadUsage();
   const [cp, tr] = await Promise.all([
     sb.from("campaigns").select("id,title,biz,owner_id,place_url,created_at").order("created_at", { ascending: false }).limit(300),
     sb.from("rank_trackers").select("*, campaigns(title,biz,created_at), profiles(nickname)").order("created_at", { ascending: false }),
@@ -293,7 +346,7 @@ function spark(logs) {                                  // 최근 7일 추이 (�
   const by = Object.fromEntries(logs.map(l => [l.day, l])), pts = days.map((d, i) => by[d] && by[d].status === "ok" ? { i, r: by[d].rank } : null).filter(Boolean);
   if (pts.length < 1) return '<span class="muted">—</span>';
   const mn = Math.min(...pts.map(p => p.r)), mx = Math.max(...pts.map(p => p.r)), sp = Math.max(1, mx - mn), X = p => 4 + p.i * 14, Y = p => 4 + (p.r - mn) / sp * 20;
-  return `<svg class="spark" viewBox="0 0 92 28" role="img" aria-label="최근 7일 추이"><polyline fill="none" stroke="#1f4dff" stroke-width="1.6" points="${pts.map(p => `${X(p)},${Y(p)}`).join(" ")}"/>${pts.map(p => `<circle cx="${X(p)}" cy="${Y(p)}" r="2.2" fill="#1f4dff"><title>${days[p.i].slice(5)} ${p.r}위</title></circle>`).join("")}</svg>`;
+  return `<svg class="spark" viewBox="0 0 92 28" role="img" aria-label="최근 7일 기록"><polyline fill="none" stroke="#1f4dff" stroke-width="1.6" points="${pts.map(p => `${X(p)},${Y(p)}`).join(" ")}"/>${pts.map(p => `<circle cx="${X(p)}" cy="${Y(p)}" r="2.2" fill="#1f4dff"><title>${days[p.i].slice(5)} ${p.r}위</title></circle>`).join("")}</svg>`;
 }
 function stats(t) {
   const logs = (rk.logs[t.id] || []).slice(), start = kstDay(t.campaigns ? t.campaigns.created_at : t.created_at);
@@ -313,28 +366,29 @@ function drawRank() {
   f.hidden = !rk.camp; f.innerHTML = rk.camp ? `캠페인 필터: <b>${esc(c ? c.biz + " · " + c.title : "선택한 캠페인")}</b> <button class="btn" id="rk-unfilter">필터 해제</button>` : "";
   $("rk-empty").hidden = list.length > 0; $("rk-empty").textContent = rk.camp ? "이 캠페인에 등록된 키워드가 없어요." : "등록된 추적이 아직 없어요.";
   if (!list.length) { $("rank").innerHTML = ""; return; }
-  $("rank").innerHTML = `<thead><tr><th>매장</th><th>키워드</th><th>시작일 순위</th><th>최신 순위</th><th>전일 대비</th><th>7일 추이</th><th>마지막 조회</th><th>처리</th></tr></thead><tbody>${list.map(t => {
+  $("rank").innerHTML = `<thead><tr><th>매장</th><th>키워드</th><th>시작일 노출 순서</th><th>오늘 노출 순서</th><th>전일 대비</th><th>최근 7일 기록</th><th>마지막 조회</th><th>처리</th></tr></thead><tbody>${list.map(t => {
     const s = stats(t), open = rk.open.has(t.id);
-    const startTxt = s.startLog ? s.startLog.rank + "위" : "미수집" + (s.first ? `<small class="muted">첫 확인 ${s.first.rank}위 (${s.first.day.slice(5)})</small>` : "");
+    const startTxt = s.startLog ? s.startLog.rank + "번째" : "미수집" + (s.first ? `<small class="muted">첫 확인 ${s.first.rank}번째 (${s.first.day.slice(5)})</small>` : "");
+    const today = s.logs.find(l => l.day === kstDay(Date.now()));
     const last = s.latest ? hm(s.latest.checked_at || s.latest.created_at) + `<small class="muted">${s.latest.source === "provider" ? "자동" : "수동 확인"}</small>` : "—";
     return `<tr class="rk-row ${t.active ? "" : "stopped"} ${open ? "open" : ""}" data-id="${t.id}"><td data-l="매장"><b>${esc(t.place_name || (t.campaigns && t.campaigns.biz) || "-")}</b><small class="muted">${esc(nickOf(t))}${t.active ? "" : " · 중지됨"}</small></td>
       <td data-l="키워드">${esc(t.keyword)}</td><td data-l="시작일 순위">${startTxt}</td>
-      <td data-l="최신 순위"><b>${s.latest ? rkText(s.latest) : "미수집"}</b>${s.latest ? `<small class="muted">${s.latest.day.slice(5)}</small>` : ""}</td>
-      <td data-l="전일 대비">${s.delta}</td><td data-l="7일 추이">${spark(s.logs)}</td><td data-l="마지막 조회">${last}</td>
+      <td data-l="오늘 노출 순서">${today ? `<b>${rkText(today)}</b>` : `<b class="muted">오늘 미수집</b>${s.latest ? `<small class="muted">최근 ${s.latest.day.slice(5)}: ${rkText(s.latest)}</small>` : ""}`}</td>
+      <td data-l="전일 대비">${s.delta}</td><td data-l="최근 7일 기록">${spark(s.logs)}</td><td data-l="마지막 조회">${last}</td>
       <td class="rk-act"><button class="btn ok" data-rk="now">지금 조회</button><button class="btn" data-rk="edit">키워드 수정</button><button class="btn ${t.active ? "bad" : ""}" data-rk="toggle">${t.active ? "추적 중지" : "추적 재개"}</button></td></tr>
       ${open ? detailRow(t, s) : ""}`;
   }).join("")}</tbody>`;
 }
 function detailRow(t, s) {
   const rows = s.logs.slice(0, 60).map(l => `<tr><td>${l.day}</td><td><b>${rkText(l)}</b></td><td>${l.source === "provider" ? "자동 조회" : "수동 확인"}</td><td>${l.checked_at ? hm(l.checked_at) : "-"}</td><td><button class="btn bad" data-ld="${l.id}">삭제</button></td></tr>`).join("");
-  const info = s.first ? `첫 확인 순위 <b>${s.first.rank}위</b> (${s.first.day.slice(5)})` : "아직 정상 순위 기록이 없어요";
+  const info = s.first ? `첫 확인 노출 순서 <b>${s.first.rank}번째</b> (${s.first.day.slice(5)})` : "아직 정상 기록이 없어요";
   return `<tr class="rk-detail" data-for="${t.id}"><td colspan="8"><div class="rk-dwrap">
     <div class="rk-dleft"><div class="rk-dh"><b>날짜별 기록</b><span class="muted">${info} · 캠페인 시작일 ${s.start.slice(5)}</span></div>
       ${rows ? `<table class="rk-dtb"><thead><tr><th>날짜</th><th>결과</th><th>출처</th><th>조회 시각</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : '<p class="muted">기록이 아직 없어요. 오른쪽에서 직접 확인한 순위를 기록해 주세요.</p>'}</div>
-    <form class="rk-rec2" data-t="${t.id}"><b>수동 확인 기록</b><small class="muted">같은 날짜를 다시 저장하면 덮어써요. 출처는 '수동 확인'으로 표시돼요.</small>
+    <form class="rk-rec2" data-t="${t.id}"><b>수동 확인 기록</b><small class="muted">같은 날짜를 다시 저장하면 덮어써요. 출처는 '수동 확인'으로 표시돼요. (조회 한도에는 포함되지 않아요)</small>
       <input type="date" name="day" value="${kstDay(Date.now())}" required>
-      <select name="status"><option value="ok">정상 순위</option><option value="out">조회 범위 밖 (300위 밖)</option><option value="failed">조회 실패</option></select>
-      <input type="number" name="rank" min="1" max="300" placeholder="순위 (정상 순위일 때)">
+      <select name="status"><option value="ok">노출 순서 있음</option><option value="out">조회 범위 밖 / 미노출</option><option value="failed">조회 실패</option></select>
+      <input type="number" name="rank" min="1" max="300" placeholder="노출 순서 (몇 번째)">
       <button class="btn ok" type="submit">기록 저장</button></form></div></td></tr>`;
 }
 $("rank").onclick = async e => {
@@ -345,30 +399,23 @@ $("rank").onclick = async e => {
   if (!tr.classList.contains("rk-row")) return;
   const id = tr.dataset.id, t = rk.trackers.find(x => x.id === id);
   if (!act) { if (e.target.closest("button,a,input,select")) return; rk.open.has(id) ? rk.open.delete(id) : rk.open.add(id); return drawRank(); }   // 행 누르면 펼치기
-  if (act === "now") {
-    if (!RK_PROVIDER) { rk.open.add(id); drawRank(); return alert("데이터 제공처가 아직 연동되지 않았어요.\n아래 '수동 확인 기록'에서 직접 확인한 순위를 기록해 주세요."); }
-    e.target.disabled = true; e.target.textContent = "조회 중…";
-    const { data, error } = await sb.functions.invoke("collect-ranks", { body: { tracker_id: id } });
-    const code = data && data.error;
-    if (error || code) alert("조회하지 못했어요: " + (code === "provider_not_configured" ? "데이터 제공처 미연동" : "서비스 연결 오류"));
-    return loadRank();
-  }
+  if (act === "now") return lookupNow(id, e.target);
   if (act === "edit") {
     const nk = prompt("새 키워드를 입력하세요.\n(키워드를 바꾸면 이전 기록과는 전일 대비를 계산하지 않아요)", t.keyword);
     if (nk === null) return; const k = nk.trim(); if (!k || k.length > 40) return alert("키워드는 1~40자로 입력해 주세요."); if (k === t.keyword) return;
     const { error } = await sb.from("rank_trackers").update({ keyword: k, updated_at: new Date().toISOString() }).eq("id", id);
-    if (error) return alert(/duplicate|unique/i.test(error.message) ? "같은 매장에 이미 있는 키워드예요." : "수정하지 못했어요."); return loadRank();
+    if (error) return alert(rkErr(error, "수정하지 못했어요.")); return loadRank();
   }
   if (act === "toggle") {
     if (t.active && !confirm(`'${t.keyword}' 추적을 중지할까요? 기록은 그대로 남고 광고주 화면에서는 보이지 않아요.`)) return;
     const { error } = await sb.from("rank_trackers").update({ active: !t.active, updated_at: new Date().toISOString() }).eq("id", id);
-    if (error) return alert("변경하지 못했어요."); return loadRank();
+    if (error) return alert(rkErr(error, "변경하지 못했어요.")); return loadRank();
   }
 };
 $("rank").addEventListener("submit", async e => {
   const f = e.target.closest(".rk-rec2"); if (!f) return; e.preventDefault();
   const t = rk.trackers.find(x => x.id === f.dataset.t), status = f.status.value, rank = f.rank.value === "" ? null : Number(f.rank.value);
-  if (status === "ok" && rank == null) return alert("정상 순위일 때는 순위를 입력해 주세요.");
+  if (status === "ok" && rank == null) return alert("노출 순서(몇 번째)를 입력해 주세요.");
   const { error } = await sb.from("rank_logs").upsert({ tracker_id: t.id, day: f.day.value, status, rank: status === "ok" ? rank : null, out_of_rank: status === "out", source: "manual", keyword: t.keyword, checked_at: new Date().toISOString() }, { onConflict: "tracker_id,day" });
   if (error) return alert("저장하지 못했어요. 값을 확인해 주세요. (017 SQL 실행 여부)"); loadRank();
 });

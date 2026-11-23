@@ -146,3 +146,14 @@ button,input,select{font-family:inherit}
 }
 .rk-table td:nth-child(2){min-width:110px}.rk-table td:first-child{min-width:130px}
 @media (max-width:980px){.rk-table td:nth-child(2),.rk-table td:first-child{min-width:0}}
+
+/* SerpApi 사용량·토스트 */
+.rk-metric{margin:4px 0 0;font-size:13px}
+.rk-usage{display:flex;gap:28px;align-items:center;flex-wrap:wrap;padding:16px 22px}
+.ru-item small{display:block;color:var(--mut);font-size:12px}.ru-item b{font-size:20px}
+.ru-auto{margin-left:auto;font-size:13px;cursor:pointer;display:flex;flex-wrap:wrap;gap:2px 6px;align-items:center;max-width:300px}
+.ru-auto small{flex-basis:100%;color:var(--mut);font-size:11px}
+.rk-toast{margin:0 0 16px;padding:12px 16px;border-radius:10px;font-size:13px;background:#eef2ff;color:#2742b8;line-height:1.6}
+.rk-toast.ok{background:#e6f8f0;color:#0b7d57}.rk-toast.warn{background:#fff3e0;color:#a35f00}
+.rk-bh{display:flex;align-items:center;gap:10px;font-size:12px}
+.rk-act{white-space:normal!important;min-width:170px}.rk-act .btn{margin-bottom:4px}
