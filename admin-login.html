@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>관리자 로그인 - 우리들 체험단</title>
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body class="al-body">
+<main class="al">
+  <div class="al-card">
+    <small class="kick">ADMIN</small>
+    <h1>관리자 로그인</h1>
+    <p class="muted">관리자 계정으로만 들어올 수 있어요.</p>
+    <form id="al-form">
+      <label>이메일 <input name="email" type="email" required autocomplete="username"></label>
+      <label>비밀번호 <input name="password" type="password" required autocomplete="current-password"></label>
+      <p class="al-msg" id="al-msg" role="alert"></p>
+      <button class="al-btn" id="al-btn" type="submit">로그인</button>
+    </form>
+    <a class="al-back" href="campaigns.html">← 사이트로 돌아가기</a>
+  </div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="admin-login.js"></script>
+</body>
+</html>

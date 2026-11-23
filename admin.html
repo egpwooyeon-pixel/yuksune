@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>관리자 - 우리들 체험단</title>
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<div class="ad-gate" id="gate">관리자 확인 중…</div>
+
+<div class="ad" id="app" hidden>
+  <aside class="ad-side">
+    <a class="ad-brand" href="admin.html"><b>우리들 체험단</b><small>ADMIN · 관리자</small></a>
+    <nav id="nav">
+      <a href="#dashboard" data-s="dashboard" class="on">대시보드</a>
+      <a href="#members" data-s="members">회원 · 광고주 승인 <i id="pend" hidden></i></a>
+      <a href="#campaigns" data-s="campaigns">체험단 관리</a>
+      <a href="#apps" data-s="apps">신청 현황</a>
+      <a href="#posts" data-s="posts">게시판 관리</a>
+    </nav>
+    <div class="ad-me"><span class="av" id="me-av"></span><div><b id="me-name"></b> <em>관리자</em><small id="me-mail"></small></div></div>
+    <button class="ad-out" id="logout" type="button">로그아웃</button>
+    <a class="ad-back" href="campaigns.html">← 사이트로 돌아가기</a>
+  </aside>
+
+  <main class="ad-main">
+    <!-- 대시보드 -->
+    <section id="s-dashboard">
+      <div class="ad-top"><div><small class="kick">DASHBOARD</small><h1 id="period-title"></h1></div>
+        <div class="seg" id="seg"><button data-r="month" class="on">이번 달</button><button data-r="last">지난 달</button><button data-r="year">올해</button></div></div>
+      <div class="cards" id="cards"></div>
+      <div class="two">
+        <div class="box"><div class="box-h"><b>일별 신청 · 가입</b><span class="legend"><i class="c1"></i>신청 <i class="c2"></i>가입</span></div><div id="chart" class="chart"></div></div>
+        <div class="box"><div class="box-h"><b>체험단 종류별 등록</b></div><div id="bytype"></div></div>
+      </div>
+      <div class="box"><div class="box-h"><div><b>최근 신청</b> <span class="muted" id="recent-sum"></span></div><a href="#apps" class="more">전체 보기 →</a></div>
+        <table class="tb" id="recent"></table></div>
+    </section>
+
+    <!-- 회원 -->
+    <section id="s-members" hidden>
+      <div class="ad-top"><div><small class="kick">MEMBERS</small><h1>회원 · 광고주 승인</h1></div>
+        <input class="srch" id="m-q" placeholder="닉네임·이메일 검색" aria-label="검색"></div>
+      <p class="note">광고주(체험단을 올릴 수 있는 회원)는 아래에서 <b>승인</b>한 회원만 체험단을 등록할 수 있어요.</p>
+      <div class="box"><table class="tb" id="members"></table><p class="empty" id="m-empty" hidden>회원이 없어요.</p><div class="pager"><button id="m-more" hidden>더 보기</button></div></div>
+    </section>
+
+    <!-- 체험단 -->
+    <section id="s-campaigns" hidden>
+      <div class="ad-top"><div><small class="kick">CAMPAIGNS</small><h1>체험단 관리</h1></div></div>
+      <div class="box"><table class="tb" id="campaigns"></table><p class="empty" id="c-empty" hidden>등록된 체험단이 없어요.</p></div>
+    </section>
+
+    <!-- 신청 -->
+    <section id="s-apps" hidden>
+      <div class="ad-top"><div><small class="kick">APPLICATIONS</small><h1>신청 현황</h1></div></div>
+      <p class="note">개인정보 보호를 위해 신청자 연락처는 여기에 표시하지 않아요. 필요하면 Supabase Table Editor에서 확인하세요.</p>
+      <div class="box"><table class="tb" id="apps"></table><p class="empty" id="a-empty" hidden>신청이 아직 없어요.</p></div>
+    </section>
+
+    <!-- 게시판 -->
+    <section id="s-posts" hidden>
+      <div class="ad-top"><div><small class="kick">BOARD</small><h1>게시판 관리</h1></div></div>
+      <div class="box"><table class="tb" id="posts"></table><p class="empty" id="p-empty" hidden>글이 아직 없어요.</p></div>
+    </section>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="boarddata.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>
