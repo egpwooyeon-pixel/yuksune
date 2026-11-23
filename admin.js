@@ -3,7 +3,7 @@ const $ = id => document.getElementById(id);
 const cfg = window.WOORI || {};
 const sbReady = !!(cfg.SUPABASE_ANON_KEY && window.supabase);
 const sb = sbReady ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY) : null;
-let me = null, period = "month", mPage = 0, mQuery = "";
+let me = null, period = "month", mPage = 0, mQuery = "", mStatus = "";
 const gate = (t, withLogin) => { $("gate").hidden = false; $("app").hidden = true; $("gate").innerHTML = ""; const p = document.createElement("div"); p.textContent = t; $("gate").append(p);
   if (withLogin) { const b = document.createElement("button"); b.textContent = "다른 계정으로 로그인"; b.onclick = async () => { await sb.auth.signOut(); location.href = "admin-login.html"; }; p.after(b); } };
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -85,31 +85,54 @@ function drawRecent(rows, el, short5) {
 /* ---------- 회원 · 광고주 승인 ---------- */
 let mTimer; $("m-q").oninput = e => { clearTimeout(mTimer); mTimer = setTimeout(() => { mQuery = e.target.value.trim(); loadMembers(true); }, 300); };
 $("m-more").onclick = () => loadMembers(false);
+$("m-st").onchange = e => { mStatus = e.target.value; loadMembers(true); };
+$("pend").onclick = e => { e.preventDefault(); mStatus = "pending"; $("m-st").value = "pending"; location.hash = "#members"; if (location.hash === "#members") loadMembers(true); };
 const BS = { none: ["미신청", ""], pending: ["승인 대기", "mid"], approved: ["승인됨", "ok"], rejected: ["반려", "bad"] };
 async function loadMembers(reset) {
   if (reset) { mPage = 0; $("members").innerHTML = ""; }
-  const { data, error } = await sb.rpc("admin_members", { p_search: mQuery || null, p_lim: 50, p_off: mPage * 50 });
-  if (error) { $("m-empty").hidden = false; $("m-empty").textContent = "회원을 불러오지 못했어요. (008 SQL 실행 여부를 확인해 주세요)"; return; }
+  const { data, error } = await sb.rpc("admin_members", { p_search: mQuery || null, p_lim: 50, p_off: mPage * 50, p_status: mStatus || null });
+  if (error) { $("m-empty").hidden = false; $("m-empty").textContent = "회원을 불러오지 못했어요. (008, 010 SQL 실행 여부를 확인해 주세요)"; return; }
   const rows = data || [];
   if (reset) $("members").innerHTML = `<thead><tr><th>가입일</th><th>닉네임</th><th>이메일</th><th>권한</th><th>광고주 상태</th><th>처리</th></tr></thead><tbody></tbody>`;
   $("members").querySelector("tbody").insertAdjacentHTML("beforeend", rows.map(m => {
     const [t, k] = BS[m.business_status] || BS.none, admin = m.role === "admin";
-    return `<tr data-id="${m.id}"><td>${full(m.created_at)}</td><td><b>${esc(m.nickname)}</b></td><td>${esc(m.email)}</td><td>${admin ? '<span class="tag blue">관리자</span>' : "회원"}</td><td><span class="tag ${k}">${t}</span></td>
-      <td>${admin ? "" : `<button class="btn ok" data-bs="approved" ${m.business_status === "approved" ? "disabled" : ""}>광고주 승인</button><button class="btn bad" data-bs="rejected" ${m.business_status === "rejected" ? "disabled" : ""}>반려</button><button class="btn" data-bs="none" ${m.business_status === "none" ? "disabled" : ""}>해제</button>`}</td></tr>`;
+    const doc = m.business_doc_path ? `<button class="btn" data-bs="doc" data-path="${esc(m.business_doc_path)}">서류 보기</button>` : "";
+    return `<tr data-id="${m.id}"><td>${full(m.created_at)}</td><td><b>${esc(m.nickname)}</b></td><td>${esc(m.email)}</td><td>${admin ? '<span class="tag blue">관리자</span>' : "회원"}</td>
+      <td><span class="tag ${k}">${t}</span>${m.business_note ? `<br><small class="muted">${esc(m.business_note)}</small>` : ""}</td>
+      <td>${admin ? "" : `${doc}<button class="btn ok" data-bs="approved" ${m.business_status === "approved" ? "disabled" : ""}>승인</button><button class="btn bad" data-bs="rejected" ${m.business_status === "rejected" ? "disabled" : ""}>반려</button><button class="btn" data-bs="none" ${m.business_status === "none" ? "disabled" : ""}>해제</button>${m.business_doc_path ? '<button class="btn bad" data-bs="deldoc">서류 삭제</button>' : ""}`}</td></tr>`;
   }).join(""));
   $("m-empty").hidden = reset ? rows.length > 0 : true; $("m-empty").textContent = "회원이 없어요.";
   $("m-more").hidden = rows.length < 50; mPage++;
 }
 $("members").onclick = async e => {
   const st = e.target.dataset.bs; if (!st) return;
-  const tr = e.target.closest("tr"), name = tr.children[1].textContent;
-  if (!confirm(`${name} 님의 광고주 상태를 '${BS[st][0]}'(으)로 바꿀까요?`)) return;
+  const tr = e.target.closest("tr"), name = tr.children[1].textContent, id = tr.dataset.id;
+  if (st === "doc") {                       // 사업자등록증: 60초짜리 임시 주소로 열기 (운영자만 가능)
+    const { data, error } = await sb.storage.from("business-docs").createSignedUrl(e.target.dataset.path, 60);
+    if (error || !data) return alert("서류를 열지 못했어요.");
+    window.open(data.signedUrl, "_blank", "noopener"); return;
+  }
+  if (st === "deldoc") {
+    const path = tr.querySelector("[data-path]") && tr.querySelector("[data-path]").dataset.path;
+    if (!path || !confirm(`${name} 님의 사업자등록증 파일을 삭제할까요?\n삭제하면 되돌릴 수 없어요. (승인 상태는 그대로예요)`)) return;
+    const rm = await sb.storage.from("business-docs").remove([path]);
+    if (rm.error) return alert("서류를 삭제하지 못했어요.");
+    await sb.from("profiles").update({ business_doc_path: null }).eq("id", id);
+    return loadMembers(true);
+  }
+  const patch = { business_status: st };
+  if (st === "rejected") {
+    const why = prompt(`${name} 님의 반려 사유를 적어 주세요. (신청자에게 보여요)`);
+    if (why === null) return; if (!why.trim()) return alert("반려 사유를 입력해 주세요.");
+    patch.business_note = why.trim().slice(0, 200);
+  } else {
+    if (!confirm(`${name} 님의 광고주 상태를 '${BS[st][0]}'(으)로 바꿀까요?`)) return;
+    patch.business_note = null;
+  }
   e.target.disabled = true;
-  const { error } = await sb.from("profiles").update({ business_status: st }).eq("id", tr.dataset.id);
+  const { error } = await sb.from("profiles").update(patch).eq("id", id);
   if (error) { alert("변경하지 못했어요."); e.target.disabled = false; return; }
-  const [t, k] = BS[st]; const tag = tr.querySelector(".tag.ok,.tag.mid,.tag.bad,.tag:not(.blue)"); 
-  tr.children[4].innerHTML = `<span class="tag ${k}">${t}</span>`;
-  tr.querySelectorAll("[data-bs]").forEach(b => b.disabled = b.dataset.bs === st);
+  loadMembers(true); if (location.hash === "#dashboard" || !location.hash) loadDash();
 };
 
 /* ---------- 체험단 ---------- */

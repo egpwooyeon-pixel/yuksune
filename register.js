@@ -1,4 +1,5 @@
 // 체험단 등록 (로그인 + 운영자 승인된 광고주만). 서버(Supabase)에 저장.
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const $ = id => document.getElementById(id), form = $("reg-form"), gate = $("gate");
 let photoBlob = null;
 
@@ -46,9 +47,9 @@ let user = null;
   const { data: p } = await sb.from("profiles").select("business_status,business_note").eq("id", user.id).maybeSingle();
   const st = p ? p.business_status : "none";
   if (st === "approved") return;
-  const msg = { none: "체험단은 <b>운영자가 승인한 광고주</b>만 등록할 수 있어요. 사업자등록증 제출 화면은 준비 중입니다. 급하시면 운영자에게 문의해 주세요.",
-    pending: "광고주 심사가 진행 중이에요. 승인되면 등록할 수 있어요.",
-    rejected: "광고주 심사가 반려되었어요." + (p && p.business_note ? " 사유: " + p.business_note : "") };
+  const msg = { none: "체험단은 <b>운영자가 승인한 광고주</b>만 등록할 수 있어요. <a href=\"biz.html\"><b>광고주 인증하러 가기 →</b></a> (사업자등록증 제출)",
+    pending: "광고주 심사가 진행 중이에요. 승인되면 등록할 수 있어요. (<a href=\"biz.html\">상태 보기</a>)",
+    rejected: "광고주 심사가 반려되었어요." + (p && p.business_note ? " 사유: " + esc(p.business_note) : "") + " <a href=\"biz.html\"><b>다시 제출하기 →</b></a>" };
   lock(msg[st] || msg.none);
 })();
 

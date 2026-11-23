@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>광고주 인증 - 우리들 체험단</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="campaigns">
+<div id="header-slot"></div>
+
+<main class="wrap camp">
+  <div class="camp-head"><h1>광고주 인증</h1></div>
+  <p class="empty" id="b-msg" hidden></p>
+
+  <section class="panel biz" id="biz" hidden>
+    <div class="biz-state" id="b-state"></div>
+
+    <form class="reg" id="b-form" hidden>
+      <p class="muted small">체험단을 등록하려면 <b>사업자등록증</b>을 제출해 운영자 승인을 받아야 해요. 승인까지 영업일 기준 1~2일 정도 걸릴 수 있어요. (정확한 소요 시간은 운영 상황에 따라 달라요)</p>
+      <label>사업자등록증 파일 <small>(JPG·PNG·PDF, 5MB 이하)</small>
+        <input type="file" id="b-file" accept="image/jpeg,image/png,image/webp,application/pdf" required></label>
+      <label class="check"><input type="checkbox" id="b-consent" required>
+        <span><b>개인정보 수집·이용에 동의합니다.</b><br><small>수집 항목: 사업자등록증에 적힌 정보(상호, 대표자명, 사업장 주소, 사업자등록번호 등) / 목적: 광고주 확인 / 보관: 운영자만 볼 수 있게 비공개로 보관하며, 승인 후 삭제할 수 있어요.</small></span></label>
+      <p class="msg" id="b-err" role="alert"></p>
+      <button class="btn-primary submit" id="b-btn" type="submit">제출하고 승인 요청하기</button>
+    </form>
+  </section>
+</main>
+
+<div id="footer-slot"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="auth.js"></script>
+<script src="boarddata.js"></script>
+<script src="biz.js"></script>
+</body>
+</html>
