@@ -35,10 +35,10 @@ async function init() {
 const loaded = {};
 function route() {
   const s = (location.hash || "#dashboard").slice(1);
-  const name = ["dashboard", "members", "campaigns", "apps", "posts"].includes(s) ? s : "dashboard";
+  const name = ["dashboard", "members", "campaigns", "apps", "rank", "posts"].includes(s) ? s : "dashboard";
   document.querySelectorAll("main section").forEach(x => x.hidden = x.id !== "s-" + name);
   document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("on", a.dataset.s === name));
-  ({ dashboard: loadDash, members: () => loadMembers(true), campaigns: loadCamps, apps: loadApps, posts: loadPosts })[name]();
+  ({ dashboard: loadDash, members: () => loadMembers(true), campaigns: loadCamps, apps: loadApps, rank: loadRank, posts: loadPosts })[name]();
 }
 
 /* ---------- 대시보드 ---------- */
@@ -210,6 +210,67 @@ async function loadApps() {
   if (error) { $("a-empty").hidden = false; $("a-empty").textContent = "신청을 불러오지 못했어요. (008 SQL 실행 여부를 확인해 주세요)"; return; }
   $("a-empty").hidden = (data || []).length > 0; drawRecent(data || [], $("apps"), false);
 }
+
+/* ---------- 순위 추적 ---------- */
+let rkTracker = null;
+$("rk-find").onclick = async () => {
+  const q = $("rk-q").value.trim();
+  const { data, error } = await sb.rpc("admin_members", { p_search: q || null, p_lim: 30, p_off: 0, p_status: "approved" });
+  if (error) return alert("광고주를 찾지 못했어요. (010 SQL 실행 여부를 확인해 주세요)");
+  const rows = (data || []).filter(m => m.role !== "admin");
+  $("rk-owner").innerHTML = rows.length ? rows.map(m => `<option value="${m.id}">${esc(m.nickname)} · ${esc(m.email)}</option>`).join("") : '<option value="">승인된 광고주가 없어요</option>';
+};
+$("rk-add").onsubmit = async e => {
+  e.preventDefault();
+  const owner = $("rk-owner").value; if (!owner) return alert("광고주를 선택해 주세요.");
+  const row = { owner_id: owner, keyword: $("rk-keyword").value.trim(), place_name: $("rk-pname").value.trim() || null, place_url: $("rk-purl").value.trim() || null };
+  const { error } = await sb.from("rank_trackers").insert(row);
+  if (error) return alert(/duplicate|unique/i.test(error.message) ? "이미 순위 추적이 설정된 광고주예요. (광고주 한 분당 1개)" : "추가하지 못했어요. (014 SQL 실행 여부를 확인해 주세요)");
+  $("rk-keyword").value = $("rk-pname").value = $("rk-purl").value = ""; loadRank();
+};
+async function loadRank() {
+  const { data, error } = await sb.from("rank_trackers").select("id,keyword,place_name,place_url,created_at,owner_id,profiles(nickname)").order("created_at", { ascending: false });
+  if (error) { $("rk-empty").hidden = false; $("rk-empty").textContent = "불러오지 못했어요. (014 SQL 실행 여부를 확인해 주세요)"; return; }
+  const ids = (data || []).map(t => t.id);
+  let last = {};
+  if (ids.length) { const { data: ls } = await sb.from("rank_logs").select("tracker_id,day,rank,out_of_rank").in("tracker_id", ids).order("day", { ascending: false }).limit(1000); (ls || []).forEach(l => { if (!last[l.tracker_id]) last[l.tracker_id] = l; }); }
+  $("rk-empty").hidden = (data || []).length > 0; $("rk-empty").textContent = "설정된 순위 추적이 아직 없어요.";
+  $("rank").innerHTML = (data || []).length ? `<thead><tr><th>광고주</th><th>키워드</th><th>업체</th><th>최근 기록</th><th>처리</th></tr></thead><tbody>${data.map(t => {
+    const l = last[t.id], txt = l ? `${l.out_of_rank ? "순위 밖" : l.rank != null ? l.rank + "위" : "—"} <small class="muted">(${l.day.slice(5)})</small>` : '<span class="muted">기록 없음</span>';
+    return `<tr data-id="${t.id}" data-kw="${esc(t.keyword)}" data-nick="${esc(nickOf(t))}"><td><b>${esc(nickOf(t))}</b></td><td>${esc(t.keyword)}</td><td>${esc(t.place_name || "-")}</td><td>${txt}</td><td><button class="btn ok" data-rk="rec">기록 입력</button><button class="btn bad" data-rk="del">삭제</button></td></tr>`;
+  }).join("")}</tbody>` : "";
+}
+$("rank").onclick = async e => {
+  const act = e.target.dataset.rk; if (!act) return;
+  const tr = e.target.closest("tr");
+  if (act === "del") {
+    if (!confirm(`'${tr.dataset.nick}' 님의 순위 추적(${tr.dataset.kw})을 삭제할까요? 기록도 모두 삭제돼요.`)) return;
+    const { error } = await sb.from("rank_trackers").delete().eq("id", tr.dataset.id); if (error) return alert("삭제하지 못했어요."); return loadRank();
+  }
+  rkTracker = { id: tr.dataset.id, kw: tr.dataset.kw, nick: tr.dataset.nick }; openRec();
+};
+async function openRec() {
+  $("rk-title").textContent = `${rkTracker.nick} · ${rkTracker.kw}`; $("rk-sub").textContent = "";
+  if (!$("rk-day").value) $("rk-day").value = ymd(new Date());
+  const { data } = await sb.from("rank_logs").select("*").eq("tracker_id", rkTracker.id).order("day", { ascending: false }).limit(14);
+  $("rk-logs").innerHTML = (data || []).map(l => `<li><span class="tag">${l.day.slice(5)}</span><span>${l.out_of_rank ? "순위 밖" : l.rank != null ? l.rank + "위" : "—"} <small class="muted">방문자 ${l.visitor_reviews ?? "-"} · 블로그 ${l.blog_reviews ?? "-"} · 경쟁 ${l.competitors ?? "-"}</small></span><button class="btn bad" data-ld="${l.id}">삭제</button></li>`).join("") || '<li class="muted">기록이 아직 없어요.</li>';
+  if (!$("rk-dlg").open) $("rk-dlg").showModal();
+}
+$("rk-close").onclick = () => $("rk-dlg").close();
+$("rk-out").onchange = e => { if (e.target.checked) $("rk-rank").value = ""; };
+$("rk-rec").onsubmit = async e => {
+  e.preventDefault();
+  const n = id => $(id).value === "" ? null : Number($(id).value);
+  const out = $("rk-out").checked, rank = out ? null : n("rk-rank");
+  if (!out && rank == null) return alert("순위를 입력하거나 '순위 밖'을 체크해 주세요.");
+  const { error } = await sb.from("rank_logs").upsert({ tracker_id: rkTracker.id, day: $("rk-day").value, rank, out_of_rank: out, visitor_reviews: n("rk-vis"), blog_reviews: n("rk-blog"), competitors: n("rk-comp") }, { onConflict: "tracker_id,day" });
+  if (error) return alert("저장하지 못했어요. 값을 확인해 주세요.");
+  $("rk-rank").value = ""; $("rk-out").checked = false; await openRec(); loadRank();
+};
+$("rk-logs").onclick = async e => {
+  const id = e.target.dataset.ld; if (!id || !confirm("이 기록을 삭제할까요?")) return;
+  const { error } = await sb.from("rank_logs").delete().eq("id", Number(id)); if (error) return alert("삭제하지 못했어요."); await openRec(); loadRank();
+};
 
 /* ---------- 게시판 ---------- */
 async function loadPosts() {

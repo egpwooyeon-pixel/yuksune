@@ -15,6 +15,6 @@
     const nick = (u.user_metadata && u.user_metadata.nickname) || u.email.split("@")[0];
     const box = slot.querySelector(".login"); if (!box) return;
     const esc = x => String(x).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-    box.innerHTML = `<p class="muted"><b>${esc(nick)}</b>님, 환영합니다!</p><a class="btn-primary" href="register.html">체험단 등록하기</a><p class="sub"><a href="biz.html">광고주 인증</a> | <a href="my.html">내 체험단 관리</a> | <a href="penalty.html">페널티</a> | <a href="campaigns.html">체험단 둘러보기</a></p>`;
+    box.innerHTML = `<p class="muted"><b>${esc(nick)}</b>님, 환영합니다!</p><a class="btn-primary" href="register.html">체험단 등록하기</a><p class="sub"><a href="biz.html">광고주 인증</a> | <a href="my.html">내 체험단 관리</a> | <a href="penalty.html">페널티</a> | <a href="rank.html">순위 추적</a> | <a href="campaigns.html">체험단 둘러보기</a></p>`;
   });
 })();

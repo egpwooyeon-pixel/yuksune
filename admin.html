@@ -18,6 +18,7 @@
       <a href="#members" data-s="members">회원 · 광고주 승인 <i id="pend" hidden></i></a>
       <a href="#campaigns" data-s="campaigns">체험단 관리</a>
       <a href="#apps" data-s="apps">신청 현황</a>
+      <a href="#rank" data-s="rank">순위 추적</a>
       <a href="#posts" data-s="posts">게시판 관리</a>
     </nav>
     <div class="ad-me"><span class="av" id="me-av"></span><div><b id="me-name"></b> <em>관리자</em><small id="me-mail"></small></div></div>
@@ -60,6 +61,24 @@
       <div class="box"><table class="tb" id="apps"></table><p class="empty" id="a-empty" hidden>신청이 아직 없어요.</p></div>
     </section>
 
+    <!-- 순위 추적 -->
+    <section id="s-rank" hidden>
+      <div class="ad-top"><div><small class="kick">RANK</small><h1>광고주 순위 추적</h1></div></div>
+      <p class="note">광고주 한 분당 키워드 1개를 설정하고, 확인한 순위를 입력하면 광고주가 "내 순위 추적" 화면에서 본인 것만 봐요. 순위는 자동 수집이 아니라 <b>운영자가 모바일 네이버 플레이스에서 확인해 입력</b>하는 값이에요.</p>
+      <div class="box">
+        <div class="box-h"><b>추적 추가</b></div>
+        <form class="rk-add" id="rk-add">
+          <div class="rk-find"><input id="rk-q" placeholder="광고주 닉네임·이메일 검색" aria-label="광고주 검색"><button type="button" class="btn" id="rk-find">찾기</button></div>
+          <select id="rk-owner" required><option value="">광고주를 먼저 검색해 선택하세요</option></select>
+          <input id="rk-keyword" placeholder="추적 키워드 (예: 신사역 맛집)" maxlength="40" required>
+          <input id="rk-pname" placeholder="업체명 (선택)" maxlength="60">
+          <input id="rk-purl" type="url" placeholder="플레이스 주소 (선택)" maxlength="300">
+          <button class="btn ok" type="submit">추가</button>
+        </form>
+      </div>
+      <div class="box"><table class="tb" id="rank"></table><p class="empty" id="rk-empty" hidden>설정된 순위 추적이 아직 없어요.</p></div>
+    </section>
+
     <!-- 게시판 -->
     <section id="s-posts" hidden>
       <div class="ad-top"><div><small class="kick">BOARD</small><h1>게시판 관리</h1></div></div>
@@ -67,6 +86,16 @@
     </section>
   </main>
 </div>
+
+<dialog id="rk-dlg" class="pn-dlg">
+  <div class="pn-dh"><div><b id="rk-title"></b><small id="rk-sub" class="muted"></small></div><button type="button" id="rk-close" aria-label="닫기">✕</button></div>
+  <form class="rk-rec" id="rk-rec">
+    <b>순위 기록 (같은 날짜를 다시 저장하면 덮어써요)</b>
+    <div><input id="rk-day" type="date" required><input id="rk-rank" type="number" min="1" max="1000" placeholder="순위"><label class="rk-chk"><input id="rk-out" type="checkbox"> 순위 밖</label></div>
+    <div><input id="rk-vis" type="number" min="0" placeholder="방문자 리뷰"><input id="rk-blog" type="number" min="0" placeholder="블로그 리뷰"><input id="rk-comp" type="number" min="0" placeholder="경쟁업체 수"><button class="btn ok" type="submit">저장</button></div>
+  </form>
+  <ul class="pn-ev" id="rk-logs"></ul>
+</dialog>
 
 <dialog id="pn-dlg" class="pn-dlg">
   <div class="pn-dh"><div><b id="pn-name"></b><small id="pn-sum" class="muted"></small></div><button type="button" id="pn-close" aria-label="닫기">✕</button></div>

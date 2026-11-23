@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>내 순위 추적 - 우리들 체험단</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="campaigns">
+<div id="header-slot"></div>
+
+<main class="wrap camp">
+  <div class="camp-head"><h1>내 순위 추적</h1><a class="muted" href="my.html">← 내 체험단 관리</a></div>
+  <p class="empty" id="rk-msg" hidden></p>
+
+  <section id="rk" hidden>
+    <div class="rk-head panel">
+      <div><small class="muted">추적 키워드</small><h2 id="rk-kw"></h2><p class="muted small" id="rk-place"></p></div>
+      <div class="rk-stats" id="rk-stats"></div>
+    </div>
+
+    <div class="panel rk-days">
+      <div class="rk-bar"><b>최근 7일</b><button type="button" class="btn-line" id="rk-toggle">리뷰 수치 보기</button></div>
+      <div class="rk-grid" id="rk-grid"></div>
+    </div>
+
+    <div class="panel rk-chart">
+      <b>최근 30일 순위 추이</b> <small class="muted">(위로 갈수록 높은 순위)</small>
+      <div id="rk-svg"></div>
+    </div>
+    <p class="muted small">운영자가 모바일 네이버 플레이스 검색 기준으로 확인해 입력한 값이에요. 검색하는 위치·시간에 따라 실제 순위와 조금 다를 수 있어요.</p>
+  </section>
+</div>
+
+<div id="footer-slot"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="auth.js"></script>
+<script src="boarddata.js"></script>
+<script src="rank.js"></script>
+</body>
+</html>
