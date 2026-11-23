@@ -46,7 +46,15 @@ let user = null;
   if (!user) return location.replace("login.html?next=register.html");
   const { data: p } = await sb.from("profiles").select("business_status,business_note").eq("id", user.id).maybeSingle();
   const st = p ? p.business_status : "none";
-  if (st === "approved") return;
+  if (st === "approved") {                                   // 페널티로 등록이 정지 중인지 확인
+    const { data: pen } = await sb.from("advertiser_events").select("suspended_until").eq("owner_id", user.id).eq("kind", "penalty").not("suspended_until", "is", null);
+    const now = new Date(), act = (pen || []).map(x => x.suspended_until).filter(v => v === "infinity" || new Date(v) > now);
+    if (act.length) {
+      const perm = act.includes("infinity"), until = perm ? "" : new Date(Math.max(...act.map(v => +new Date(v)))).toLocaleDateString("ko-KR");
+      lock(`페널티로 체험단 등록이 ${perm ? "<b>영구 정지</b>되었어요." : `<b>${until}</b>까지 정지되었어요.`} <a href="penalty.html"><b>내역 보기 →</b></a>`);
+    }
+    return;
+  }
   const msg = { none: "체험단은 <b>운영자가 승인한 광고주</b>만 등록할 수 있어요. <a href=\"biz.html\"><b>광고주 인증하러 가기 →</b></a> (사업자등록증 제출)",
     pending: "광고주 심사가 진행 중이에요. 승인되면 등록할 수 있어요. (<a href=\"biz.html\">상태 보기</a>)",
     rejected: "광고주 심사가 반려되었어요." + (p && p.business_note ? " 사유: " + esc(p.business_note) : "") + " <a href=\"biz.html\"><b>다시 제출하기 →</b></a>" };

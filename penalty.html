@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>미선정횟수·페널티 - 우리들 체험단</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="campaigns">
+<div id="header-slot"></div>
+
+<main class="wrap camp">
+  <div class="camp-head"><h1>미선정횟수 · 페널티</h1><a class="muted" href="my.html">← 내 체험단 관리</a></div>
+
+  <details class="pn-policy" open>
+    <summary>정책 안내</summary>
+    <div class="pn-cols">
+      <div>
+        <h3>1. 미선정횟수</h3>
+        <ul>
+          <li>모집 마감일이 지났는데 <b>신청자가 있고, 한 명도 선정하지 않았으며, 처리하지 않은 신청이 남아 있으면</b> 미선정횟수가 부과돼요.</li>
+          <li>신청자를 모두 탈락 처리했거나, 신청자가 없었다면 부과되지 않아요.</li>
+          <li>부과일로부터 <b>6개월이 지나면 자동으로 소멸</b>돼요.</li>
+          <li>미선정횟수가 <b>5회 쌓이면 페널티 1회로 전환</b>돼요. 전환된 건 소멸하지 않아요.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>2. 페널티</h3>
+        <ul><li>페널티는 영구히 누적되고, 횟수에 따라 <b>체험단 등록</b>이 정지돼요. 이미 올린 체험단은 그대로 진행돼요.</li>
+          <li>이용 규칙을 어긴 경우 운영자가 직접 부과할 수도 있어요.</li></ul>
+        <div class="pn-steps"><div><small>페널티 1회</small><b>7일 정지</b></div><div><small>페널티 2회</small><b>30일 정지</b></div><div><small>페널티 3회</small><b>영구 정지</b></div></div>
+      </div>
+    </div>
+  </details>
+
+  <p class="empty" id="pn-msg" hidden></p>
+  <section id="pn-wrap" hidden>
+    <div class="pn-title"><h2>내역</h2><span class="pn-flag" id="pn-flag" hidden></span></div>
+    <div class="pn-sum"><div><span>나의 미선정횟수</span><b id="pn-missed">0</b></div><div><span>페널티</span><b id="pn-pen">0</b></div></div>
+    <div class="pn-tabs" id="pn-tabs"><button data-t="all" class="on">전체</button><button data-t="missed">미선정횟수</button><button data-t="penalty">페널티</button></div>
+    <ul class="pn-list" id="pn-list"></ul>
+    <p class="empty" id="pn-empty" hidden>내역이 없어요.</p>
+  </section>
+</main>
+
+<div id="footer-slot"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="auth.js"></script>
+<script src="boarddata.js"></script>
+<script src="penalty.js"></script>
+</body>
+</html>

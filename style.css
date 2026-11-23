@@ -498,3 +498,39 @@ a.write-btn:hover{background:var(--primary-dark);text-decoration:none}
 .cal td.bn.r2{background:#1e9bff}
 .cal td.r1,.cal td.r2{background:transparent}
 .cal-legend{white-space:nowrap;font-size:11px}
+
+/* 미선정횟수·페널티 */
+.pn-policy{background:#f7f8fa;border:1px solid #eceef2;border-radius:10px;padding:18px 24px;margin-bottom:28px}
+.pn-policy summary{cursor:pointer;font-weight:700;font-size:14px;list-style:none;display:flex;justify-content:space-between;padding-bottom:12px;border-bottom:1px solid #e6e8ec;margin-bottom:14px}
+.pn-policy summary::after{content:"접기 ▴";color:#777;font-weight:400;font-size:12px}
+.pn-policy:not([open]) summary{border-bottom:0;margin-bottom:0;padding-bottom:0}
+.pn-policy:not([open]) summary::after{content:"펼치기 ▾"}
+.pn-cols{display:grid;grid-template-columns:1.1fr 1fr;gap:28px}
+.pn-cols h3{margin:0 0 8px;font-size:14px;color:var(--primary)}
+.pn-cols ul{margin:0;padding:0;list-style:none}
+.pn-cols li{position:relative;padding-left:12px;font-size:12.5px;line-height:1.7;margin-bottom:4px;color:#444}
+.pn-cols li::before{content:"•";position:absolute;left:0}
+.pn-steps{display:grid;grid-template-columns:repeat(3,1fr);background:#fff;border-radius:8px;margin-top:10px;text-align:center}
+.pn-steps div{padding:12px 6px;border-left:1px solid #eee}.pn-steps div:first-child{border-left:0}
+.pn-steps small{display:block;color:#777;font-size:11px}.pn-steps b{font-size:14px}
+.pn-title{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #999;padding-bottom:12px;margin-bottom:16px}
+.pn-title h2{margin:0;font-size:17px}
+.pn-flag{color:#e03131;font-size:12px;font-weight:600}
+.pn-sum{display:grid;grid-template-columns:1fr 1fr;background:#f5f6f8;border-radius:12px;padding:26px 0;margin-bottom:26px}
+.pn-sum div{display:flex;justify-content:space-between;align-items:center;padding:0 42px;font-weight:600}
+.pn-sum div+div{border-left:1px solid #dcdfe4}
+.pn-sum b{color:#3b9be8;font-size:22px}
+.pn-tabs{display:flex;border-bottom:1px solid #e5e7eb;margin-bottom:6px}
+.pn-tabs button{border:0;background:none;padding:12px 20px;cursor:pointer;color:#888;font-size:14px;border-bottom:2px solid transparent;margin-bottom:-1px}
+.pn-tabs button.on{color:#222;font-weight:700;border-color:#222}
+.pn-list{margin-top:10px}
+.pn-list>li{padding:18px 4px;border-bottom:1px solid #eee}
+.pn-list .dead{opacity:.5}
+.pn-date{font-size:12px;color:#777;margin-bottom:12px}
+.pn-row{display:flex;align-items:center;gap:22px}
+.pn-badge{flex:none;width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+.pn-badge.pen{background:#ffe9e9;color:#e03131}.pn-badge.mis{background:#fff3dc;color:#c27a00}
+.pn-info{flex:1;font-size:13px}
+.pn-info p{margin:0 0 4px}.pn-info small{display:inline-block;width:68px;color:#888;font-size:11px;font-weight:600}
+.pn-plus{font-size:14px}.pn-plus.pen{color:#e03131}.pn-plus.mis{color:#c27a00}
+@media (max-width:800px){.pn-cols{grid-template-columns:1fr}.pn-sum div{padding:0 20px}.pn-row{gap:12px}}

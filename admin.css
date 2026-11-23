@@ -89,3 +89,15 @@ button,input,select{font-family:inherit}
 
 .flt{display:flex;gap:8px}.flt select{border:1px solid var(--line);background:#fff;border-radius:8px;padding:10px 12px;font-size:13px}
 #pend{cursor:pointer}
+
+.pn-dlg{border:0;border-radius:14px;padding:22px 24px;width:min(560px,94vw);max-height:90vh;overflow:auto}
+.pn-dlg::backdrop{background:rgba(0,0,0,.4)}
+.pn-dh{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;font-size:15px}
+.pn-dh button{border:0;background:none;font-size:18px;cursor:pointer}
+.pn-ev{list-style:none;margin:0 0 16px;padding:0}
+.pn-ev li{display:grid;grid-template-columns:auto 1fr auto;gap:4px 10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
+.pn-ev li small{grid-column:2}.pn-ev li .btn{grid-row:1/3;grid-column:3}
+.pn-add{background:#f7f8fa;border-radius:10px;padding:14px}
+.pn-add>div{display:flex;gap:6px;margin:8px 0}
+.pn-add select,.pn-add input{border:1px solid var(--line);border-radius:6px;padding:8px;font-size:13px;background:#fff}
+.pn-add input{flex:1;min-width:0}

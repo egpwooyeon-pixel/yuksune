@@ -44,6 +44,7 @@ function route() {
 /* ---------- 대시보드 ---------- */
 $("seg").onclick = e => { const r = e.target.dataset.r; if (!r) return; period = r; document.querySelectorAll("#seg button").forEach(b => b.classList.toggle("on", b === e.target)); loadDash(); };
 async function loadDash() {
+  await sb.rpc("process_expired_campaigns");     // 마감된 체험단 검사 (미선정 부과)
   const r = range(); $("period-title").textContent = r.title;
   const [from, to] = [ymd(r.from), ymd(r.to)];
   const [ov, dl, rc] = await Promise.all([sb.rpc("admin_overview", { p_from: from, p_to: to }), sb.rpc("admin_daily", { p_from: from, p_to: to }), sb.rpc("admin_recent_applications", { lim: 5 })]);
@@ -82,6 +83,50 @@ function drawRecent(rows, el, short5) {
   if (!rows.length) el.innerHTML = "";
 }
 
+/* ---------- 페널티 ---------- */
+const inf = v => v === "infinity" || v === "Infinity" || (v && new Date(v).getFullYear() > 9000);
+function summarize(ev) {
+  const now = new Date();
+  const missed = ev.filter(e => e.kind === "missed" && !e.converted_at && new Date(e.expires_at) > now).length;
+  const pen = ev.filter(e => e.kind === "penalty").length;
+  let susp = null;
+  ev.filter(e => e.kind === "penalty" && e.suspended_until).forEach(e => { if (inf(e.suspended_until)) susp = "영구"; else if (new Date(e.suspended_until) > now && susp !== "영구" && (!susp || new Date(e.suspended_until) > new Date(susp))) susp = e.suspended_until; });
+  return { missed, pen, susp };
+}
+let penMap = {};
+async function loadPenMap() {
+  const { data } = await sb.from("advertiser_events").select("owner_id,kind,created_at,expires_at,converted_at,suspended_until").limit(5000);
+  penMap = {}; (data || []).forEach(e => (penMap[e.owner_id] = penMap[e.owner_id] || []).push(e));
+}
+const penBadge = id => { const s = summarize(penMap[id] || []); return (s.missed || s.pen) ? `<span class="tag ${s.susp ? "bad" : "mid"}">미선정 ${s.missed} · 페널티 ${s.pen}${s.susp ? " · 정지" : ""}</span>` : '<span class="muted">-</span>'; };
+let penOwner = null;
+async function openPen(id, name) {
+  penOwner = id; $("pn-name").textContent = name + " ";
+  const { data } = await sb.from("advertiser_events").select("*").eq("owner_id", id).order("created_at", { ascending: false });
+  const ev = data || [], s = summarize(ev), now = new Date();
+  $("pn-sum").textContent = ` · 미선정 ${s.missed} · 페널티 ${s.pen}${s.susp ? ` · ${s.susp === "영구" ? "영구 정지" : full(s.susp) + "까지 정지"}` : ""}`;
+  $("pn-ev").innerHTML = ev.map(e => {
+    const pen = e.kind === "penalty";
+    const st = pen ? (inf(e.suspended_until) ? "영구 정지" : `정지 ~ ${full(e.suspended_until)}`) : e.converted_at ? "페널티로 전환됨" : new Date(e.expires_at) <= now ? "소멸됨" : `소멸 예정 ${full(e.expires_at)}`;
+    return `<li><span class="tag ${pen ? "bad" : "mid"}">${pen ? "페널티" : "미선정"}</span> <span>${esc(e.reason)}</span><small class="muted">${full(e.created_at)} · ${st}</small><button class="btn bad" data-ed="${e.id}">취소</button></li>`;
+  }).join("") || '<li class="muted">내역이 없어요.</li>';
+  if (!$("pn-dlg").open) $("pn-dlg").showModal();
+}
+$("pn-close").onclick = () => $("pn-dlg").close();
+$("pn-ev").onclick = async e => {
+  const id = e.target.dataset.ed; if (!id || !confirm("이 내역을 취소할까요? 취소하면 횟수와 정지가 함께 풀려요.")) return;
+  const { error } = await sb.rpc("admin_delete_event", { p_id: Number(id) });
+  if (error) return alert("취소하지 못했어요."); await openPen(penOwner, $("pn-name").textContent.trim()); await loadPenMap(); loadMembers(true);
+};
+$("pn-add").onsubmit = async e => {
+  e.preventDefault();
+  const reason = $("pn-reason").value.trim(); if (!reason) return;
+  if (!confirm(`${$("pn-kind").selectedOptions[0].textContent} 를 부과할까요?`)) return;
+  const { error } = await sb.rpc("admin_add_event", { p_owner: penOwner, p_kind: $("pn-kind").value, p_reason: reason });
+  if (error) return alert("부과하지 못했어요. (012 SQL 실행 여부를 확인해 주세요)");
+  $("pn-reason").value = ""; await openPen(penOwner, $("pn-name").textContent.trim()); await loadPenMap(); loadMembers(true);
+};
+
 /* ---------- 회원 · 광고주 승인 ---------- */
 let mTimer; $("m-q").oninput = e => { clearTimeout(mTimer); mTimer = setTimeout(() => { mQuery = e.target.value.trim(); loadMembers(true); }, 300); };
 $("m-more").onclick = () => loadMembers(false);
@@ -89,17 +134,18 @@ $("m-st").onchange = e => { mStatus = e.target.value; loadMembers(true); };
 $("pend").onclick = e => { e.preventDefault(); mStatus = "pending"; $("m-st").value = "pending"; location.hash = "#members"; if (location.hash === "#members") loadMembers(true); };
 const BS = { none: ["미신청", ""], pending: ["승인 대기", "mid"], approved: ["승인됨", "ok"], rejected: ["반려", "bad"] };
 async function loadMembers(reset) {
-  if (reset) { mPage = 0; $("members").innerHTML = ""; }
+  if (reset) { mPage = 0; $("members").innerHTML = ""; await sb.rpc("process_expired_campaigns"); await loadPenMap(); }
   const { data, error } = await sb.rpc("admin_members", { p_search: mQuery || null, p_lim: 50, p_off: mPage * 50, p_status: mStatus || null });
   if (error) { $("m-empty").hidden = false; $("m-empty").textContent = "회원을 불러오지 못했어요. (008, 010 SQL 실행 여부를 확인해 주세요)"; return; }
   const rows = data || [];
-  if (reset) $("members").innerHTML = `<thead><tr><th>가입일</th><th>닉네임</th><th>이메일</th><th>권한</th><th>광고주 상태</th><th>처리</th></tr></thead><tbody></tbody>`;
+  if (reset) $("members").innerHTML = `<thead><tr><th>가입일</th><th>닉네임</th><th>이메일</th><th>권한</th><th>광고주 상태</th><th>페널티</th><th>처리</th></tr></thead><tbody></tbody>`;
   $("members").querySelector("tbody").insertAdjacentHTML("beforeend", rows.map(m => {
     const [t, k] = BS[m.business_status] || BS.none, admin = m.role === "admin";
     const doc = m.business_doc_path ? `<button class="btn" data-bs="doc" data-path="${esc(m.business_doc_path)}">서류 보기</button>` : "";
     return `<tr data-id="${m.id}"><td>${full(m.created_at)}</td><td><b>${esc(m.nickname)}</b></td><td>${esc(m.email)}</td><td>${admin ? '<span class="tag blue">관리자</span>' : "회원"}</td>
       <td><span class="tag ${k}">${t}</span>${m.business_note ? `<br><small class="muted">${esc(m.business_note)}</small>` : ""}</td>
-      <td>${admin ? "" : `${doc}<button class="btn ok" data-bs="approved" ${m.business_status === "approved" ? "disabled" : ""}>승인</button><button class="btn bad" data-bs="rejected" ${m.business_status === "rejected" ? "disabled" : ""}>반려</button><button class="btn" data-bs="none" ${m.business_status === "none" ? "disabled" : ""}>해제</button>${m.business_doc_path ? '<button class="btn bad" data-bs="deldoc">서류 삭제</button>' : ""}`}</td></tr>`;
+      <td>${admin ? "" : penBadge(m.id)}</td>
+      <td>${admin ? "" : `${doc}<button class="btn ok" data-bs="approved" ${m.business_status === "approved" ? "disabled" : ""}>승인</button><button class="btn bad" data-bs="rejected" ${m.business_status === "rejected" ? "disabled" : ""}>반려</button><button class="btn" data-bs="none" ${m.business_status === "none" ? "disabled" : ""}>해제</button><button class="btn" data-bs="pen">페널티</button>${m.business_doc_path ? '<button class="btn bad" data-bs="deldoc">서류 삭제</button>' : ""}`}</td></tr>`;
   }).join(""));
   $("m-empty").hidden = reset ? rows.length > 0 : true; $("m-empty").textContent = "회원이 없어요.";
   $("m-more").hidden = rows.length < 50; mPage++;
@@ -107,6 +153,7 @@ async function loadMembers(reset) {
 $("members").onclick = async e => {
   const st = e.target.dataset.bs; if (!st) return;
   const tr = e.target.closest("tr"), name = tr.children[1].textContent, id = tr.dataset.id;
+  if (st === "pen") return openPen(id, name);
   if (st === "doc") {                       // 사업자등록증: 60초짜리 임시 주소로 열기 (운영자만 가능)
     const { data, error } = await sb.storage.from("business-docs").createSignedUrl(e.target.dataset.path, 60);
     if (error || !data) return alert("서류를 열지 못했어요.");

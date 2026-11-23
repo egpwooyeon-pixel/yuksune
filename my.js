@@ -18,6 +18,7 @@ async function init() {
 }
 
 async function loadCampaigns() {
+  await sb.rpc("process_expired_campaigns");    // 마감된 체험단 검사 (미선정 부과, 여러 번 불러도 안전)
   const { data, error } = await sb.from("campaigns").select("*").eq("owner_id", me.id).order("created_at", { ascending: false });
   if (error) return msg("체험단을 불러오지 못했어요.");
   camps = data || [];
@@ -56,7 +57,7 @@ $("my-list").onclick = async e => {
   if (act === "del") {
     if (!confirm(`'${c.title}' 체험단을 삭제할까요?\n신청자 정보도 함께 삭제되며 되돌릴 수 없어요.`)) return;
     const { error } = await sb.from("campaigns").delete().eq("id", id);
-    if (error) return alert("삭제하지 못했어요."); if (openId === id) openId = null; return loadCampaigns();
+    if (error) return alert("삭제하지 못했어요. 신청자가 있는 체험단은 삭제할 수 없어요. (모집 마감을 이용해 주세요)"); if (openId === id) openId = null; return loadCampaigns();
   }
 };
 

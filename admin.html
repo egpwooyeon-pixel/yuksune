@@ -68,6 +68,17 @@
   </main>
 </div>
 
+<dialog id="pn-dlg" class="pn-dlg">
+  <div class="pn-dh"><div><b id="pn-name"></b><small id="pn-sum" class="muted"></small></div><button type="button" id="pn-close" aria-label="닫기">✕</button></div>
+  <ul class="pn-ev" id="pn-ev"></ul>
+  <form class="pn-add" id="pn-add">
+    <b>직접 부과</b>
+    <div><select id="pn-kind"><option value="missed">미선정횟수 +1</option><option value="penalty">페널티 +1</option></select>
+    <input id="pn-reason" maxlength="150" placeholder="사유 (신청자가 아니라 해당 광고주에게 보여요)" required><button class="btn ok" type="submit">부과</button></div>
+    <small class="muted">페널티 1회=등록 7일 정지, 2회=30일 정지, 3회 이상=영구 정지. 미선정 5회는 자동으로 페널티 1회가 돼요.</small>
+  </form>
+</dialog>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
 <script src="boarddata.js"></script>
