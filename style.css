@@ -558,3 +558,5 @@ a.write-btn:hover{background:var(--primary-dark);text-decoration:none}
 .rk-chart svg{width:100%;height:auto;margin-top:10px}
 @media (max-width:800px){.rk-grid{grid-template-columns:repeat(2,1fr)}}
 .my-top{display:flex;gap:8px;align-items:center}.my-sub{padding:10px 16px;font-size:13px;text-decoration:none;color:inherit;display:inline-block}
+.rk-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}.rk-tabs:empty{display:none}.rk-tabs button{border:1px solid var(--line);background:#fff;border-radius:99px;padding:8px 16px;font-size:13px;cursor:pointer}.rk-tabs button.on{background:var(--primary);border-color:var(--primary);color:#fff;font-weight:700}
+.dv-adminlink{font-size:12px;margin:-4px 0 12px}.dv-adminlink a{color:var(--primary);text-decoration:underline}

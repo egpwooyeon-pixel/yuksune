@@ -217,3 +217,11 @@ $("kw-copy").onclick = e => copyText(window.__kw || "", e.target);
 $("url-copy").onclick = e => copyText(window.__url || "", e.target);
 $("d-share").onclick = async e => { try { await navigator.clipboard.writeText(location.href); alert("주소를 복사했어요."); } catch (err) { prompt("아래 주소를 복사하세요", location.href); } };
 $("cal-toggle").onclick = e => { const b = $("cal-body"); b.hidden = !b.hidden; e.currentTarget.setAttribute("aria-expanded", !b.hidden); e.currentTarget.querySelector("i").textContent = b.hidden ? "▸" : "▾"; };
+
+// 운영자에게만: 이 체험단의 순위 추적 화면으로 가는 링크
+(async () => {
+  if (!window.sbReady) return;
+  const { data } = await sb.auth.getSession(); const u = data.session && data.session.user; if (!u) return;
+  const { data: p } = await sb.from("profiles").select("role").eq("id", u.id).maybeSingle();
+  if (p && p.role === "admin" && id) { const el = $("d-adminlink"); el.hidden = false; el.innerHTML = `<a href="admin.html#rank?c=${encodeURIComponent(id)}">운영자: 이 체험단의 순위 추적 보기 →</a>`; }
+})();

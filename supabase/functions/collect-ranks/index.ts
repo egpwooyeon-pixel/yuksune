@@ -36,17 +36,22 @@ export async function findRank(fetchPage, t, { maxPages = MAX_PAGES, maxRank = M
 const kstDay = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
 
 // 전체 실행: 자동 수집이 켜진 추적을 하나씩 처리. 한 건이 실패해도 나머지는 계속.
-export async function runAll(deps) {
-  const trackers = await deps.getTrackers();
-  const out = { ok: 0, failed: 0 };
+// ids 를 주면 그 추적만 처리('지금 조회'). 조회 실패는 '조회 실패'로 기록하되, 이미 있는 정상 기록은 덮어쓰지 않음.
+export async function runAll(deps, ids) {
+  const trackers = await deps.getTrackers(ids);
+  const out = { ok: 0, failed: 0, notConfigured: false };
   for (const t of trackers) {
+    const base = { tracker_id: t.id, day: kstDay(), source: "provider", keyword: t.keyword, checked_at: new Date().toISOString() };
     try {
       const r = await findRank(page => deps.fetchPage(t, page), t);
-      await deps.saveLog({ tracker_id: t.id, day: kstDay(), rank: r.rank, out_of_rank: r.out });
-      await deps.markTracker(t.id, { last_collected_at: new Date().toISOString(), last_error: null });
+      await deps.saveLog({ ...base, rank: r.rank, status: r.out ? "out" : "ok", out_of_rank: r.out }, false);
+      await deps.markTracker(t.id, { last_collected_at: base.checked_at, last_error: null });
       out.ok++;
     } catch (e) {
-      await deps.markTracker(t.id, { last_error: String(e && e.message || e).slice(0, 200) });
+      const msg = String(e && e.message || e).slice(0, 200);
+      if (msg === "provider_not_configured") out.notConfigured = true;
+      else await deps.saveLog({ ...base, rank: null, status: "failed", out_of_rank: false }, true);   // 같은 날 정상 기록이 있으면 그대로 둠
+      await deps.markTracker(t.id, { last_error: msg });
       out.failed++;
     }
     await deps.sleep(1000);                       // 서비스에 부담을 주지 않도록 간격
@@ -63,13 +68,22 @@ function realDeps() {
   const URL_ = Deno.env.get("SUPABASE_URL"), KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const H = { apikey: KEY, authorization: `Bearer ${KEY}`, "content-type": "application/json" };
   return {
-    async getTrackers() {
-      const r = await fetch(`${URL_}/rest/v1/rank_trackers?auto_collect=eq.true&select=id,keyword,place_name,place_id,lat,lng`, { headers: H });
+    async getTrackers(ids) {
+      const filter = ids && ids.length ? `id=in.(${ids.join(",")})` : "auto_collect=eq.true";
+      const r = await fetch(`${URL_}/rest/v1/rank_trackers?active=eq.true&${filter}&select=id,keyword,place_name,place_id,lat,lng`, { headers: H });
       return r.ok ? await r.json() : [];
     },
+    async isAdmin(authHeader) {                                   // 관리자 화면의 '지금 조회' 요청 확인
+      const u = await fetch(`${URL_}/auth/v1/user`, { headers: { apikey: KEY, authorization: authHeader } });
+      if (!u.ok) return false;
+      const { id } = await u.json();
+      const p = await fetch(`${URL_}/rest/v1/profiles?id=eq.${id}&select=role`, { headers: H });
+      const rows = p.ok ? await p.json() : [];
+      return !!rows[0] && rows[0].role === "admin";
+    },
     fetchPage: providerFetchPage,
-    async saveLog(row) {
-      const r = await fetch(`${URL_}/rest/v1/rank_logs?on_conflict=tracker_id,day`, { method: "POST", headers: { ...H, prefer: "resolution=merge-duplicates" }, body: JSON.stringify(row) });
+    async saveLog(row, keepExisting) {
+      const r = await fetch(`${URL_}/rest/v1/rank_logs?on_conflict=tracker_id,day`, { method: "POST", headers: { ...H, prefer: keepExisting ? "resolution=ignore-duplicates" : "resolution=merge-duplicates" }, body: JSON.stringify(row) });
       if (!r.ok) throw new Error("save_failed");
     },
     async markTracker(id, patch) {
@@ -81,8 +95,16 @@ function realDeps() {
 
 if (typeof Deno !== "undefined" && Deno.serve) {
   Deno.serve(async req => {
+    if (req.method === "OPTIONS") return new Response("ok", { headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization, x-client-info, apikey, content-type, x-cron-secret", "access-control-allow-methods": "POST, OPTIONS" } });
     if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
-    if (!Deno.env.get("CRON_SECRET") || req.headers.get("x-cron-secret") !== Deno.env.get("CRON_SECRET")) return json({ error: "unauthorized" }, 401);
-    return json(await runAll(realDeps()));
+    const deps = realDeps();
+    const cron = Deno.env.get("CRON_SECRET");
+    if (cron && req.headers.get("x-cron-secret") === cron) return json(await runAll(deps));           // 하루 한 번 예약 실행
+    const body = await req.json().catch(() => ({}));
+    if (body.tracker_id && /^[0-9a-f-]{36}$/i.test(String(body.tracker_id)) && await deps.isAdmin(req.headers.get("authorization") || "")) {
+      const r = await runAll(deps, [body.tracker_id]);                                               // 관리자 '지금 조회'
+      return json(r.notConfigured ? { error: "provider_not_configured" } : r);
+    }
+    return json({ error: "unauthorized" }, 401);
   });
 }

@@ -3,13 +3,15 @@ const $ = id => document.getElementById(id);
 const WD = ["일", "월", "화", "수", "목", "금", "토"];
 const key = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const msg = t => { $("rk-msg").hidden = !t; $("rk-msg").textContent = t || ""; };
-let logs = {};   // 날짜 → 기록
+let logs = {};   // 날짜 → 기록 (지금 보고 있는 키워드)
+let trackers = [], cur = null;
 
-const rankText = l => !l ? null : l.out_of_rank ? "순위 밖" : l.rank != null ? l.rank : null;
+const rankText = l => !l ? null : l.status === "out" || l.out_of_rank ? "순위 밖" : l.status === "failed" ? null : l.rank != null ? l.rank : null;
 function delta(day, i, days) {            // 전날과 비교: 숫자가 작아지면 순위 상승(▲)
-  const cur = logs[day], prev = logs[days[i + 1]];
-  if (!cur || !prev || cur.rank == null || prev.rank == null || cur.rank === prev.rank) return "";
-  const n = Math.abs(prev.rank - cur.rank), up = cur.rank < prev.rank;
+  const prev = logs[days[i + 1]];
+  const c = logs[day];
+  if (!c || !prev || c.rank == null || prev.rank == null || c.status === "failed" || prev.status === "failed" || c.rank === prev.rank || (c.keyword && prev.keyword && c.keyword !== prev.keyword)) return "";
+  const n = Math.abs(prev.rank - c.rank), up = c.rank < prev.rank;
   return `<span class="rk-d ${up ? "up" : "down"}">${up ? "▲" : "▼"}${n}</span>`;
 }
 function drawDays() {
@@ -22,16 +24,16 @@ function drawDays() {
   }).join("");
 }
 function drawStats() {
-  const ranked = Object.values(logs).filter(l => l.rank != null).sort((a, b) => a.day < b.day ? 1 : -1);
+  const ranked = Object.values(logs).filter(l => l.rank != null && l.status !== "out").sort((a, b) => a.day < b.day ? 1 : -1);
   const latest = Object.values(logs).sort((a, b) => a.day < b.day ? 1 : -1)[0];
   const best = ranked.length ? Math.min(...ranked.map(l => l.rank)) : null;
-  const cur = latest ? (latest.out_of_rank ? "순위 밖" : latest.rank != null ? latest.rank + "위" : "—") : "—";
+  const curTxt = latest ? (latest.status === "out" || latest.out_of_rank ? "순위 밖" : latest.rank != null ? latest.rank + "위" : "—") : "—";
   const wk = new Date(); wk.setDate(wk.getDate() - 7);
   const old = ranked.find(l => new Date(l.day + "T00:00:00") <= wk), nowR = ranked[0];
   let chg = "—";
   if (old && nowR && old.rank !== nowR.rank) chg = (nowR.rank < old.rank ? "▲ " : "▼ ") + Math.abs(old.rank - nowR.rank);
   else if (old && nowR) chg = "변동 없음";
-  $("rk-stats").innerHTML = `<div><small>현재</small><b>${cur}</b></div><div><small>최고</small><b>${best != null ? best + "위" : "—"}</b></div><div><small>7일 변화</small><b>${chg}</b></div>`;
+  $("rk-stats").innerHTML = `<div><small>현재</small><b>${curTxt}</b></div><div><small>최고</small><b>${best != null ? best + "위" : "—"}</b></div><div><small>7일 변화</small><b>${chg}</b></div>`;
 }
 function drawChart() {
   const pts = Object.values(logs).filter(l => l.rank != null && new Date(l.day + "T00:00:00") >= new Date(Date.now() - 30 * 864e5)).sort((a, b) => a.day < b.day ? -1 : 1);
@@ -45,19 +47,27 @@ function drawChart() {
 }
 $("rk-toggle").onclick = e => { const on = $("rk-grid").classList.toggle("show-rv"); e.target.textContent = on ? "리뷰 수치 숨기기" : "리뷰 수치 보기"; };
 
+async function showTracker(t) {
+  cur = t;
+  const { data: ls } = await sb.from("rank_logs").select("*").eq("tracker_id", t.id).order("day", { ascending: false }).limit(60);
+  logs = {}; (ls || []).forEach(l => { logs[l.day] = l; });
+  $("rk-kw").textContent = t.keyword;
+  const pl = []; if (t.place_name) pl.push(esc(t.place_name));
+  if (t.place_url && /^https?:\/\//.test(t.place_url)) pl.push(`<a href="${esc(t.place_url)}" target="_blank" rel="noopener noreferrer">플레이스 열기 ↗</a>`);
+  $("rk-place").innerHTML = pl.join(" · ");
+  $("rk-tabs").innerHTML = trackers.length > 1 ? trackers.map(x => `<button type="button" data-id="${x.id}" class="${x.id === t.id ? "on" : ""}">${esc(x.keyword)}</button>`).join("") : "";
+  drawStats(); drawDays(); drawChart();
+}
+$("rk-tabs").onclick = e => { const id = e.target.dataset.id; if (!id) return; const t = trackers.find(x => x.id === id); if (t) showTracker(t); };
+
 (async () => {
   if (!sbReady) return msg("서버 연결 키가 설정되지 않았습니다.");
   const { data } = await sb.auth.getSession();
   const me = data.session && data.session.user;
   if (!me) return location.replace("login.html?next=rank.html");
-  const { data: t, error } = await sb.from("rank_trackers").select("*").eq("owner_id", me.id).maybeSingle();
-  if (error) return msg("불러오지 못했어요. (014 SQL 실행 여부를 확인해 주세요)");
-  if (!t) return msg("아직 설정된 순위 추적이 없어요. 광고주 한 분당 키워드 1개를 운영자가 설정해 드려요. 공지사항을 확인해 주세요.");
-  const { data: ls } = await sb.from("rank_logs").select("*").eq("tracker_id", t.id).order("day", { ascending: false }).limit(60);
-  (ls || []).forEach(l => { logs[l.day] = l; });
-  $("rk").hidden = false; $("rk-kw").textContent = t.keyword;
-  const pl = []; if (t.place_name) pl.push(esc(t.place_name));
-  if (t.place_url && /^https?:\/\//.test(t.place_url)) pl.push(`<a href="${esc(t.place_url)}" target="_blank" rel="noopener noreferrer">플레이스 열기 ↗</a>`);
-  $("rk-place").innerHTML = pl.join(" · ");
-  drawStats(); drawDays(); drawChart();
+  const { data: ts, error } = await sb.from("rank_trackers").select("*").eq("owner_id", me.id).eq("active", true).order("created_at");
+  if (error) return msg("불러오지 못했어요. (017 SQL 실행 여부를 확인해 주세요)");
+  trackers = ts || [];
+  if (!trackers.length) return msg("아직 설정된 순위 추적이 없어요. 광고주 한 분당 키워드를 운영자가 설정해 드려요. 공지사항을 확인해 주세요.");
+  $("rk").hidden = false; await showTracker(trackers[0]);
 })();

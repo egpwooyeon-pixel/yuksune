@@ -63,20 +63,26 @@
 
     <!-- 순위 추적 -->
     <section id="s-rank" hidden>
-      <div class="ad-top"><div><small class="kick">RANK</small><h1>광고주 순위 추적</h1></div></div>
-      <p class="note">광고주 한 분당 키워드 1개를 설정하고, 확인한 순위를 입력하면 광고주가 "내 순위 추적" 화면에서 본인 것만 봐요. 순위는 자동 수집이 아니라 <b>운영자가 모바일 네이버 플레이스에서 확인해 입력</b>하는 값이에요.</p>
+      <div class="ad-top"><div><small class="kick">RANK</small><h1>플레이스 순위 추적</h1></div>
+        <label class="rk-stopped"><input type="checkbox" id="rk-showstop"> 중지된 추적도 보기</label></div>
+      <p class="note" id="rk-prov"></p>
       <div class="box">
-        <div class="box-h"><b>추적 추가</b></div>
-        <form class="rk-add" id="rk-add">
-          <div class="rk-find"><input id="rk-q" placeholder="광고주 닉네임·이메일 검색" aria-label="광고주 검색"><button type="button" class="btn" id="rk-find">찾기</button></div>
-          <select id="rk-owner" required><option value="">광고주를 먼저 검색해 선택하세요</option></select>
-          <input id="rk-keyword" placeholder="추적 키워드 (예: 신사역 맛집)" maxlength="40" required>
-          <input id="rk-pname" placeholder="업체명 (선택)" maxlength="60">
-          <input id="rk-purl" type="url" placeholder="플레이스 주소 (선택)" maxlength="300">
-          <button class="btn ok" type="submit">추가</button>
+        <div class="box-h"><b>키워드 등록</b><span class="muted">캠페인(매장) 하나에 키워드를 여러 개 등록할 수 있어요</span></div>
+        <form class="rk-form" id="rk-add">
+          <div class="rk-mode"><label><input type="radio" name="rkmode" value="camp" checked> 캠페인에서 선택</label><label><input type="radio" name="rkmode" value="owner"> 광고주 직접 선택</label></div>
+          <select id="rk-camp" aria-label="캠페인"></select>
+          <div class="rk-find" id="rk-ownerbox" hidden><input id="rk-q" placeholder="광고주 닉네임·이메일 검색" aria-label="광고주 검색"><button type="button" class="btn" id="rk-find">찾기</button><select id="rk-owner"><option value="">광고주를 먼저 검색해 선택하세요</option></select></div>
+          <input id="rk-pname" placeholder="매장명" maxlength="60" aria-label="매장명">
+          <input id="rk-purl" placeholder="네이버 플레이스 주소 또는 플레이스 ID" maxlength="300" aria-label="플레이스 주소 또는 ID">
+          <textarea id="rk-keywords" rows="3" placeholder="추적할 키워드 (줄바꿈 또는 쉼표로 여러 개) 예) 명동 빵집, 명동 베이커리" aria-label="키워드"></textarea>
+          <button class="btn ok rk-submit" type="submit">키워드 등록</button>
         </form>
       </div>
-      <div class="box"><table class="tb" id="rank"></table><p class="empty" id="rk-empty" hidden>설정된 순위 추적이 아직 없어요.</p></div>
+      <div class="box">
+        <div class="rk-filter" id="rk-filter" hidden></div>
+        <div class="rk-scroll"><table class="tb rk-table" id="rank"></table></div>
+        <p class="empty" id="rk-empty" hidden>등록된 추적이 아직 없어요.</p>
+      </div>
     </section>
 
     <!-- 게시판 -->
@@ -86,16 +92,6 @@
     </section>
   </main>
 </div>
-
-<dialog id="rk-dlg" class="pn-dlg">
-  <div class="pn-dh"><div><b id="rk-title"></b><small id="rk-sub" class="muted"></small></div><button type="button" id="rk-close" aria-label="닫기">✕</button></div>
-  <form class="rk-rec" id="rk-rec">
-    <b>순위 기록 (같은 날짜를 다시 저장하면 덮어써요)</b>
-    <div><input id="rk-day" type="date" required><input id="rk-rank" type="number" min="1" max="1000" placeholder="순위"><label class="rk-chk"><input id="rk-out" type="checkbox"> 순위 밖</label></div>
-    <div><input id="rk-vis" type="number" min="0" placeholder="방문자 리뷰"><input id="rk-blog" type="number" min="0" placeholder="블로그 리뷰"><input id="rk-comp" type="number" min="0" placeholder="경쟁업체 수"><button class="btn ok" type="submit">저장</button></div>
-  </form>
-  <ul class="pn-ev" id="rk-logs"></ul>
-</dialog>
 
 <dialog id="pn-dlg" class="pn-dlg">
   <div class="pn-dh"><div><b id="pn-name"></b><small id="pn-sum" class="muted"></small></div><button type="button" id="pn-close" aria-label="닫기">✕</button></div>

@@ -34,7 +34,8 @@ async function init() {
 
 const loaded = {};
 function route() {
-  const s = (location.hash || "#dashboard").slice(1);
+  const [s, qs] = (location.hash || "#dashboard").slice(1).split("?");
+  if (s === "rank") rk.camp = new URLSearchParams(qs || "").get("c") || null;
   const name = ["dashboard", "members", "campaigns", "apps", "rank", "posts"].includes(s) ? s : "dashboard";
   document.querySelectorAll("main section").forEach(x => x.hidden = x.id !== "s-" + name);
   document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("on", a.dataset.s === name));
@@ -193,12 +194,13 @@ async function loadCamps() {
   $("campaigns").innerHTML = (data || []).length ? `<thead><tr><th>등록일</th><th>체험단</th><th>업체</th><th>종류</th><th>등록자</th><th>신청/모집</th><th>마감일</th><th>상태</th><th>처리</th></tr></thead><tbody>${data.map(c => {
     const open = c.status === "open" && c.deadline >= today;
     return `<tr data-id="${c.id}"><td>${full(c.created_at)}</td><td class="t"><a href="campaign.html?id=${encodeURIComponent(c.id)}"><b>${esc(c.title)}</b></a></td><td>${esc(c.biz)}</td><td><span class="tag">${esc(c.type)} · ${esc(c.mode)}</span></td><td>${esc(nickOf(c))}</td><td>${n[c.id] || 0} / ${c.slots}</td><td>${esc(c.deadline)}</td>
-      <td><span class="tag ${open ? "ok" : "mid"}">${open ? "모집 중" : "마감"}</span></td><td>${open ? '<button class="btn" data-ca="close">모집 마감</button>' : ""}<button class="btn bad" data-ca="del">삭제</button></td></tr>`;
+      <td><span class="tag ${open ? "ok" : "mid"}">${open ? "모집 중" : "마감"}</span></td><td>${open ? '<button class="btn" data-ca="close">모집 마감</button>' : ""}<button class="btn" data-ca="rank">순위 추적</button><button class="btn bad" data-ca="del">삭제</button></td></tr>`;
   }).join("")}</tbody>` : "";
 }
 $("campaigns").onclick = async e => {
   const act = e.target.dataset.ca; if (!act) return;
   const tr = e.target.closest("tr"), id = tr.dataset.id, title = tr.children[1].textContent;
+  if (act === "rank") { location.hash = "#rank?c=" + id; return; }
   if (act === "close") { if (!confirm(`'${title}' 모집을 마감할까요?`)) return; const { error } = await sb.from("campaigns").update({ status: "closed" }).eq("id", id); if (error) return alert("마감하지 못했어요."); }
   if (act === "del") { if (!confirm(`'${title}' 체험단을 삭제할까요?\n신청자 정보도 함께 삭제되며 되돌릴 수 없어요.`)) return; const { error } = await sb.from("campaigns").delete().eq("id", id); if (error) return alert("삭제하지 못했어요."); }
   loadCamps();
@@ -212,7 +214,30 @@ async function loadApps() {
 }
 
 /* ---------- 순위 추적 ---------- */
-let rkTracker = null;
+// 데이터 구조: rank_trackers(매장·키워드 한 줄) + rank_logs(날짜별 기록: status ok/out/failed, source manual/provider)
+const RK_PROVIDER = !!(window.WOORI && window.WOORI.RANK_PROVIDER);
+const kstDay = d => new Date(new Date(d).getTime() + 9 * 3600e3).toISOString().slice(0, 10);
+const dayMinus = (day, n) => { const d = new Date(day + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() - n); return d.toISOString().slice(0, 10); };
+const hm = iso => { const d = new Date(iso); return `${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+// 플레이스 주소 또는 ID 에서 ID 숫자 뽑기
+function parsePlaceId(v) {
+  v = (v || "").trim(); if (!v) return { id: null };
+  if (/^\d{5,15}$/.test(v)) return { id: v };
+  if (/naver\.me\//i.test(v)) return { err: "단축 주소(naver.me)로는 플레이스 ID를 알 수 없어요. 전체 주소나 ID 숫자를 넣어 주세요." };
+  const m = v.match(/\/(\d{5,15})(?:[\/?#]|$)/); return m ? { id: m[1] } : { err: "주소에서 플레이스 ID를 찾지 못했어요. 주소 전체나 ID 숫자를 확인해 주세요." };
+}
+const rkText = l => !l ? "미수집" : l.status === "out" ? "조회 범위 밖" : l.status === "failed" ? "조회 실패" : l.rank + "위";
+let rk = { trackers: [], logs: {}, camps: [], open: new Set(), camp: null, stopped: false };
+
+$("rk-prov").innerHTML = RK_PROVIDER ? "자동 조회: 데이터 제공처 연동됨. 하루 한 번 조회해 기록해요. (수동 확인도 함께 기록할 수 있어요)"
+  : "⚠ <b>데이터 제공처 미연동</b>: 지금은 운영자가 모바일 네이버 플레이스에서 직접 확인한 순위를 기록해요. 기록에는 출처가 <b>수동 확인</b>으로 표시돼요.";
+document.querySelectorAll('input[name="rkmode"]').forEach(r => r.onchange = () => { const camp = document.querySelector('input[name="rkmode"]:checked').value === "camp"; $("rk-camp").hidden = !camp; $("rk-ownerbox").hidden = camp; });
+$("rk-showstop").onchange = e => { rk.stopped = e.target.checked; drawRank(); };
+
+$("rk-camp").onchange = () => {                     // 캠페인을 고르면 매장명·플레이스 주소를 가져옴 (다시 입력하지 않음)
+  const c = rk.camps.find(x => x.id === $("rk-camp").value);
+  $("rk-pname").value = c ? c.biz : ""; $("rk-purl").value = c && c.place_url ? c.place_url : "";
+};
 $("rk-find").onclick = async () => {
   const q = $("rk-q").value.trim();
   const { data, error } = await sb.rpc("admin_members", { p_search: q || null, p_lim: 30, p_off: 0, p_status: "approved" });
@@ -222,55 +247,126 @@ $("rk-find").onclick = async () => {
 };
 $("rk-add").onsubmit = async e => {
   e.preventDefault();
-  const owner = $("rk-owner").value; if (!owner) return alert("광고주를 선택해 주세요.");
-  const row = { owner_id: owner, keyword: $("rk-keyword").value.trim(), place_name: $("rk-pname").value.trim() || null, place_url: $("rk-purl").value.trim() || null };
-  const { error } = await sb.from("rank_trackers").insert(row);
-  if (error) return alert(/duplicate|unique/i.test(error.message) ? "이미 순위 추적이 설정된 광고주예요. (광고주 한 분당 1개)" : "추가하지 못했어요. (014 SQL 실행 여부를 확인해 주세요)");
-  $("rk-keyword").value = $("rk-pname").value = $("rk-purl").value = ""; loadRank();
+  const byCamp = document.querySelector('input[name="rkmode"]:checked').value === "camp";
+  const camp = byCamp ? rk.camps.find(x => x.id === $("rk-camp").value) : null;
+  const owner = byCamp ? (camp && camp.owner_id) : $("rk-owner").value;
+  if (!owner) return alert(byCamp ? "캠페인을 선택해 주세요." : "광고주를 선택해 주세요.");
+  const name = $("rk-pname").value.trim(); if (!name) return alert("매장명을 입력해 주세요.");
+  const pid = parsePlaceId($("rk-purl").value); if (pid.err) return alert(pid.err);
+  const kws = [...new Set($("rk-keywords").value.split(/[\n,]/).map(s => s.trim()).filter(Boolean))];
+  if (!kws.length) return alert("키워드를 하나 이상 입력해 주세요.");
+  if (kws.some(k => k.length > 40)) return alert("키워드는 40자 이하로 입력해 주세요.");
+  const url = $("rk-purl").value.trim();
+  const have = new Set(rk.trackers.filter(t => t.owner_id === owner && (t.campaign_id || null) === (camp ? camp.id : null)).map(t => t.keyword.toLowerCase()));
+  const fresh = kws.filter(k => !have.has(k.toLowerCase()));
+  if (!fresh.length) return alert("입력한 키워드가 모두 이미 등록되어 있어요.");
+  if (fresh.length < kws.length) alert(`이미 등록된 키워드 ${kws.length - fresh.length}개는 건너뛰고 ${fresh.length}개만 등록할게요.`);
+  const rows = fresh.map(k => ({ owner_id: owner, campaign_id: camp ? camp.id : null, keyword: k, place_name: name, place_id: pid.id, place_url: /^https?:\/\//.test(url) ? url : null }));
+  const { error } = await sb.from("rank_trackers").insert(rows);
+  if (error) return alert(/duplicate|unique/i.test(error.message) ? "이미 같은 매장에 등록된 키워드가 있어요. 키워드를 확인해 주세요." : "등록하지 못했어요. (017 SQL 실행 여부를 확인해 주세요)");
+  $("rk-keywords").value = ""; loadRank();
 };
+
 async function loadRank() {
-  const { data, error } = await sb.from("rank_trackers").select("id,keyword,place_name,place_url,created_at,owner_id,profiles(nickname)").order("created_at", { ascending: false });
-  if (error) { $("rk-empty").hidden = false; $("rk-empty").textContent = "불러오지 못했어요. (014 SQL 실행 여부를 확인해 주세요)"; return; }
-  const ids = (data || []).map(t => t.id);
-  let last = {};
-  if (ids.length) { const { data: ls } = await sb.from("rank_logs").select("tracker_id,day,rank,out_of_rank").in("tracker_id", ids).order("day", { ascending: false }).limit(1000); (ls || []).forEach(l => { if (!last[l.tracker_id]) last[l.tracker_id] = l; }); }
-  $("rk-empty").hidden = (data || []).length > 0; $("rk-empty").textContent = "설정된 순위 추적이 아직 없어요.";
-  $("rank").innerHTML = (data || []).length ? `<thead><tr><th>광고주</th><th>키워드</th><th>업체</th><th>최근 기록</th><th>처리</th></tr></thead><tbody>${data.map(t => {
-    const l = last[t.id], txt = l ? `${l.out_of_rank ? "순위 밖" : l.rank != null ? l.rank + "위" : "—"} <small class="muted">(${l.day.slice(5)})</small>` : '<span class="muted">기록 없음</span>';
-    return `<tr data-id="${t.id}" data-kw="${esc(t.keyword)}" data-nick="${esc(nickOf(t))}"><td><b>${esc(nickOf(t))}</b></td><td>${esc(t.keyword)}</td><td>${esc(t.place_name || "-")}</td><td>${txt}</td><td><button class="btn ok" data-rk="rec">기록 입력</button><button class="btn bad" data-rk="del">삭제</button></td></tr>`;
-  }).join("")}</tbody>` : "";
+  const [cp, tr] = await Promise.all([
+    sb.from("campaigns").select("id,title,biz,owner_id,place_url,created_at").order("created_at", { ascending: false }).limit(300),
+    sb.from("rank_trackers").select("*, campaigns(title,biz,created_at), profiles(nickname)").order("created_at", { ascending: false }),
+  ]);
+  if (tr.error) { $("rk-empty").hidden = false; $("rk-empty").textContent = "불러오지 못했어요. (017 SQL 실행 여부를 확인해 주세요)"; $("rank").innerHTML = ""; return; }
+  rk.camps = cp.data || []; rk.trackers = tr.data || [];
+  const cur = $("rk-camp").value;
+  $("rk-camp").innerHTML = '<option value="">캠페인을 선택하세요</option>' + rk.camps.map(c => `<option value="${c.id}">${esc(c.biz)} · ${esc(c.title)}</option>`).join("");
+  if (rk.camps.some(c => c.id === cur)) $("rk-camp").value = cur;
+  rk.logs = {};
+  const ids = rk.trackers.map(t => t.id);
+  if (ids.length) { const { data } = await sb.from("rank_logs").select("*").in("tracker_id", ids).order("day", { ascending: false }).limit(5000); (data || []).forEach(l => (rk.logs[l.tracker_id] = rk.logs[l.tracker_id] || []).push(l)); }
+  drawRank();
+}
+function spark(logs) {                                  // 최근 7일 추이 (정상 순위만 점으로)
+  const today = kstDay(Date.now()), days = Array.from({ length: 7 }, (_, i) => dayMinus(today, 6 - i));
+  const by = Object.fromEntries(logs.map(l => [l.day, l])), pts = days.map((d, i) => by[d] && by[d].status === "ok" ? { i, r: by[d].rank } : null).filter(Boolean);
+  if (pts.length < 1) return '<span class="muted">—</span>';
+  const mn = Math.min(...pts.map(p => p.r)), mx = Math.max(...pts.map(p => p.r)), sp = Math.max(1, mx - mn), X = p => 4 + p.i * 14, Y = p => 4 + (p.r - mn) / sp * 20;
+  return `<svg class="spark" viewBox="0 0 92 28" role="img" aria-label="최근 7일 추이"><polyline fill="none" stroke="#1f4dff" stroke-width="1.6" points="${pts.map(p => `${X(p)},${Y(p)}`).join(" ")}"/>${pts.map(p => `<circle cx="${X(p)}" cy="${Y(p)}" r="2.2" fill="#1f4dff"><title>${days[p.i].slice(5)} ${p.r}위</title></circle>`).join("")}</svg>`;
+}
+function stats(t) {
+  const logs = (rk.logs[t.id] || []).slice(), start = kstDay(t.campaigns ? t.campaigns.created_at : t.created_at);
+  const startLog = logs.find(l => l.day === start && l.status === "ok");
+  const first = [...logs].reverse().find(l => l.status === "ok");                // 가장 오래된 정상 기록 = 첫 확인
+  const latest = logs[0];
+  let delta = "—";                                                               // 같은 키워드로 어제·오늘 둘 다 정상 순위일 때만
+  if (latest && latest.status === "ok") {
+    const prev = logs.find(l => l.day === dayMinus(latest.day, 1));
+    if (prev && prev.status === "ok" && (prev.keyword || t.keyword) === (latest.keyword || t.keyword)) { const d = prev.rank - latest.rank; delta = d === 0 ? "변동 없음" : (d > 0 ? `<span class="rk-d up">▲${d}</span>` : `<span class="rk-d down">▼${-d}</span>`); }
+  }
+  return { logs, start, startLog, first, latest, delta };
+}
+function drawRank() {
+  const list = rk.trackers.filter(t => (rk.stopped || t.active) && (!rk.camp || t.campaign_id === rk.camp));
+  const f = $("rk-filter"), c = rk.camp && rk.camps.find(x => x.id === rk.camp);
+  f.hidden = !rk.camp; f.innerHTML = rk.camp ? `캠페인 필터: <b>${esc(c ? c.biz + " · " + c.title : "선택한 캠페인")}</b> <button class="btn" id="rk-unfilter">필터 해제</button>` : "";
+  $("rk-empty").hidden = list.length > 0; $("rk-empty").textContent = rk.camp ? "이 캠페인에 등록된 키워드가 없어요." : "등록된 추적이 아직 없어요.";
+  if (!list.length) { $("rank").innerHTML = ""; return; }
+  $("rank").innerHTML = `<thead><tr><th>매장</th><th>키워드</th><th>시작일 순위</th><th>최신 순위</th><th>전일 대비</th><th>7일 추이</th><th>마지막 조회</th><th>처리</th></tr></thead><tbody>${list.map(t => {
+    const s = stats(t), open = rk.open.has(t.id);
+    const startTxt = s.startLog ? s.startLog.rank + "위" : "미수집" + (s.first ? `<small class="muted">첫 확인 ${s.first.rank}위 (${s.first.day.slice(5)})</small>` : "");
+    const last = s.latest ? hm(s.latest.checked_at || s.latest.created_at) + `<small class="muted">${s.latest.source === "provider" ? "자동" : "수동 확인"}</small>` : "—";
+    return `<tr class="rk-row ${t.active ? "" : "stopped"} ${open ? "open" : ""}" data-id="${t.id}"><td data-l="매장"><b>${esc(t.place_name || (t.campaigns && t.campaigns.biz) || "-")}</b><small class="muted">${esc(nickOf(t))}${t.active ? "" : " · 중지됨"}</small></td>
+      <td data-l="키워드">${esc(t.keyword)}</td><td data-l="시작일 순위">${startTxt}</td>
+      <td data-l="최신 순위"><b>${s.latest ? rkText(s.latest) : "미수집"}</b>${s.latest ? `<small class="muted">${s.latest.day.slice(5)}</small>` : ""}</td>
+      <td data-l="전일 대비">${s.delta}</td><td data-l="7일 추이">${spark(s.logs)}</td><td data-l="마지막 조회">${last}</td>
+      <td class="rk-act"><button class="btn ok" data-rk="now">지금 조회</button><button class="btn" data-rk="edit">키워드 수정</button><button class="btn ${t.active ? "bad" : ""}" data-rk="toggle">${t.active ? "추적 중지" : "추적 재개"}</button></td></tr>
+      ${open ? detailRow(t, s) : ""}`;
+  }).join("")}</tbody>`;
+}
+function detailRow(t, s) {
+  const rows = s.logs.slice(0, 60).map(l => `<tr><td>${l.day}</td><td><b>${rkText(l)}</b></td><td>${l.source === "provider" ? "자동 조회" : "수동 확인"}</td><td>${l.checked_at ? hm(l.checked_at) : "-"}</td><td><button class="btn bad" data-ld="${l.id}">삭제</button></td></tr>`).join("");
+  const info = s.first ? `첫 확인 순위 <b>${s.first.rank}위</b> (${s.first.day.slice(5)})` : "아직 정상 순위 기록이 없어요";
+  return `<tr class="rk-detail" data-for="${t.id}"><td colspan="8"><div class="rk-dwrap">
+    <div class="rk-dleft"><div class="rk-dh"><b>날짜별 기록</b><span class="muted">${info} · 캠페인 시작일 ${s.start.slice(5)}</span></div>
+      ${rows ? `<table class="rk-dtb"><thead><tr><th>날짜</th><th>결과</th><th>출처</th><th>조회 시각</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : '<p class="muted">기록이 아직 없어요. 오른쪽에서 직접 확인한 순위를 기록해 주세요.</p>'}</div>
+    <form class="rk-rec2" data-t="${t.id}"><b>수동 확인 기록</b><small class="muted">같은 날짜를 다시 저장하면 덮어써요. 출처는 '수동 확인'으로 표시돼요.</small>
+      <input type="date" name="day" value="${kstDay(Date.now())}" required>
+      <select name="status"><option value="ok">정상 순위</option><option value="out">조회 범위 밖 (300위 밖)</option><option value="failed">조회 실패</option></select>
+      <input type="number" name="rank" min="1" max="300" placeholder="순위 (정상 순위일 때)">
+      <button class="btn ok" type="submit">기록 저장</button></form></div></td></tr>`;
 }
 $("rank").onclick = async e => {
-  const act = e.target.dataset.rk; if (!act) return;
-  const tr = e.target.closest("tr");
-  if (act === "del") {
-    if (!confirm(`'${tr.dataset.nick}' 님의 순위 추적(${tr.dataset.kw})을 삭제할까요? 기록도 모두 삭제돼요.`)) return;
-    const { error } = await sb.from("rank_trackers").delete().eq("id", tr.dataset.id); if (error) return alert("삭제하지 못했어요."); return loadRank();
+  if (e.target.id === "rk-unfilter") return;
+  const tr = e.target.closest("tr"); if (!tr) return;
+  const act = e.target.dataset.rk, ld = e.target.dataset.ld;
+  if (ld) { if (!confirm("이 기록을 삭제할까요?")) return; const { error } = await sb.from("rank_logs").delete().eq("id", Number(ld)); if (error) return alert("삭제하지 못했어요."); return loadRank(); }
+  if (!tr.classList.contains("rk-row")) return;
+  const id = tr.dataset.id, t = rk.trackers.find(x => x.id === id);
+  if (!act) { if (e.target.closest("button,a,input,select")) return; rk.open.has(id) ? rk.open.delete(id) : rk.open.add(id); return drawRank(); }   // 행 누르면 펼치기
+  if (act === "now") {
+    if (!RK_PROVIDER) { rk.open.add(id); drawRank(); return alert("데이터 제공처가 아직 연동되지 않았어요.\n아래 '수동 확인 기록'에서 직접 확인한 순위를 기록해 주세요."); }
+    e.target.disabled = true; e.target.textContent = "조회 중…";
+    const { data, error } = await sb.functions.invoke("collect-ranks", { body: { tracker_id: id } });
+    const code = data && data.error;
+    if (error || code) alert("조회하지 못했어요: " + (code === "provider_not_configured" ? "데이터 제공처 미연동" : "서비스 연결 오류"));
+    return loadRank();
   }
-  rkTracker = { id: tr.dataset.id, kw: tr.dataset.kw, nick: tr.dataset.nick }; openRec();
+  if (act === "edit") {
+    const nk = prompt("새 키워드를 입력하세요.\n(키워드를 바꾸면 이전 기록과는 전일 대비를 계산하지 않아요)", t.keyword);
+    if (nk === null) return; const k = nk.trim(); if (!k || k.length > 40) return alert("키워드는 1~40자로 입력해 주세요."); if (k === t.keyword) return;
+    const { error } = await sb.from("rank_trackers").update({ keyword: k, updated_at: new Date().toISOString() }).eq("id", id);
+    if (error) return alert(/duplicate|unique/i.test(error.message) ? "같은 매장에 이미 있는 키워드예요." : "수정하지 못했어요."); return loadRank();
+  }
+  if (act === "toggle") {
+    if (t.active && !confirm(`'${t.keyword}' 추적을 중지할까요? 기록은 그대로 남고 광고주 화면에서는 보이지 않아요.`)) return;
+    const { error } = await sb.from("rank_trackers").update({ active: !t.active, updated_at: new Date().toISOString() }).eq("id", id);
+    if (error) return alert("변경하지 못했어요."); return loadRank();
+  }
 };
-async function openRec() {
-  $("rk-title").textContent = `${rkTracker.nick} · ${rkTracker.kw}`; $("rk-sub").textContent = "";
-  if (!$("rk-day").value) $("rk-day").value = ymd(new Date());
-  const { data } = await sb.from("rank_logs").select("*").eq("tracker_id", rkTracker.id).order("day", { ascending: false }).limit(14);
-  $("rk-logs").innerHTML = (data || []).map(l => `<li><span class="tag">${l.day.slice(5)}</span><span>${l.out_of_rank ? "순위 밖" : l.rank != null ? l.rank + "위" : "—"} <small class="muted">방문자 ${l.visitor_reviews ?? "-"} · 블로그 ${l.blog_reviews ?? "-"} · 경쟁 ${l.competitors ?? "-"}</small></span><button class="btn bad" data-ld="${l.id}">삭제</button></li>`).join("") || '<li class="muted">기록이 아직 없어요.</li>';
-  if (!$("rk-dlg").open) $("rk-dlg").showModal();
-}
-$("rk-close").onclick = () => $("rk-dlg").close();
-$("rk-out").onchange = e => { if (e.target.checked) $("rk-rank").value = ""; };
-$("rk-rec").onsubmit = async e => {
-  e.preventDefault();
-  const n = id => $(id).value === "" ? null : Number($(id).value);
-  const out = $("rk-out").checked, rank = out ? null : n("rk-rank");
-  if (!out && rank == null) return alert("순위를 입력하거나 '순위 밖'을 체크해 주세요.");
-  const { error } = await sb.from("rank_logs").upsert({ tracker_id: rkTracker.id, day: $("rk-day").value, rank, out_of_rank: out, visitor_reviews: n("rk-vis"), blog_reviews: n("rk-blog"), competitors: n("rk-comp") }, { onConflict: "tracker_id,day" });
-  if (error) return alert("저장하지 못했어요. 값을 확인해 주세요.");
-  $("rk-rank").value = ""; $("rk-out").checked = false; await openRec(); loadRank();
-};
-$("rk-logs").onclick = async e => {
-  const id = e.target.dataset.ld; if (!id || !confirm("이 기록을 삭제할까요?")) return;
-  const { error } = await sb.from("rank_logs").delete().eq("id", Number(id)); if (error) return alert("삭제하지 못했어요."); await openRec(); loadRank();
-};
+$("rank").addEventListener("submit", async e => {
+  const f = e.target.closest(".rk-rec2"); if (!f) return; e.preventDefault();
+  const t = rk.trackers.find(x => x.id === f.dataset.t), status = f.status.value, rank = f.rank.value === "" ? null : Number(f.rank.value);
+  if (status === "ok" && rank == null) return alert("정상 순위일 때는 순위를 입력해 주세요.");
+  const { error } = await sb.from("rank_logs").upsert({ tracker_id: t.id, day: f.day.value, status, rank: status === "ok" ? rank : null, out_of_rank: status === "out", source: "manual", keyword: t.keyword, checked_at: new Date().toISOString() }, { onConflict: "tracker_id,day" });
+  if (error) return alert("저장하지 못했어요. 값을 확인해 주세요. (017 SQL 실행 여부)"); loadRank();
+});
+document.addEventListener("click", e => { if (e.target.id === "rk-unfilter") { rk.camp = null; history.replaceState(null, "", "#rank"); drawRank(); } });
 
 /* ---------- 게시판 ---------- */
 async function loadPosts() {
