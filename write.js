@@ -1,7 +1,7 @@
 // 글쓰기: 로그인한 회원만. 로그인 안 했으면 로그인 화면으로 보냄.
 const $ = id => document.getElementById(id);
 const key = boardKey();
-$("w-board").value = key; $("w-cancel").href = "board.html?b=" + key;
+$("w-board").value = key;  // 공지사항 선택 여부는 로그인 후 운영자 확인되면 정리됨 $("w-cancel").href = "board.html?b=" + key;
 const count = () => { $("t-count").textContent = $("w-title").value.length + "/100"; $("b-count").textContent = $("w-body").value.length + "/5000"; };
 $("w-title").oninput = $("w-body").oninput = count;
 
@@ -14,6 +14,10 @@ let me = null, isAdmin = false;
   const { data: pr } = await sb.from("profiles").select("role").eq("id", me.id).maybeSingle();
   isAdmin = !!pr && pr.role === "admin";
   $("w-notice-row").hidden = !isAdmin;
+  if (!isAdmin) {                                  // 공지사항은 운영자만: 선택칸에서 빼고, 주소로 들어와도 막음
+    $("opt-notice").remove();
+    if (key === "notice") { $("w-board").value = "place"; $("w-gate").hidden = false; $("w-gate").textContent = "공지사항은 운영자만 쓸 수 있어요."; $("w-cancel").href = "board.html?b=notice"; }
+  }
 })();
 
 $("wform").onsubmit = async e => {

@@ -452,3 +452,6 @@ a.write-btn:hover{background:var(--primary-dark);text-decoration:none}
 .ap-btns button[data-st=rejected]:not(:disabled){border-color:#f3c4c4;color:#d63a3a}
 .ap-btns button:disabled{opacity:.4;cursor:default}
 @media (max-width:800px){.my-item{flex-direction:column;align-items:flex-start}.mi-btns{justify-content:flex-start}}
+
+.board-desc{margin:-4px 0 14px;color:#777;font-size:13px}
+[hidden]{display:none!important}

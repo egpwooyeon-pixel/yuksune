@@ -1,7 +1,9 @@
 // 게시판 공통 값/도구 (board.js, post.js, write.js 에서 같이 씀)
 const BOARDS = {
-  place: { title: "플레이스 사장님 커뮤니티", cat: "플레이스" },
-  ecom:  { title: "E-커머스 사장님 커뮤니티", cat: "E-커머스" },
+  notice: { title: "공지사항", cat: "공지", adminOnly: true, desc: "우리들 체험단의 이용 안내와 소식을 알려드려요. (운영자만 글을 쓸 수 있어요)" },
+  place:  { title: "플레이스 사장님 커뮤니티", cat: "플레이스", desc: "네이버 플레이스를 운영하는 사장님들의 노하우와 질문을 나누는 공간이에요." },
+  ecom:   { title: "E-커머스 사장님 커뮤니티", cat: "E-커머스", desc: "스마트스토어·쿠팡 등 온라인 판매 사장님들이 정보를 나누는 공간이에요." },
+  review: { title: "체험단 후기·노하우", cat: "후기·노하우", desc: "체험단에 참여한 후기와 선정·작성 노하우를 나누는 공간이에요." },
 };
 function boardKey(k) {
   k = k || new URLSearchParams(location.search).get("b");

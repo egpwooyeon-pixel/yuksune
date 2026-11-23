@@ -5,6 +5,15 @@ const st = { page: 1, q: "", field: "title" };
 $("b-title").textContent = B.title;
 document.title = B.title + " - 우리들 체험단";
 $("write").href = "write.html?b=" + key;
+$("b-desc").textContent = B.desc || "";
+if (B.adminOnly) {                                  // 공지사항: 인기글 박스는 숨기고, 글쓰기는 운영자에게만 보임
+  document.querySelector(".pop").hidden = true; $("write").hidden = true;
+  if (window.sbReady) sb.auth.getSession().then(async ({ data }) => {
+    const u = data.session && data.session.user; if (!u) return;
+    const { data: p } = await sb.from("profiles").select("role").eq("id", u.id).maybeSingle();
+    if (p && p.role === "admin") $("write").hidden = false;
+  });
+}
 
 const link = id => `post.html?b=${key}&id=${id}`;
 const rowHtml = (p, num) => `<tr><td class="num">${num}</td>
@@ -55,4 +64,4 @@ $("pager").onclick = e => { const n = +e.target.dataset.p; if (!n) return; st.pa
 $("b-search").onsubmit = e => { e.preventDefault(); st.q = $("b-q").value.trim(); st.field = $("b-field").value; st.page = 1; drawList(); };
 
 if (!window.sbReady) { $("b-empty").hidden = false; $("b-empty").textContent = "서버 연결 키가 설정되지 않았습니다."; $("pop").innerHTML = ""; }
-else { drawPop("m"); drawList(); }
+else { if (!B.adminOnly) drawPop("m"); drawList(); }
