@@ -1,72 +1,75 @@
-// 체험단 모집 목록 — 샘플 데이터 (나중에 DB에서 불러오기)
-// 실제 서비스에서는 업체가 네이버 플레이스 주소를 등록하면 이 항목이 자동으로 만들어집니다.
-const REGIONS = ["전체", "서울", "수도권", "지방", "제주", "배송형"];
-const TITLES = {블로그:"블로그체험단", 구매평:"구매평체험단", 인스타:"인스타체험단"};
-const EMOJI = {맛집:"🍜", 뷰티:"💄", 숙박:"🛏️", 카페:"☕", 놀이:"🎮", 생활:"🏠"};
-const COLOR = {맛집:"#ffe9d6", 뷰티:"#ffe0ea", 숙박:"#dff4f7", 카페:"#f1e6da", 놀이:"#e6e0ff", 생활:"#e3f3e6"};
-
+// 체험단 목록: 서버(Supabase)의 모집 중인 체험단을 지역·카테고리·채널·유형으로 걸러 보여줍니다.
+const CH = {                                    // DB 값 → 화면 이름/아이콘
+  블로그: { label: "블로그", cls: "blog", ic: "B" },
+  인스타: { label: "인스타그램", cls: "ig", ic: "◎" },
+  유튜브: { label: "유튜브", cls: "yt", ic: "▶" },
+  구매평: { label: "구매평", cls: "rv", ic: "R" },
+};
+const REGIONS = ["서울", "경기", "인천", "강원", "대전", "세종", "충남", "충북", "부산", "울산", "경남", "경북", "대구", "광주", "전남", "전북", "제주"];
+const METRO = ["서울", "경기", "인천"];
+const CATS = ["맛집", "카페", "뷰티", "숙박", "놀이", "생활", "기타"];
+const EMOJI = { 맛집: "🍜", 뷰티: "💄", 숙박: "🛏️", 카페: "☕", 놀이: "🎮", 생활: "🏠", 기타: "✨" };
+const COLOR = { 맛집: "#ffe9d6", 뷰티: "#ffe0ea", 숙박: "#dff4f7", 카페: "#f1e6da", 놀이: "#e6e0ff", 생활: "#e3f3e6", 기타: "#eceff3" };
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const daysLeft = d => Math.max(0, Math.ceil((new Date(d + "T23:59:59") - Date.now()) / 864e5));
-let campaigns = [];
-let loaded = false;   // 서버에서 불러오기 전에는 "없어요" 문구를 보이지 않음
 
-async function loadFromServer() {
+const params = new URLSearchParams(location.search);
+const urlQ = (params.get("q") || "").trim();
+const state = { region: "", cat: "", ch: CH[params.get("type")] ? params.get("type") : "", mode: "", sort: "new", q: urlQ, shown: 12 };
+let campaigns = [], loaded = false;
+
+// ---- 필터 UI
+$("f-cat").innerHTML += CATS.map(c => `<option value="${c}">${c}</option>`).join("");
+$("f-ch").innerHTML += Object.keys(CH).map(k => `<option value="${k}">${CH[k].label}</option>`).join("");
+$("f-ch").value = state.ch;
+function drawChips() {
+  const items = [["", "전체"], ["배송형", "배송형"], ...REGIONS.map(r => [r, r])];
+  $("region-chips").innerHTML = items.map(([v, t]) => `<button type="button" class="${state.region === v ? "on" : ""}" data-r="${v}">${t}</button>`).join("");
+  $("rg-sel").textContent = state.region ? (state.region === "배송형" ? "배송형 (택배)" : state.region) : "지역을 선택해 주세요.";
+  $("rg-sel").classList.toggle("has", !!state.region);
+}
+$("region-chips").onclick = e => { const r = e.target.dataset.r; if (r === undefined) return; state.region = r; state.shown = 12; drawChips(); render(); };
+$("rg-toggle").onclick = e => { const w = $("rg-wrap"); w.hidden = !w.hidden; e.currentTarget.setAttribute("aria-expanded", !w.hidden); e.currentTarget.querySelector("i").textContent = w.hidden ? "▸" : "▾"; };
+[["f-cat", "cat"], ["f-ch", "ch"], ["f-mode", "mode"], ["f-sort", "sort"]].forEach(([id, k]) => { $(id).onchange = e => { state[k] = e.target.value; state.shown = 12; render(); }; });
+$("more").onclick = () => { state.shown += 12; render(); };
+
+const regionOK = c => !state.region || (state.region === "배송형" ? c.mode === "배송형"
+  : c.region === state.region || (c.region === "수도권" && METRO.includes(state.region)) || (c.region === "지방" && !METRO.includes(state.region) && state.region !== "제주"));
+
+function render() {
+  const q = state.q.toLowerCase();
+  const list = campaigns.filter(c => regionOK(c) && (!state.cat || c.cat === state.cat) && (!state.ch || c.type === state.ch) && (!state.mode || c.mode === state.mode)
+    && (!q || (c.title + " " + c.biz + " " + c.reward).toLowerCase().includes(q)));
+  if (state.sort === "deadline") list.sort((a, b) => a.days - b.days);
+  else if (state.sort === "hot") list.sort((a, b) => b.applied - a.applied);
+  else list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  $("cl-kick").textContent = urlQ ? `"${urlQ}" 검색 결과` : state.ch ? CH[state.ch].label + " 체험단" : "체험단";
+  $("empty").hidden = !loaded || list.length > 0;
+  $("empty").textContent = urlQ ? "검색 결과가 없어요." : loaded && !campaigns.length ? "지금 모집 중인 체험단이 없어요." : "조건에 맞는 체험단이 없어요.";
+  $("more").parentElement.hidden = list.length <= state.shown;
+  $("cards").innerHTML = list.slice(0, state.shown).map(c => {
+    const ch = CH[c.type] || { label: c.type, cls: "rv", ic: "•" };
+    const th = c.photo ? `background:#eee url(${encodeURI(c.photo)}) center/cover` : `background:${COLOR[c.cat] || "#eceff3"}`;
+    return `<li class="cl-card"><a href="campaign.html?id=${encodeURIComponent(c.id)}">
+      <div class="cl-th" style="${th}">${c.photo ? "" : `<span class="cl-emoji">${EMOJI[c.cat] || "✨"}</span>`}${c.isNew ? '<span class="cl-new">N</span>' : ""}</div>
+      <div class="cl-bar"><span><b>${c.days}</b>일 남음</span><i></i><span>신청 <b>${c.applied}</b> / ${c.slots}</span></div>
+      <div class="cl-mode"><span class="cl-ic ${ch.cls}" title="${esc(ch.label)}">${ch.ic}</span>${esc(c.mode)}</div>
+      <p class="cl-title">${esc(c.title)}</p><p class="cl-reward">${esc(c.reward)}</p>
+    </a></li>`;
+  }).join("");
+}
+
+async function load() {
   if (!window.sbReady) { loaded = true; render(); return; }
   const today = new Date().toISOString().slice(0, 10);
-  const { data, error } = await sb.from("campaigns").select("*").eq("status", "open")
-    .gte("deadline", today).order("created_at", { ascending: false });
+  const { data, error } = await sb.from("campaigns").select("*").eq("status", "open").gte("deadline", today).order("created_at", { ascending: false });
   if (error || !data) { loaded = true; render(); return; }
   const { data: cnt } = await sb.rpc("campaign_counts");
   const n = Object.fromEntries((cnt || []).map(r => [r.campaign_id, Number(r.applied)]));
-  const real = data.map(r => ({ id: r.id, type: r.type, cat: r.cat, region: r.region, mode: r.mode,
-    title: r.title, reward: r.reward, slots: r.slots, biz: r.biz, photo: r.photo_url,
-    days: daysLeft(r.deadline), applied: n[r.id] || 0, isNew: Date.now() - new Date(r.created_at) < 3 * 864e5 }));
-  campaigns = real;
-  loaded = true;
-  render();
+  campaigns = data.map(r => ({ id: r.id, type: r.type, cat: r.cat, region: r.region, mode: r.mode, title: r.title, reward: r.reward, slots: r.slots, biz: r.biz,
+    photo: r.photo_url, created_at: r.created_at, days: daysLeft(r.deadline), applied: n[r.id] || 0, isNew: Date.now() - new Date(r.created_at) < 3 * 864e5 }));
+  loaded = true; render();
 }
-
-const params = new URLSearchParams(location.search);
-const type = TITLES[params.get("type")] ? params.get("type") : "블로그";
-const urlQ = (params.get("q") || "").trim();
-const searchAll = !!urlQ && !params.get("type");   // 상단 검색창에서 온 경우: 모든 종류에서 검색
-const state = {region:"전체", q:urlQ, shown:10};
-const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-
-document.getElementById("page-title").textContent = searchAll ? `"${urlQ}" 검색 결과` : TITLES[type];
-if (urlQ) document.getElementById("q").value = urlQ;
-document.getElementById("guide-title").textContent = type + " 체험단";
-if (type === "구매평") document.getElementById("point-note").innerHTML = "<br>구매평 체험단은 <b>포인트가 지급되지 않습니다.</b>";
-document.title = TITLES[type] + " - 우리들 체험단";
-
-function render() {
-  const list = campaigns.filter(c => (searchAll || c.type === type) &&
-    (state.region === "전체" || (state.region === "배송형" ? c.mode === "배송형" : c.region === state.region)) &&
-    (!state.q || (c.title + c.biz).includes(state.q)));
-
-  document.getElementById("empty").hidden = !loaded || list.length > 0;
-  document.getElementById("empty").textContent = state.q ? "검색 결과가 없어요." : "지금 모집 중인 체험단이 없어요.";
-  document.getElementById("more").parentElement.hidden = list.length <= state.shown;
-  document.getElementById("cards").innerHTML = list.slice(0, state.shown).map(c => `
-    <li class="cc">
-      <a href="campaign.html?id=${encodeURIComponent(c.id)}">
-        <div class="thumb" style="background:${c.photo ? `#eee url(${c.photo}) center/cover` : COLOR[c.cat]}">
-          ${c.photo ? "" : `<span class="emoji">${EMOJI[c.cat]}</span>`}
-          ${c.isNew ? '<span class="new">N</span>' : ""}
-        </div>
-        <span class="mode ${c.mode === "배송형" ? "ship" : ""}">${c.mode}</span>
-        <p class="ctitle">${esc(c.title)}</p>
-        <p class="creward">${esc(c.reward)}</p>
-        <p class="capply"><b>${c.days}일</b> 남음 <i></i> 신청 <b>${c.applied}</b>/${c.slots}</p>
-        <p class="biz"><span>등록업체</span><span>${esc(c.biz)}</span></p>
-      </a>
-    </li>`).join("");
-}
-
-const chips = document.getElementById("region-chips");
-function drawChips() {
-  chips.innerHTML = REGIONS.map(r => `<button class="chip ${r===state.region?"on":""}" data-r="${r}">${r}</button>`).join("");
-}
-chips.onclick = e => { const r = e.target.dataset.r; if (!r) return; state.region = r; state.shown = 10; drawChips(); render(); loadFromServer(); };
-document.getElementById("search-form").onsubmit = e => { e.preventDefault(); state.q = document.getElementById("q").value.trim(); state.shown = 10; render(); };
-document.getElementById("more").onclick = () => { state.shown += 10; render(); };
-drawChips(); render(); loadFromServer();
+drawChips(); render(); load();

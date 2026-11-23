@@ -67,8 +67,9 @@ if (EMAIL_ON) {
 
   // 제목·태그
   $("d-title").textContent = c.title;
-  $("d-tags").innerHTML = [c.type, c.mode, c.cat].map(esc).join(" <i>|</i> ") + (c.type === "구매평" ? ' <span class="pt0">0P</span>' : "");
-  const sk = { 블로그: "블로그", 구매평: "구매평", 인스타: "인스타" }[c.type] || c.type;
+  $("d-tags").innerHTML = [({ 인스타: "인스타그램" }[c.type] || c.type), c.mode, c.cat].map(esc).join(" <i>|</i> ") + (c.type === "구매평" ? ' <span class="pt0">0P</span>' : "");
+  const CHN = { 블로그: "블로그", 구매평: "구매평", 인스타: "인스타그램", 유튜브: "유튜브" };
+  const sk = CHN[c.type] || c.type;
   $("d-notice-title").innerHTML = `📌 해당 체험단은 <b>${visit ? "방문형" : "배송형"}</b> 체험단입니다.`;
   $("d-notice-lead").textContent = visit
     ? `선정되면 광고주와 일정을 맞춰 매장을 방문하고, 체험 후 ${sk} 후기를 작성합니다.`
@@ -114,7 +115,7 @@ if (EMAIL_ON) {
   $("d-reuse").textContent = months > 0 ? `후기 게시일로부터 ${months}개월까지 광고주가 홍보에 활용할 수 있어요.` : "2차 활용 없음";
 
   // 미션 아이콘
-  $("d-mtype").textContent = c.type;
+  $("d-mtype").textContent = ({ 인스타: "인스타그램" }[c.type] || c.type);
   const icons = [];
   if (c.keywords) icons.push(["🔍", "키워드"]);
   if (c.photos) icons.push(["🖼️", `${c.photos}장 이상`]);
@@ -156,6 +157,8 @@ if (EMAIL_ON) {
     ? `작성한 후기를 광고주가 후기 게시일로부터 ${months}개월까지 2차 활용(자사 블로그·SNS·홈페이지 등 홍보 게시)하는 것에 동의합니다.`
     : "작성한 후기의 2차 활용은 없습니다. (확인했습니다)";
 
+  { const f = $("apply-form"), L = { 블로그: ["블로그(활동 채널) 주소", "https://blog.naver.com/..."], 인스타: ["인스타그램 계정 주소", "https://instagram.com/..."], 유튜브: ["유튜브 채널 주소", "https://youtube.com/@..."], 구매평: ["활동 채널 주소 (블로그·SNS 등)", "https://..."] }[c.type];
+    if (L) { const lab = f.channel.closest("label"); if (lab && lab.firstChild && lab.firstChild.nodeType === 3) lab.firstChild.textContent = L[0] + " "; f.channel.placeholder = L[1]; } }
   canApply = window.sbReady && c.open;
   const btn = $("apply-open");
   if (!canApply) {
