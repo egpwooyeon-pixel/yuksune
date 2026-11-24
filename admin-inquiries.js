@@ -15,11 +15,25 @@ const safeHref = u => { try { const x = new URL(u); return /^https?:$/.test(x.pr
 const orderText = o => !o || typeof o !== "object" ? "" : `${o.product || ""} · 하루 ${o.perDay}건 × ${o.days}일 (총 ${o.total}건)` + (typeof o.price === "number" ? ` · ${Number(o.price * o.total).toLocaleString("ko-KR")}원` : "");
 const td = (...kids) => { const e = document.createElement("td"); e.append(...kids); return e; };
 
+// 사진: 운영자만 볼 수 있는 비공개 보관함. 2분짜리 임시 주소로 새 창에서 열어요.
+async function showPhotos(batch, box, btn) {
+  btn.disabled = true; btn.textContent = "불러오는 중…";
+  const { data, error } = await sb.from("business_photos").select("path").eq("batch_id", batch).order("id");
+  if (error || !data || !data.length) { btn.disabled = false; btn.textContent = "사진 없음 (다시 시도)"; return; }
+  box.replaceChildren();
+  for (let i = 0; i < data.length; i++) {
+    const { data: s } = await sb.storage.from("business-photos").createSignedUrl(data[i].path, 120);
+    const href = s && safeHref(s.signedUrl);
+    const a = document.createElement(href ? "a" : "span"); a.textContent = "사진 " + (i + 1) + (href ? "" : " (불러오기 실패)");
+    if (href) { a.href = href; a.target = "_blank"; a.rel = "noopener noreferrer"; } box.append(a, document.createElement("br"));
+  }
+}
+
 function render() {
   const q = $("q").value.trim().toLowerCase(), st = $("st").value;
   const list = rows.filter(r => (!st || r.status === st) && (!q || [r.company, r.name, r.message, r.topic].some(x => String(x || "").toLowerCase().includes(q))));
   const t = $("tb"); t.replaceChildren();
-  const head = document.createElement("tr"); ["접수일", "업체", "담당자·연락처", "신청 조건", "문의 내용", "상태"].forEach(h => { const th = document.createElement("th"); th.textContent = h; head.append(th); });
+  const head = document.createElement("tr"); ["접수일", "업체", "담당자·연락처", "신청 조건", "문의 내용", "사진", "상태"].forEach(h => { const th = document.createElement("th"); th.textContent = h; head.append(th); });
   t.append(head);
   for (const r of list) {
     const tr = document.createElement("tr");
@@ -33,7 +47,9 @@ function render() {
     const text = String(r.message || "");
     if (text.length > 120) { const d = document.createElement("details"); const s = document.createElement("summary"); s.textContent = text.slice(0, 120) + "…"; const full = document.createElement("div"); full.textContent = text; d.append(s, full); msg.append(d); } else msg.textContent = text || "—";
     const stat = document.createElement("span"); if (r.status === "new") { stat.className = "iq-new"; stat.textContent = "새 신청"; } else stat.textContent = "처리 완료";
-    tr.append(td(fmtDate(r.created_at)), td(co), td(who), td(ord), td(msg), td(stat)); t.append(tr);
+    const pic = document.createElement("div");
+    if (r.photo_batch) { const bt = document.createElement("button"); bt.type = "button"; bt.className = "iq-ph"; bt.textContent = "사진 보기"; bt.onclick = () => showPhotos(r.photo_batch, pic, bt); pic.append(bt); } else pic.textContent = "—";
+    tr.append(td(fmtDate(r.created_at)), td(co), td(who), td(ord), td(msg), td(pic), td(stat)); t.append(tr);
   }
   $("sum").textContent = `${list.length}건 / 전체 ${rows.length}건 · 새 신청 ${rows.filter(r => r.status === "new").length}건`;
   const empty = $("empty"); empty.hidden = list.length > 0; empty.textContent = rows.length ? "조건에 맞는 접수가 없어요." : "아직 접수된 상담이 없어요.";

@@ -31,4 +31,7 @@ window.LANDING = {
       // { name: "상품 이름", unitLabel: "건당", price: 0, note: "설명 한 줄" },
     ],
   },
+  // 업체 사진 올리기(진단 화면의 "업체 사진" 카드). 비공개 보관함에 저장되고 운영자만 볼 수 있어요.
+  //  false: 숨김 (기본값). true 로 켜기 전에 024_photos.sql 실행 + aeo-photo 함수 배포 + 개인정보 보관 기간 결정이 필요해요 (supabase/PHOTO_SETUP.md).
+  PHOTO_UPLOAD_LIVE: false,
 };

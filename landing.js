@@ -15,6 +15,7 @@
   if (L.SHOW_REFERENCE === false) { const r = $("reference"); if (r) r.hidden = true; }
 
   let orderInfo = null;   // 진단 화면의 발행 설정에서 넘어온 신청 조건
+  let photoBatch = null;  // 진단 화면에서 올린 사진 묶음 번호(UUID 형식일 때만)
   // 진단 화면에서 넘어온 값으로 상담 폼 채우기 (값은 입력칸에만 넣고 HTML 로는 쓰지 않음)
   (function () {
     const qp = new URLSearchParams(location.search); let any = false;
@@ -22,6 +23,7 @@
     put("f-company", qp.get("company"), 100); put("f-web", qp.get("web"), 200); put("f-msg", qp.get("msg"), 1000);
     // 신청 조건(상품·수량·기간)은 범위를 확인한 숫자만 구조화해 저장 (잘못된 값이면 저장하지 않음)
     const int = (k, lo, hi) => { const raw = qp.get(k); if (raw == null || raw.trim() === "") return null; const n = Number(raw); return Number.isInteger(n) && n >= lo && n <= hi ? n : null; };   // 값이 없으면 null (Number(null)=0 이 되어 "0원"으로 저장되는 것을 막음)
+    const pb = (qp.get("pb") || "").toLowerCase(); if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(pb)) { photoBatch = pb; any = true; }
     const prodName = (qp.get("prod") || "").trim().slice(0, 60), per = int("per", 1, 100), days = int("days", 1, 365), price = int("price", 0, 1e9);
     if (prodName && per && days) orderInfo = { product: prodName, perDay: per, days, total: per * days, ...(price != null ? { unit: String(qp.get("unit") || "건당").slice(0, 10), price } : {}) };
     const t = qp.get("topic"), sel = $("f-topic");
@@ -73,7 +75,7 @@
     const v = id => $(id).value.trim();
     const { error } = await sb.from("inquiries").insert({
       company: v("f-company"), name: v("f-name"), phone: v("f-phone"), topic: v("f-topic"),
-      website: v("f-web") || null, message: v("f-msg"), agreed: true, order_info: orderInfo,
+      website: v("f-web") || null, message: v("f-msg"), agreed: true, order_info: orderInfo, photo_batch: photoBatch,
     });
     busy = false; btn.disabled = false;
     if (error) {

@@ -62,7 +62,9 @@
     #progress{font-size:14px;color:#5b6070}
     .btn:disabled{opacity:.6;cursor:default}
     .url-row{display:flex;gap:8px}.url-row input{flex:1;min-width:0}
-    .btn.line{background:#fff;color:var(--char);border-color:var(--char)}.btn.line:hover{background:#f1eefb}
+    .btn.line{background:#fff;color:var(--char);border:2px solid var(--char)}.btn.line:hover{background:#f1eefb}
+    .chk-l{display:flex;gap:10px;align-items:flex-start;font-weight:500;font-size:14px;line-height:1.5}
+    .chk-l input{width:20px;height:20px;min-height:0;padding:0;border:0;margin-top:2px;flex:none;accent-color:var(--char)}
     .btn.sm{min-height:48px;padding:0 18px;font-size:15px;white-space:nowrap}
     .hint{font-size:13px;color:#5b6070;margin:0}#prefill-msg:empty{display:none}
     input.auto,select.auto{background:#edf7ef!important;border-color:#7fb88c!important}
@@ -79,6 +81,12 @@
     .qr-l{display:flex;justify-content:space-between;font-size:12px;color:#5b6070}
     .sum{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;border-top:1px solid var(--line);padding-top:12px}
     .sum-l p{margin:0;font-size:13px;color:#5b6070}.sum-l p+p{font-weight:700;color:var(--char)}.sum-total{margin:0;font-size:22px;font-weight:800;color:var(--char)}
+    .photos{display:grid;gap:12px}.ph-list{list-style:none;margin:0;padding:0;display:flex;gap:10px;flex-wrap:wrap}
+    .ph-list li{position:relative;width:96px;border:2px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
+    .ph-list img{display:block;width:100%;height:80px;object-fit:cover}.ph-list span{display:block;font-size:11px;padding:3px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .ph-list button{position:absolute;right:4px;top:4px;width:24px;height:24px;border-radius:50%;border:0;background:rgba(32,36,46,.85);color:#fff;cursor:pointer;line-height:1}
+    #ph-file{padding:10px 12px;min-height:0}
+    #ph-next a{font-weight:700;text-decoration:underline}
     .banner.live{background:var(--lav);border-color:#cdbff5;color:var(--char)}
     .ok-t{color:var(--good);font-weight:700}.no-t{color:#5b6070}
     .note{font-size:13px;color:#5b6070;margin:12px 0 0}
@@ -110,6 +118,16 @@
       <div class="f full"><label for="f-service">대표 서비스 <span class="opt">(선택)</span></label><input id="f-service" name="service" maxlength="70" placeholder="예: 피부과 외래 진료"><small class="hint">진료과·진료 항목처럼 고객이 찾는 서비스를 적어 주세요.</small></div>
       <div class="full actions"><button class="btn" type="submit" id="go">진단하기</button><span id="progress" role="status"></span></div>
     </form>
+  </section>
+
+  <section class="card photos" id="photos" aria-labelledby="ph-title" hidden>
+    <h2 class="ord-h" id="ph-title">업체 사진 <span class="opt">(선택)</span></h2>
+    <p class="hint">공개해도 되는 사진을 최대 3장까지 올려 주세요. JPG·PNG·WebP, 장당 4MB까지예요. 첫 사진을 대표 사진으로 써요.</p>
+    <div class="f"><label for="ph-file">사진 선택</label><input id="ph-file" type="file" accept="image/jpeg,image/png,image/webp" multiple></div>
+    <ul class="ph-list" id="ph-list"></ul>
+    <label class="chk-l"><input type="checkbox" id="ph-agree"> <span>업체에서 사용 권한이 있는 사진이며, 사람의 얼굴·연락처 등 개인정보가 보이는 사진은 올리지 않았습니다.</span></label>
+    <div class="actions"><button class="btn line sm" type="button" id="ph-up">사진 올리기</button><span id="ph-msg" role="status"></span></div>
+    <p class="hint" id="ph-next" hidden><a id="ph-go" href="landing.html#contact">사진과 함께 상담 신청하기 →</a></p>
   </section>
 
   <section class="card order" id="order" aria-labelledby="order-title" hidden>
@@ -169,8 +187,8 @@ const SAMPLE = {
 
 const L = window.LANDING || {}, W = window.WOORI || {};
 const LIVE = L.DIAGNOSE_LIVE === true;
-const PREFILL = L.PREFILL_LIVE === true;
-const sb = (LIVE || PREFILL) && W.SUPABASE_ANON_KEY && window.supabase ? window.supabase.createClient(W.SUPABASE_URL, W.SUPABASE_ANON_KEY) : null;
+const PREFILL = L.PREFILL_LIVE === true, PHOTO = L.PHOTO_UPLOAD_LIVE === true;
+const sb = (LIVE || PREFILL || PHOTO) && W.SUPABASE_ANON_KEY && window.supabase ? window.supabase.createClient(W.SUPABASE_URL, W.SUPABASE_ANON_KEY) : null;
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
@@ -264,6 +282,63 @@ async function runLive(input) {
   }
 }
 
+// ---- 업체 사진 올리기 (PHOTO_UPLOAD_LIVE). 서버가 발급한 일회용 주소로만 올리고, 올린 묶음 번호를 상담 신청에 함께 넘김 ----
+if (PHOTO && sb) {
+  const MAX = 3, MAXB = 4 * 1024 * 1024;
+  const uuid4 = () => { const b = crypto.getRandomValues(new Uint8Array(16)); b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80; const h = [...b].map(x => x.toString(16).padStart(2, "0")).join(""); return h.slice(0, 8) + "-" + h.slice(8, 12) + "-" + h.slice(12, 16) + "-" + h.slice(16, 20) + "-" + h.slice(20); };
+  const sniff = async f => {                    // 파일 앞부분으로 실제 형식 확인 (파일 이름·브라우저가 알려 준 형식은 믿지 않음)
+    const b = new Uint8Array(await f.slice(0, 12).arrayBuffer()), asc = (i, n) => String.fromCharCode(...b.slice(i, i + n));
+    if (b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) return "image/jpeg";
+    if (b[0] === 0x89 && asc(1, 3) === "PNG") return "image/png";
+    if (asc(0, 4) === "RIFF" && asc(8, 4) === "WEBP") return "image/webp";
+    return null;
+  };
+  const PH_MSG = { ip_limit: "오늘 올릴 수 있는 사진 수를 모두 사용했어요. 내일 다시 시도해 주세요.", global_limit: "오늘 받을 수 있는 사진 수가 모두 찼어요. 내일 다시 시도해 주세요.", batch_limit: "사진은 최대 3장까지 올릴 수 있어요.", bad_type: "JPG·PNG·WebP 사진만 올릴 수 있어요.", bad_count: "사진은 한 번에 1~3장만 올릴 수 있어요.", sign_failed: "사진 올리기를 준비하지 못했어요. 잠시 후 다시 시도해 주세요." };
+  let picked = [], uploaded = 0, busy = false; const batch = uuid4();
+  $("photos").hidden = false;
+  const say = t => { $("ph-msg").textContent = t || ""; };
+  function draw() {
+    const ul = $("ph-list"); ul.replaceChildren();
+    picked.forEach((x, i) => {
+      const li = document.createElement("li"), img = document.createElement("img"), nm = document.createElement("span"), rm = document.createElement("button");
+      img.src = x.url; img.alt = ""; nm.textContent = (i === 0 && uploaded === 0 ? "대표 · " : "") + x.file.name; nm.title = x.file.name;
+      rm.type = "button"; rm.textContent = "×"; rm.setAttribute("aria-label", x.file.name + " 빼기");
+      rm.onclick = () => { URL.revokeObjectURL(x.url); picked.splice(i, 1); draw(); };
+      li.append(img, nm, rm); ul.append(li);
+    });
+  }
+  $("ph-file").addEventListener("change", async e => {
+    say(""); const notes = [];
+    for (const f of [...e.target.files]) {
+      if (picked.length + uploaded >= MAX) { notes.push("사진은 최대 3장까지예요."); break; }
+      if (f.size > MAXB) { notes.push(f.name + ": 4MB를 넘어요."); continue; }
+      const type = await sniff(f); if (!type) { notes.push(f.name + ": JPG·PNG·WebP 사진이 아니에요."); continue; }
+      picked.push({ file: f, type, url: URL.createObjectURL(f) });
+    }
+    e.target.value = ""; draw(); if (notes.length) say(notes.join(" "));
+  });
+  $("ph-up").addEventListener("click", async () => {
+    if (busy) return;
+    if (!picked.length) return say("올릴 사진을 먼저 골라 주세요.");
+    if (!$("ph-agree").checked) return say("사진 사용 권한과 개인정보 확인에 체크해 주세요.");
+    busy = true; $("ph-up").disabled = true; say("사진을 올리는 중이에요…");
+    try {
+      const { data, error } = await sb.functions.invoke("aeo-photo", { body: { batch, types: picked.map(x => x.type) } });
+      if (error) { let c = ""; try { c = (await error.context.json()).error; } catch (_) {} return say(PH_MSG[c] || "사진을 올리지 못했어요. 잠시 후 다시 시도해 주세요."); }
+      const files = data && data.files; if (!Array.isArray(files) || files.length !== picked.length) return say(PH_MSG.sign_failed);
+      let ok = 0;
+      for (let i = 0; i < files.length; i++) {
+        const { error: ue } = await sb.storage.from(data.bucket).uploadToSignedUrl(files[i].path, files[i].token, picked[i].file, { contentType: picked[i].type });
+        if (ue) { say((i + 1) + "번째 사진을 올리지 못했어요. 올린 사진 " + ok + "장은 저장됐어요."); break; } ok++;
+      }
+      if (ok) { uploaded += ok; window.__photoBatch = batch; }
+      if (ok === files.length) { picked.forEach(x => URL.revokeObjectURL(x.url)); picked = []; draw(); say("사진 " + uploaded + "장을 올렸어요. 상담 신청 때 함께 전달돼요."); }
+      if (ok) { const g = $("ph-go"), qs = new URLSearchParams({ pb: batch }); const nm = $("f-name").value.trim(); if (nm) qs.set("company", nm); g.href = "landing.html?" + qs.toString() + "#contact"; $("ph-next").hidden = false; }
+    } catch (_) { say("사진을 올리지 못했어요. 잠시 후 다시 시도해 주세요."); }
+    finally { busy = false; $("ph-up").disabled = false; }
+  });
+}
+
 // ---- 발행 설정: 상품 선택 · 발행 수량과 기간 (ORDER_UI). 결제·발행은 하지 않고 상담 신청으로 값을 넘김 ----
 const ORD = (L.ORDER_UI === true && L.ORDER && Array.isArray(L.ORDER.products) && L.ORDER.products.length) ? L.ORDER : null;
 if (ORD) {
@@ -304,6 +379,7 @@ if (ORD) {
     if (v("f-service")) msg += "\n대표 서비스: " + v("f-service");
     const qs = new URLSearchParams();
     if (v("f-name")) qs.set("company", v("f-name")); if (v("f-ind")) qs.set("topic", v("f-ind")); if (v("f-url")) qs.set("web", v("f-url")); qs.set("msg", msg);
+    if (window.__photoBatch) qs.set("pb", window.__photoBatch);
     qs.set("prod", p.name || ""); qs.set("per", per); qs.set("days", days); if (priced(p)) { qs.set("price", p.price); qs.set("unit", p.unitLabel || "건당"); }
     location.href = "landing.html?" + qs.toString() + "#contact";
   });
