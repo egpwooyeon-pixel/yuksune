@@ -50,7 +50,8 @@ export async function searchLocal(query, clientId, clientSecret, fetchImpl = fet
 export async function handle(req, deps) {
   if (req.method === "OPTIONS") return new Response("ok", { headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization, x-client-info, apikey, content-type", "access-control-allow-methods": "POST, OPTIONS" } });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
-  if (!(await deps.isAdmin(req.headers.get("authorization") || ""))) return json({ error: "unauthorized" }, 401);
+  const adm = await deps.isAdmin(req);
+  if (!adm.ok) return json({ error: "unauthorized", why: adm.why }, 401);
   const body = await req.json().catch(() => ({}));
   const q = cleanQuery(body && body.query);
   if (!q) return json({ error: "bad_query" }, 400);
@@ -70,13 +71,17 @@ function realDeps() {
   return {
     keys: () => ({ id: env("NAVER_APIHUB_CLIENT_ID"), secret: env("NAVER_APIHUB_CLIENT_SECRET") }),
     search: (q, id, secret) => searchLocal(q, id, secret),
-    async isAdmin(authHeader) {                                              // 관리자 로그인 확인 (읽기만 함)
-      const u = await fetch(`${URL_}/auth/v1/user`, { headers: { apikey: KEY, authorization: authHeader } });
-      if (!u.ok) return false;
+    async isAdmin(req) {                                                     // 관리자 로그인 확인 (읽기만 함). 브라우저가 보낸 로그인 토큰과 공개용 키로 확인
+      const auth = req.headers.get("authorization") || "";
+      const apikey = req.headers.get("apikey") || env("SUPABASE_ANON_KEY") || KEY;
+      if (!/^Bearer\s+\S+/.test(auth)) return { ok: false, why: "no_token" };
+      let u; try { u = await fetch(`${URL_}/auth/v1/user`, { headers: { apikey, authorization: auth } }); } catch (_) { return { ok: false, why: "auth_unreachable" }; }
+      if (!u.ok) return { ok: false, why: "auth_" + u.status };
       const { id } = await u.json();
-      const p = await fetch(`${URL_}/rest/v1/profiles?id=eq.${id}&select=role`, { headers: { apikey: KEY, authorization: `Bearer ${KEY}` } });
-      const rows = p.ok ? await p.json() : [];
-      return !!rows[0] && rows[0].role === "admin";
+      let p; try { p = await fetch(`${URL_}/rest/v1/profiles?id=eq.${id}&select=role`, { headers: { apikey, authorization: auth } }); } catch (_) { return { ok: false, why: "profile_unreachable" }; }
+      if (!p.ok) return { ok: false, why: "profile_" + p.status };
+      const rows = await p.json();
+      return rows[0] && rows[0].role === "admin" ? { ok: true } : { ok: false, why: "not_admin" };
     },
   };
 }

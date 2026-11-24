@@ -244,7 +244,7 @@ async function lookupNow(id, btn) {                // '지금 조회': 서버가
     if (error && !r) { try { r = await error.context.json(); } catch (_) { r = null; } }
     if (!r) { msg = "조회 서비스에 연결하지 못했어요. (collect-ranks 함수가 배포되어 있는지 확인해 주세요)"; kind = "warn"; }
     else if (r.error === "provider_not_configured") { msg = "SerpApi 키가 서버에 설정되지 않았어요. Supabase > Edge Functions > Secrets 에 SERPAPI_API_KEY 를 등록해 주세요. (조회 횟수는 사용되지 않았어요)"; kind = "warn"; }
-    else if (r.error === "unauthorized") { msg = "권한이 없어요. 운영자 계정으로 로그인했는지 확인해 주세요."; kind = "warn"; }
+    else if (r.error === "unauthorized") { msg = "권한이 없어요. 운영자 계정으로 로그인했는지 확인해 주세요." + (r.why ? " (" + r.why + ")" : ""); kind = "warn"; }
     else if (r.error === "inactive") { msg = "추적이 중지된 키워드예요. 먼저 '추적 재개'를 눌러 주세요."; kind = "warn"; }
     else if (r.error) { msg = "조회하지 못했어요. (" + r.error + ")"; kind = "warn"; }
     else if (r.denied === "daily_limit") { msg = "오늘 조회 한도(5회)에 도달해서 SerpApi를 호출하지 않았어요. 내일 다시 조회해 주세요."; kind = "warn"; }
@@ -308,7 +308,7 @@ async function psSearch() {
     else if (err === "not_configured") psShow("네이버 API 키가 서버에 설정되지 않았어요. Supabase > Edge Functions > Secrets 에 NAVER_APIHUB_CLIENT_ID, NAVER_APIHUB_CLIENT_SECRET 를 등록해 주세요. 지금은 아래에 직접 입력해서 등록할 수 있어요.", "warn");
     else if (err === "auth_failed") psShow("네이버 API 키가 올바르지 않거나 사용 권한이 없어요. 키를 다시 확인해 주세요. 직접 입력해서 등록할 수도 있어요.", "warn");
     else if (err === "rate_limited") psShow("검색 요청이 많아 잠시 막혔어요. 잠시 후 다시 시도해 주세요.", "warn");
-    else if (err === "unauthorized") psShow("권한이 없어요. 운영자 계정으로 로그인했는지 확인해 주세요.", "warn");
+    else if (err === "unauthorized") psShow("권한이 없어요. 운영자 계정으로 로그인했는지 확인해 주세요." + (r.why ? " (" + r.why + ")" : ""), "warn");
     else if (err === "bad_query") psShow("검색어는 2~40글자로 입력해 주세요.", "warn");
     else if (err) psShow("검색하지 못했어요. 직접 입력해서 등록할 수 있어요. (" + err + ")", "warn");
     else if (!(r.items || []).length) psShow("검색 결과가 없어요. 이름을 바꿔 다시 검색하거나, 아래에 매장명과 플레이스 주소/ID를 직접 입력해 등록할 수 있어요.");
