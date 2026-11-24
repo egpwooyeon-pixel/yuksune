@@ -12,4 +12,7 @@ window.LANDING = {
   //  false: 샘플 리포트만 보여 줍니다. (기본값)
   //  true : Supabase Edge Function aeo-diagnose 로 실제 측정합니다. 켜기 전에 supabase/GEMINI_SETUP.md 를 끝내세요.
   DIAGNOSE_LIVE: false,
+  // 레퍼런스(한방병원 사례) 카드 표시. false 로 바꾸면 숨겨집니다.
+  //  켜 두기 전에 사례로 쓰는 업체(병원)의 사용 동의와 의료광고 관련 문구 적합성을 확인하세요.
+  SHOW_REFERENCE: true,
 };

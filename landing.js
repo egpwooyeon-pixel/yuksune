@@ -11,6 +11,9 @@
   if (L.PHONE) { const t = $("tel"); t.hidden = false; t.href = "tel:" + L.PHONE.replace(/[^\d+]/g, ""); }
   if (L.KAKAO_URL && /^https:\/\//.test(L.KAKAO_URL)) { const k = $("kakao"); k.hidden = false; k.href = L.KAKAO_URL; }
 
+  // 레퍼런스 섹션 (SHOW_REFERENCE: false 로 끄기)
+  if (L.SHOW_REFERENCE === false) { const r = $("reference"); if (r) r.hidden = true; }
+
   // 모바일 메뉴
   const mb = $("menu-btn"), nav = $("nav");
   const setMenu = o => { nav.classList.toggle("open", o); mb.setAttribute("aria-expanded", o); mb.setAttribute("aria-label", o ? "메뉴 닫기" : "메뉴 열기"); };
