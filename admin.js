@@ -246,7 +246,7 @@ async function lookupNow(id, btn) {                // '지금 조회': 서버가
     else if (r.error === "provider_not_configured") { msg = "SerpApi 키가 서버에 설정되지 않았어요. Supabase > Edge Functions > Secrets 에 SERPAPI_API_KEY 를 등록해 주세요. (조회 횟수는 사용되지 않았어요)"; kind = "warn"; }
     else if (r.error === "unauthorized") { msg = "권한이 없어요. 운영자 계정으로 로그인했는지 확인해 주세요." + (r.why ? " (" + r.why + ")" : ""); kind = "warn"; }
     else if (r.error === "inactive") { msg = "추적이 중지된 키워드예요. 먼저 '추적 재개'를 눌러 주세요."; kind = "warn"; }
-    else if (r.error) { msg = "조회하지 못했어요. (" + r.error + ")"; kind = "warn"; }
+    else if (r.error) { msg = "조회하지 못했어요. (" + r.error + (r.detail ? ": " + r.detail : "") + ")"; kind = "warn"; }
     else if (r.denied === "daily_limit") { msg = "오늘 조회 한도(5회)에 도달해서 SerpApi를 호출하지 않았어요. 내일 다시 조회해 주세요."; kind = "warn"; }
     else if (r.denied === "monthly_limit") { msg = "이번 달 조회 한도(200회)에 도달해서 SerpApi를 호출하지 않았어요."; kind = "warn"; }
     else if (r.denied === "in_progress") { msg = "같은 키워드를 조회하는 중이에요. 잠시 후 새로고침해 주세요."; kind = "warn"; }

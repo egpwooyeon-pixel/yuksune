@@ -119,10 +119,13 @@ export async function runCron(deps) {
 // ---- 실제 서버 연결 (Deno 환경에서만 실행) ----
 function realDeps() {
   const env = k => Deno.env.get(k);
-  const URL_ = env("SUPABASE_URL"), KEY = env("SUPABASE_SERVICE_ROLE_KEY");
-  const H = { apikey: KEY, authorization: `Bearer ${KEY}`, "content-type": "application/json" };
-  const get = async path => { const r = await fetch(`${URL_}/rest/v1/${path}`, { headers: H }); return r.ok ? await r.json() : []; };
-  const rpc = async (fn, body) => { const r = await fetch(`${URL_}/rest/v1/rpc/${fn}`, { method: "POST", headers: H, body: JSON.stringify(body) }); if (!r.ok) throw new Error("rpc_" + fn); return await r.json(); };
+  const URL_ = env("SUPABASE_URL");
+  // 서버 전용 키: 새 방식 비밀 키(SUPABASE_SECRET_KEYS)가 있으면 그것을, 없으면 예전 service_role 키를 씀
+  let KEY = env("SUPABASE_SERVICE_ROLE_KEY");
+  try { const k = JSON.parse(env("SUPABASE_SECRET_KEYS") || "{}"); const v = k.default || Object.values(k)[0]; if (typeof v === "string" && v) KEY = v; } catch (_) { /* 무시 */ }
+  const H = KEY && KEY.startsWith("sb_") ? { apikey: KEY, "content-type": "application/json" } : { apikey: KEY, authorization: `Bearer ${KEY}`, "content-type": "application/json" };
+  const get = async path => { const r = await fetch(`${URL_}/rest/v1/${path}`, { headers: H }); if (!r.ok) throw new Error("db_" + r.status); return await r.json(); };   // 실패를 빈 목록으로 숨기지 않음
+  const rpc = async (fn, body) => { const r = await fetch(`${URL_}/rest/v1/rpc/${fn}`, { method: "POST", headers: H, body: JSON.stringify(body) }); if (!r.ok) throw new Error("rpc_" + fn + "_" + r.status); return await r.json(); };
   return {
     providerReady: () => !!env("SERPAPI_API_KEY"),
     async autoOn() { const r = await get("app_settings?key=eq.rank_auto&select=value"); return !!(r[0] && r[0].value === true); },
