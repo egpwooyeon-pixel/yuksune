@@ -44,14 +44,14 @@ function upDetail(t) {                       // Gemini 오류 본문에서 사�
 // ---------- 입력 검사·정규화 ----------
 const clean = (s, max) => String(s == null ? "" : s).replace(/[\u0000-\u001f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 export function parseInput(b) {
-  const name = clean(b && b.name, 60), region = clean(b && b.region, 40), industry = clean(b && b.industry, 40);
+  const name = clean(b && b.name, 60), region = clean(b && b.region, 40), industry = clean(b && b.industry, 40), service = clean(b && b.service, 70);
   let url = clean(b && b.url, 200), host = "";
   if (url) {
     try { const u = new URL(url); if (!/^https?:$/.test(u.protocol)) throw 0; host = u.hostname.toLowerCase().replace(/^www\./, ""); } catch (_) { return { error: "bad_url" }; }
   }
   if (name.length < 2) return { error: "bad_name" };
   if (!region || !industry) return { error: "need_region_industry" };
-  return { name, region, industry, url, host };
+  return { name, region, industry, service, url, host };
 }
 export const normalize = s => String(s == null ? "" : s).toLowerCase().replace(/[\s\-_.,·ㆍ()[\]{}'"“”‘’!?/\\|:;*]/g, "");
 export const cacheKey = (name, region, industry) => [name, region, industry].map(normalize).join("|");
@@ -143,7 +143,7 @@ function parseJsonArray(text) {
 }
 
 export async function makeQuestions(input, ctx) {
-  const prompt = `당신은 한국의 일반 소비자입니다. "${input.region}" 지역에서 "${input.industry}" 업체를 찾는 사람이 AI 검색(챗봇)에 실제로 입력할 만한 질문을 ${QUESTION_COUNT}개 만드세요.
+  const prompt = `당신은 한국의 일반 소비자입니다. "${input.region}" 지역에서 "${input.industry}" 업체를 찾는 사람이 AI 검색(챗봇)에 실제로 입력할 만한 질문을 ${QUESTION_COUNT}개 만드세요.${input.service ? `\n- 이 업체의 대표 서비스는 "${input.service}"입니다. 질문 일부는 이 서비스를 찾는 사람의 관점에서 쓰세요.` : ""}
 - 특정 업체 이름을 넣지 마세요. (예: "강남에서 ~ 찾아줘" 같은 탐색 질문)
 - 서로 다른 조건(가격대, 분위기, 규모, 접근성, 후기, 예약 등)을 섞고, 자연스러운 한국어 한 문장으로 쓰세요.
 - 결과는 문자열 ${QUESTION_COUNT}개로 이뤄진 JSON 배열만 출력하세요.`;

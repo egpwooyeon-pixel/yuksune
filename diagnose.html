@@ -61,10 +61,16 @@
     .actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
     #progress{font-size:14px;color:#5b6070}
     .btn:disabled{opacity:.6;cursor:default}
+    .url-row{display:flex;gap:8px}.url-row input{flex:1;min-width:0}
+    .btn.line{background:#fff;color:var(--char);border-color:var(--char)}.btn.line:hover{background:#f1eefb}
+    .btn.sm{min-height:48px;padding:0 18px;font-size:15px;white-space:nowrap}
+    .hint{font-size:13px;color:#5b6070;margin:0}#prefill-msg:empty{display:none}
+    input.auto,select.auto{background:#edf7ef!important;border-color:#7fb88c!important}
     .banner.live{background:var(--lav);border-color:#cdbff5;color:var(--char)}
     .ok-t{color:var(--good);font-weight:700}.no-t{color:#5b6070}
     .note{font-size:13px;color:#5b6070;margin:12px 0 0}
     @media(max-width:640px){
+      .url-row{flex-wrap:wrap}.url-row .btn{width:100%}
       .form{grid-template-columns:1fr}
       .stats{grid-template-columns:1fr;gap:12px}
       .rivals li{grid-template-columns:1fr;gap:2px}
@@ -80,11 +86,14 @@
     <h1 id="t">우리 업체는 AI 답변에 얼마나 나올까요?</h1>
     <p class="lead">업체 정보를 입력하면 AI 검색 엔진별 노출 현황을 진단서로 보여 드립니다.</p>
     <form class="form" id="form" novalidate>
+      <div class="f full"><label for="f-url">홈페이지 주소 <span class="opt">(선택)</span></label>
+        <div class="url-row"><input id="f-url" name="url" type="url" inputmode="url" maxlength="200" placeholder="https://" autocomplete="url" aria-describedby="e-url prefill-msg"><button class="btn line sm" type="button" id="prefill-btn" hidden>정보 불러오기</button></div>
+        <small class="err" id="e-url" role="alert"></small><p class="hint" id="prefill-msg" role="status"></p></div>
       <div class="f full"><label for="f-name">업체명 <em aria-hidden="true">*</em><span class="sr" style="position:absolute;left:-9999px"> (필수)</span></label><input id="f-name" name="name" maxlength="100" placeholder="예: 업체 이름" autocomplete="organization" aria-describedby="e-name"><small class="err" id="e-name" role="alert"></small></div>
       <div class="f"><label for="f-region"><span id="l-region">지역 <span class="opt">(선택)</span></span></label><input id="f-region" name="region" maxlength="40" placeholder="예: 강남" aria-describedby="e-region"><small class="err" id="e-region" role="alert"></small></div>
       <div class="f"><label for="f-ind"><span id="l-ind">업종 <span class="opt">(선택)</span></span></label>
         <select id="f-ind" aria-describedby="e-ind"><option value="">선택해 주세요</option><option>병의원</option><option>웨딩홀</option><option>음식점</option><option>쇼핑몰</option><option>기타</option></select><small class="err" id="e-ind" role="alert"></small></div>
-      <div class="f full"><label for="f-url">홈페이지 주소 <span class="opt">(선택)</span></label><input id="f-url" name="url" type="url" inputmode="url" maxlength="200" placeholder="https://" aria-describedby="e-url"><small class="err" id="e-url" role="alert"></small></div>
+      <div class="f full"><label for="f-service">대표 서비스 <span class="opt">(선택)</span></label><input id="f-service" name="service" maxlength="70" placeholder="예: 피부과 외래 진료"><small class="hint">진료과·진료 항목처럼 고객이 찾는 서비스를 적어 주세요.</small></div>
       <div class="full actions"><button class="btn" type="submit" id="go">진단하기</button><span id="progress" role="status"></span></div>
     </form>
   </section>
@@ -130,7 +139,8 @@ const SAMPLE = {
 
 const L = window.LANDING || {}, W = window.WOORI || {};
 const LIVE = L.DIAGNOSE_LIVE === true;
-const sb = LIVE && W.SUPABASE_ANON_KEY && window.supabase ? window.supabase.createClient(W.SUPABASE_URL, W.SUPABASE_ANON_KEY) : null;
+const PREFILL = L.PREFILL_LIVE === true;
+const sb = (LIVE || PREFILL) && W.SUPABASE_ANON_KEY && window.supabase ? window.supabase.createClient(W.SUPABASE_URL, W.SUPABASE_ANON_KEY) : null;
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
@@ -224,6 +234,47 @@ async function runLive(input) {
   }
 }
 
+// ---- 홈페이지 주소로 업체 정보 자동 채우기 (PREFILL_LIVE) ----
+const PRE_MSG = {
+  bad_url: "https:// 로 시작하는 주소를 입력해 주세요.", blocked_url: "이 주소는 읽을 수 없어요. 일반 홈페이지 주소를 입력해 주세요.",
+  unsupported_naver: "네이버 플레이스·지도 주소는 아직 읽지 못해요. 업체명과 지역을 직접 입력해 주세요.",
+  not_html: "웹페이지가 아니에요. 홈페이지 주소를 입력해 주세요.", too_large: "페이지가 너무 커서 읽지 못했어요. 직접 입력해 주세요.",
+  nothing_found: "홈페이지에서 업체 정보를 찾지 못했어요. 직접 입력해 주세요.", fetch_failed: "홈페이지를 열지 못했어요. 주소를 확인하거나 직접 입력해 주세요.",
+  rate_limited: "잠시 후 다시 시도해 주세요. (시간당 이용 횟수를 넘었어요)",
+};
+const isNaver = u => { try { return /(^|\.)naver\.(com|me)$/i.test(new URL(u).hostname); } catch (_) { return false; } };
+const AUTO = [["f-name", "업체명"], ["f-region", "지역"], ["f-ind", "업종"], ["f-service", "대표 서비스"]];
+AUTO.forEach(([id]) => $(id).addEventListener("input", () => { $(id).dataset.auto = ""; $(id).classList.remove("auto"); }));
+function setAuto(id, v) {                       // 사용자가 직접 쓴 칸은 덮어쓰지 않음
+  const el = $(id); if (!v) return false;
+  if (el.value.trim() && el.dataset.auto !== "1") return false;
+  if (el.tagName === "SELECT") { const o = [...el.options].find(x => x.text === v); if (!o) return false; el.value = o.value || o.text; } else el.value = v;
+  el.dataset.auto = "1"; el.classList.add("auto"); return true;
+}
+let preBusy = false;
+if (PREFILL && sb) {
+  $("prefill-btn").hidden = false;
+  $("prefill-btn").addEventListener("click", async () => {
+    if (preBusy) return;
+    const url = $("f-url").value.trim(), msg = $("prefill-msg"); msg.textContent = ""; setErr("url", "");
+    try { if (!/^https?:$/.test(new URL(url).protocol)) throw 0; } catch (_) { setErr("url", PRE_MSG.bad_url); return $("f-url").focus(); }
+    if (isNaver(url)) { msg.textContent = PRE_MSG.unsupported_naver; return; }
+    preBusy = true; $("prefill-btn").disabled = true; msg.textContent = "홈페이지에서 정보를 읽는 중이에요…";
+    try {
+      const { data, error } = await sb.functions.invoke("aeo-prefill", { body: { url } });
+      if (error) { let c = ""; try { c = (await error.context.json()).error; } catch (_) {} msg.textContent = PRE_MSG[c] || PRE_MSG.fetch_failed; return; }
+      const d = data && data.data; if (!d) { msg.textContent = PRE_MSG.nothing_found; return; }
+      const got = [];
+      if (setAuto("f-name", d.name)) got.push("업체명");
+      if (setAuto("f-region", d.region)) got.push("지역");
+      if (setAuto("f-ind", d.industry)) got.push("업종");
+      if (setAuto("f-service", d.service)) got.push("대표 서비스");
+      msg.textContent = got.length ? "홈페이지에서 확인한 정보를 채웠어요 (" + got.join(", ") + "). 틀린 항목은 직접 고쳐 주세요." : "홈페이지에서 새로 채울 정보가 없었어요. 직접 입력해 주세요.";
+    } catch (_) { msg.textContent = PRE_MSG.fetch_failed; }
+    finally { preBusy = false; $("prefill-btn").disabled = false; }
+  });
+}
+
 $("form").addEventListener("submit", e => {
   e.preventDefault();
   if (busy) return;
@@ -238,7 +289,7 @@ $("form").addEventListener("submit", e => {
   if (first) return $(FIELDS[first]).focus();
   if (!LIVE) return render(SAMPLE, name);
   if (!sb) { $("out").innerHTML = `<p class="banner" role="alert">${MSG.not_configured}</p>`; return; }
-  runLive({ name, region, industry, url });
+  runLive({ name, region, industry, url, service: v("f-service") });
 });
 </script>
 </body>
