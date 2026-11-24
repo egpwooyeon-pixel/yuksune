@@ -170,6 +170,21 @@ export function cleanTitle(t) {
 }
 const visibleText = html => decodeEntities(html.replace(/<(script|style|noscript|svg)[\s\S]*?<\/\1>/gi, " ").replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").slice(0, 200000);
 
+// 소개 문구에서 "대표 서비스" 한 줄을 고름. 키워드 나열이면 앞쪽 몇 개만, 문장이면 첫 문장(단어 중간에서 자르지 않음)
+export function pickService(desc) {
+  const d = String(desc || "").trim(); if (d.length < 6) return "";
+  const items = d.split(/\s*[,，·|/]\s*/).map(x => x.trim()).filter(Boolean);
+  if (items.length >= 4) {
+    const out = []; let len = 0;
+    for (const it of items) { if (out.length >= 4 || len + it.length > 50) break; out.push(it); len += it.length + 2; }
+    if (out.length) return out.join(", ");
+  }
+  const first = d.split(/(?<=[.!?。])\s|\n/)[0].trim();
+  if (first.length <= 70) return first;
+  const cut = first.slice(0, 70), sp = cut.lastIndexOf(" ");
+  return (sp > 30 ? cut.slice(0, sp) : cut).trim();
+}
+
 export function extractInfo(html) {
   const src = String(html || "");
   const meta = metaMap(src), titleTag = (src.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "";
@@ -179,7 +194,7 @@ export function extractInfo(html) {
   let address = tidy(addrText(biz && biz.address), 120);
   if (!ADDR_RE.test(address)) address = (text.match(ADDR_RE) || [address])[0] || "";
   const desc = tidy((biz && biz.description) || meta["og:description"] || meta["description"] || "", 300);
-  const service = desc.length >= 6 ? desc.split(/(?<=[.!?。])\s|\n/)[0].slice(0, 70) : "";
+  const service = pickService(desc);
   const industry = guessIndustry([name, tidy(titleTag, 160), desc, meta["keywords"] || ""].join(" "));
   const region = regionOf(address);
   return { name, address: address.slice(0, 120), region, industry, service };
