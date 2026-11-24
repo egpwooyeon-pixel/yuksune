@@ -32,6 +32,15 @@ export function redact(s, secrets = []) {
   return out.replace(/[A-Za-z0-9_-]{24,}/g, "***").slice(0, 160);
 }
 
+// 오류 코드(message)에 더해 Gemini 상태 코드·사유(키는 가려짐)를 붙여, 응답으로 돌려주고 원인을 찾기 쉽게 함
+export class UpErr extends Error {
+  constructor(code, status, detail) { super(code); this.status = status || null; this.detail = detail ? String(detail).slice(0, 220) : null; }
+}
+function upDetail(t) {                       // Gemini 오류 본문에서 사람이 읽을 문구만 뽑음
+  try { const j = JSON.parse(t); if (j && j.error && j.error.message) return redact(j.error.message); } catch (_) {}
+  return redact(t);
+}
+
 // ---------- 입력 검사·정규화 ----------
 const clean = (s, max) => String(s == null ? "" : s).replace(/[\u0000-\u001f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 export function parseInput(b) {
@@ -90,15 +99,15 @@ export async function callGemini(body, model, apiKey, fetchImpl = fetch, retries
       });
     } catch (e) { clearTimeout(to); if (attempt < retries) { await sleep(1500 * (attempt + 1)); continue; } throw new Error(e && e.name === "AbortError" ? "timeout" : "network"); }
     clearTimeout(to);
-    if (r.status === 401 || r.status === 403) throw new Error("auth_failed");
+    if (r.status === 401 || r.status === 403) throw new UpErr("auth_failed", r.status, upDetail(await r.text().catch(() => "")));
     if (r.status === 400) {                                           // 잘못된 키는 400("API key not valid")으로 오는 것으로 알려져 있어 문구로 구분
       const t = await r.text().catch(() => "");
-      throw new Error(/api key|api_key/i.test(t) ? "auth_failed" : "api_error");
+      throw new UpErr(/api key|api_key/i.test(t) ? "auth_failed" : "api_error", 400, upDetail(t));
     }
     if ((r.status === 429 || r.status >= 500) && attempt < retries) { await sleep(2000 * (attempt + 1)); continue; }
-    if (r.status === 429) throw new Error("rate_limited");
-    if (!r.ok) throw new Error("api_error");
-    try { return await r.json(); } catch (_) { throw new Error("api_error"); }
+    if (r.status === 429) throw new UpErr("rate_limited", 429, upDetail(await r.text().catch(() => "")));
+    if (!r.ok) throw new UpErr("api_error", r.status, upDetail(await r.text().catch(() => "")));
+    try { return await r.json(); } catch (_) { throw new UpErr("api_error", r.status, "응답이 JSON 이 아님"); }
   }
 }
 
@@ -120,7 +129,7 @@ export async function makeQuestions(input, ctx) {
   const arr = parseJsonArray(jsonText(j));
   const qs = (arr || []).map(q => clean(q, 120)).filter(q => q.length >= 6);
   const uniq = [...new Set(qs)].slice(0, QUESTION_COUNT);
-  if (uniq.length < 5) throw new Error("api_error");
+  if (uniq.length < 5) throw new UpErr("api_error", 200, "질문 생성 결과를 해석하지 못함(" + uniq.length + "개)");
   return uniq;
 }
 
@@ -136,6 +145,7 @@ async function askOne(q, input, ctx) {
     return { q, ok: true, text, domains, mentioned: mentions(text, input.name), cited: domains.some(d => isOwn(d, input.host)) };
   } catch (e) {
     if (e && e.message === "auth_failed") throw e;                    // 키 문제는 전체 중단
+    ctx.lastErr = (e && e.status ? e.status + " " : "") + (e && (e.detail || e.message) || "");
     return { q, ok: false };
   }
 }
@@ -175,7 +185,7 @@ ${material}`;
 export async function diagnose(input, ctx) {
   const qs = await makeQuestions(input, ctx);
   const qa = await runPool(qs, q => askOne(q, input, ctx));
-  if (qa.filter(x => x.ok).length < 5) throw new Error("too_few");
+  { const n = qa.filter(x => x.ok).length; if (n < 5) throw new UpErr("too_few", 200, "답변을 받은 질문이 " + n + "개뿐" + (ctx.lastErr ? " · 마지막 오류: " + ctx.lastErr : "")); }
   const rivals = await findRivals(input, qa, ctx);
   return aggregate(input, qa, rivals);
 }
@@ -204,7 +214,7 @@ export async function handle(req, deps) {
   } catch (e) {
     await deps.finish(rsv.id, "failed", null).catch(() => {});
     const code = ["auth_failed", "rate_limited", "timeout", "network", "too_few"].includes(e && e.message) ? e.message : "api_error";
-    return json({ error: code }, code === "rate_limited" ? 429 : 502);
+    return json({ error: code, upstream: (e && e.status) || null, detail: (e && e.detail) || null }, code === "rate_limited" ? 429 : 502);
   }
 }
 
