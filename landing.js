@@ -6,7 +6,8 @@
   document.querySelectorAll("[data-brand]").forEach(el => el.textContent = L.BRAND || el.textContent);
   document.title = "AI 검색 최적화(AEO·GEO) 상담 - " + (L.BRAND || "");
   const co = W.COMPANY || {};
-  $("foot-co").textContent = [co.name, co.ceo && "대표 " + co.ceo, co.bizNo && "사업자등록번호 " + co.bizNo, co.address, co.email, co.phone].filter(Boolean).join(" · ");
+  document.querySelectorAll("[data-co]").forEach(el => { el.textContent = co[el.dataset.co] || ""; });
+  document.querySelectorAll("[data-label]").forEach(el => el.textContent = el.dataset.label);
   if (L.PHONE) { const t = $("tel"); t.hidden = false; t.href = "tel:" + L.PHONE.replace(/[^\d+]/g, ""); }
   if (L.KAKAO_URL && /^https:\/\//.test(L.KAKAO_URL)) { const k = $("kakao"); k.hidden = false; k.href = L.KAKAO_URL; }
 
