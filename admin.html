@@ -21,6 +21,7 @@
       <a href="#apps" data-s="apps">신청 현황</a>
       <a href="#rank" data-s="rank">순위 추적</a>
       <a href="#posts" data-s="posts">게시판 관리</a>
+      <a href="#inq" data-s="inq">상담 문의 <i id="inq-new" hidden></i></a>
     </nav>
     <div class="ad-me"><span class="av" id="me-av"></span><div><b id="me-name"></b> <em>관리자</em><small id="me-mail"></small></div></div>
     <button class="ad-out" id="logout" type="button">로그아웃</button>
@@ -104,6 +105,11 @@
     <section id="s-posts" hidden>
       <div class="ad-top"><div><small class="kick">BOARD</small><h1>게시판 관리</h1></div></div>
       <div class="box"><table class="tb" id="posts"></table><p class="empty" id="p-empty" hidden>글이 아직 없어요.</p></div>
+    </section>
+    <section id="s-inq" hidden>
+      <div class="ad-top"><div><small class="kick">INQUIRY</small><h1>상담 문의</h1></div></div>
+      <p class="muted">AI 검색 최적화(landing.html) 상담 폼으로 들어온 문의예요. 개인정보(이름·연락처)가 들어 있으니 운영자만 확인하고, 처리가 끝나면 삭제해 주세요.</p>
+      <div class="box rk-scroll"><table class="tb" id="inq"></table><p class="empty" id="inq-empty" hidden>접수된 문의가 아직 없어요.</p></div>
     </section>
   </main>
 </div>

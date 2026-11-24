@@ -29,17 +29,17 @@ async function init() {
   $("gate").hidden = true; $("app").hidden = false;
   const nick = p.nickname || u.email.split("@")[0];
   $("me-av").textContent = nick.slice(0, 1).toUpperCase(); $("me-name").textContent = nick; $("me-mail").textContent = u.email;
-  window.addEventListener("hashchange", route); route();
+  window.addEventListener("hashchange", route); route(); inqBadge();
 }
 
 const loaded = {};
 function route() {
   const [s, qs] = (location.hash || "#dashboard").slice(1).split("?");
   if (s === "rank") rk.camp = new URLSearchParams(qs || "").get("c") || null;
-  const name = ["dashboard", "members", "campaigns", "apps", "rank", "posts"].includes(s) ? s : "dashboard";
+  const name = ["dashboard", "members", "campaigns", "apps", "rank", "posts", "inq"].includes(s) ? s : "dashboard";
   document.querySelectorAll("main section").forEach(x => x.hidden = x.id !== "s-" + name);
   document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("on", a.dataset.s === name));
-  ({ dashboard: loadDash, members: () => loadMembers(true), campaigns: loadCamps, apps: loadApps, rank: loadRank, posts: loadPosts })[name]();
+  ({ dashboard: loadDash, members: () => loadMembers(true), campaigns: loadCamps, apps: loadApps, rank: loadRank, posts: loadPosts, inq: loadInq })[name]();
 }
 
 /* ---------- 대시보드 ---------- */
@@ -475,5 +475,28 @@ $("posts").onclick = async e => {
   const { error } = await sb.from("posts").delete().eq("id", tr.dataset.id);
   if (error) return alert("삭제하지 못했어요."); loadPosts();
 };
+/* ---------- 상담 문의 (landing.html 상담 폼) ---------- */
+async function loadInq() {
+  const { data, error } = await sb.from("inquiries").select("id,company,name,phone,topic,website,message,status,created_at").order("created_at", { ascending: false }).limit(200);
+  if (error) { $("inq").innerHTML = ""; $("inq-empty").hidden = false; $("inq-empty").textContent = "문의를 불러오지 못했어요. (supabase/021_inquiries.sql 실행 여부를 확인해 주세요)"; return; }
+  $("inq-empty").hidden = (data || []).length > 0; $("inq-empty").textContent = "접수된 문의가 아직 없어요.";
+  const n = (data || []).filter(x => x.status === "new").length; $("inq-new").hidden = !n; $("inq-new").textContent = n;
+  const web = w => /^https?:\/\//i.test(w || "") ? `<a href="${esc(w)}" target="_blank" rel="noopener noreferrer">${esc(w)}</a>` : "-";
+  $("inq").innerHTML = (data || []).length ? `<thead><tr><th>접수일</th><th>업체명</th><th>담당자</th><th>연락처</th><th>업종</th><th>홈페이지</th><th>문의 내용</th><th>상태</th><th>처리</th></tr></thead><tbody>${data.map(q => `<tr data-id="${q.id}" data-st="${q.status}"><td>${full(q.created_at)}</td><td><b>${esc(q.company || "-")}</b></td><td>${esc(q.name)}</td><td><a href="tel:${esc(String(q.phone).replace(/[^\d+]/g, ""))}">${esc(q.phone)}</a></td><td>${esc(q.topic || "-")}</td><td>${web(q.website)}</td><td class="t" style="white-space:pre-wrap;min-width:180px">${esc(q.message || "-")}</td><td><span class="tag ${q.status === "new" ? "bad" : ""}">${q.status === "new" ? "새 문의" : "처리 완료"}</span></td><td><button class="btn" data-iq="toggle">${q.status === "new" ? "처리 완료" : "되돌리기"}</button> <button class="btn bad" data-iq="del">삭제</button></td></tr>`).join("")}</tbody>` : "";
+}
+$("inq").onclick = async e => {
+  const act = e.target.dataset.iq; if (!act) return;
+  const tr = e.target.closest("tr"), id = tr.dataset.id;
+  if (act === "del") {
+    if (!confirm(`'${tr.children[1].textContent.trim()}' 문의를 삭제할까요? 되돌릴 수 없어요.`)) return;
+    const { error } = await sb.from("inquiries").delete().eq("id", id);
+    if (error) return alert("삭제하지 못했어요.");
+  } else {
+    const { error } = await sb.from("inquiries").update({ status: tr.dataset.st === "new" ? "done" : "new" }).eq("id", id);
+    if (error) return alert("상태를 바꾸지 못했어요.");
+  }
+  loadInq();
+};
+async function inqBadge() { const { count } = await sb.from("inquiries").select("id", { count: "exact", head: true }).eq("status", "new"); if (count) { $("inq-new").hidden = false; $("inq-new").textContent = count; } }
 $("logout").onclick = async () => { await sb.auth.signOut(); location.href = "admin-login.html"; };
 init();
