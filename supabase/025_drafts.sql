@@ -19,8 +19,11 @@ create table if not exists public.guide_drafts (
   updated_at timestamptz not null default now(),
   reviewed_by uuid,
   reviewed_at timestamptz,
-  review_note text check (review_note is null or char_length(review_note) <= 1000)
+  review_note text check (review_note is null or char_length(review_note) <= 1000),
+  exported_at timestamptz                          -- 승인된 글을 사이트용 파일로 내보낸 시각 (tools/export-approved.mjs 가 기록)
 );
+-- 이미 이 표를 만든 경우에도 안전하게 실행돼요
+alter table public.guide_drafts add column if not exists exported_at timestamptz;
 create index if not exists guide_drafts_status_idx on public.guide_drafts (status, created_at desc);
 alter table public.guide_drafts enable row level security;
 revoke all on public.guide_drafts from anon, authenticated;

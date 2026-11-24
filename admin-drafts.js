@@ -121,7 +121,7 @@ function renderEditor(r) {
     p.append(el("div", { class: "dr-act" }, el("button", { class: "btn", type: "button", text: "+ 소제목", onclick: () => { addSec(); mark(); } }), el("button", { class: "btn", type: "button", text: "+ 질문", onclick: () => { addFaq(); mark(); } }), save),
       el("h2", { text: "검수" }), field("검수 메모", note), el("div", { class: "dr-act" }, approve, reject), msg);
   } else {
-    p.append(el("div", { class: "dr-ro" }, el("div", { text: (STATUS[r.status] || r.status) + " · " + fmt(r.reviewed_at) }), el("div", { text: "검수 메모: " + (r.review_note || "—") })));
+    p.append(el("div", { class: "dr-ro" }, el("div", { text: (STATUS[r.status] || r.status) + " · " + fmt(r.reviewed_at) }), el("div", { text: "검수 메모: " + (r.review_note || "—") }), r.status === "approved" ? el("div", { text: r.exported_at ? "사이트용 파일로 내보냄 · " + fmt(r.exported_at) : "아직 내보내지 않음 (로컬에서 tools/export-approved.mjs 실행)" }) : null));
   }
   refresh();
 }

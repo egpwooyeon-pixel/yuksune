@@ -20,7 +20,8 @@
 
 ## 기술·운영
 - [ ] 글을 공개할 **웹페이지 주소/도메인** (지금은 이 사이트의 `/guide/`)
-- [ ] 검색 노출 시작 시점 (`content/guides/_site.json` 의 `indexable`, `baseUrl`)
+- [ ] 검색 노출 시작 시점 (`content/guides/_site.json` 의 `indexable`, `baseUrl`) — 공개 주소가 정해져야 켤 수 있어요
+- [ ] 글 공개를 지금처럼 **사람이 내보내고 커밋**하는 방식으로 계속할지, 나중에 자동화할지 (`docs/PUBLISHING.md` 의 보류한 방식 참고)
 - [ ] Gemini: 응답이 안정적인 모델 이름 (AI Studio 에서 확인) — 진단·글 생성에 필요
 - [ ] 채팅에 올린 **Gemini 키 교체**
 - [ ] Supabase 에 SQL 실행·함수 배포 (제가 대신 못 해요): 021, 이후 새로 생기는 SQL, 함수 코드 교체
