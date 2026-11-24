@@ -8,4 +8,8 @@ window.LANDING = {
   //  true : 실제 상담. config.js 의 Supabase 로 supabase/021_inquiries.sql 테이블에 저장합니다.
   //         true 로 바꾸기 전에 021 SQL 실행 + 승인된 개인정보처리방침(privacy.html, config.js 의 COMPANY)을 준비하세요.
   INQUIRY_LIVE: false,
+  // AI 노출 진단(diagnose.html)
+  //  false: 샘플 리포트만 보여 줍니다. (기본값)
+  //  true : Supabase Edge Function aeo-diagnose 로 실제 측정합니다. 켜기 전에 supabase/GEMINI_SETUP.md 를 끝내세요.
+  DIAGNOSE_LIVE: false,
 };

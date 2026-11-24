@@ -58,6 +58,11 @@
     .rivals{list-style:none;margin:0;padding:0}
     .rivals li{display:grid;grid-template-columns:150px 1fr;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);font-size:15px}
     .rivals b{color:var(--char)}
+    .actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+    #progress{font-size:14px;color:#5b6070}
+    .btn:disabled{opacity:.6;cursor:default}
+    .banner.live{background:var(--lav);border-color:#cdbff5;color:var(--char)}
+    .ok-t{color:var(--good);font-weight:700}.no-t{color:#5b6070}
     .note{font-size:13px;color:#5b6070;margin:12px 0 0}
     @media(max-width:640px){
       .form{grid-template-columns:1fr}
@@ -76,23 +81,27 @@
     <p class="lead">업체 정보를 입력하면 AI 검색 엔진별 노출 현황을 진단서로 보여 드립니다.</p>
     <form class="form" id="form" novalidate>
       <div class="f full"><label for="f-name">업체명 <em aria-hidden="true">*</em><span class="sr" style="position:absolute;left:-9999px"> (필수)</span></label><input id="f-name" name="name" maxlength="100" placeholder="예: 업체 이름" autocomplete="organization" aria-describedby="e-name"><small class="err" id="e-name" role="alert"></small></div>
-      <div class="f"><label for="f-region">지역 <span class="opt">(선택)</span></label><input id="f-region" name="region" maxlength="50" placeholder="예: 강남"></div>
-      <div class="f"><label for="f-ind">업종 <span class="opt">(선택)</span></label>
-        <select id="f-ind"><option value="">선택해 주세요</option><option>병의원</option><option>웨딩</option><option>음식점</option><option>쇼핑몰</option><option>기타</option></select></div>
+      <div class="f"><label for="f-region"><span id="l-region">지역 <span class="opt">(선택)</span></span></label><input id="f-region" name="region" maxlength="40" placeholder="예: 강남" aria-describedby="e-region"><small class="err" id="e-region" role="alert"></small></div>
+      <div class="f"><label for="f-ind"><span id="l-ind">업종 <span class="opt">(선택)</span></span></label>
+        <select id="f-ind" aria-describedby="e-ind"><option value="">선택해 주세요</option><option>병의원</option><option>웨딩홀</option><option>음식점</option><option>쇼핑몰</option><option>기타</option></select><small class="err" id="e-ind" role="alert"></small></div>
       <div class="f full"><label for="f-url">홈페이지 주소 <span class="opt">(선택)</span></label><input id="f-url" name="url" type="url" inputmode="url" maxlength="200" placeholder="https://" aria-describedby="e-url"><small class="err" id="e-url" role="alert"></small></div>
-      <div class="full"><button class="btn" type="submit">진단하기</button></div>
+      <div class="full actions"><button class="btn" type="submit" id="go">진단하기</button><span id="progress" role="status"></span></div>
     </form>
   </section>
 
   <div id="out" aria-live="polite"></div>
 </main>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="landing-config.js"></script>
 <script>
-/* 리포트 데이터 형식 (실제 측정 서버가 이 형식으로 돌려주면 그대로 화면에 표시됩니다)
-   { brand, url, region, industry, measuredAt, questions,
+/* 리포트 데이터 형식 (aeo-diagnose 함수가 이 형식으로 돌려주며, 샘플도 같은 형식입니다)
+   { brand, url, region, industry, measuredAt, questions, live?, citeAvailable?,
      engines:[{name, mention, cite, answers}],
      sources:[{d, n, own?}], rivals:[{name, why}],
-     keywords:[{k, vol, rank|null, brief}] } */
+     keywords:[{k, vol, rank|null, brief}],
+     questionList?:[{q, mentioned, cited}] } */
 const SAMPLE = {
   brand: "샘플웨딩홀 (예시)", url: "https://example.com", region: "서울 강남", industry: "웨딩홀",
   measuredAt: "예시 데이터 · 실제 측정값이 아닙니다", questions: 10,
@@ -119,58 +128,117 @@ const SAMPLE = {
   ],
 };
 
+const L = window.LANDING || {}, W = window.WOORI || {};
+const LIVE = L.DIAGNOSE_LIVE === true;
+const sb = LIVE && W.SUPABASE_ANON_KEY && window.supabase ? window.supabase.createClient(W.SUPABASE_URL, W.SUPABASE_ANON_KEY) : null;
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+const MSG = {
+  bad_name: "업체명을 2자 이상 입력해 주세요.", need_region_industry: "지역과 업종을 입력해 주세요.", bad_url: "https:// 로 시작하는 주소를 입력해 주세요.",
+  ip_limit: "오늘 이용할 수 있는 횟수를 모두 사용했어요. 내일 다시 시도해 주세요.",
+  global_limit: "오늘 진단 가능한 전체 횟수가 모두 소진됐어요. 내일 다시 시도해 주세요.",
+  rate_limited: "AI 서비스가 잠시 바빠요. 1분 뒤에 다시 시도해 주세요.",
+  not_configured: "진단 서버가 아직 준비되지 않았어요.",
+};
+const FAIL = "측정에 실패했어요. 잠시 후 다시 시도해 주세요.";
 
-function render(d, entered) {
+if (LIVE) {   // 실제 측정에는 지역·업종이 꼭 필요함
+  $("l-region").innerHTML = '지역 <em aria-hidden="true" style="color:#d6336c;font-style:normal">*</em><span style="position:absolute;left:-9999px"> (필수)</span>';
+  $("l-ind").innerHTML = '업종 <em aria-hidden="true" style="color:#d6336c;font-style:normal">*</em><span style="position:absolute;left:-9999px"> (필수)</span>';
+}
+
+function render(d, entered, o) {
+  o = o || {};
   const total = d.engines.reduce((s, e) => s + e.answers, 0);
   const men = d.engines.reduce((s, e) => s + e.mention, 0);
   const cit = d.engines.reduce((s, e) => s + e.cite, 0);
+  const citeOk = d.citeAvailable !== false;
   const meta = [d.url, d.region, d.industry].filter(Boolean).map(esc).join(" · ");
-  $("out").innerHTML = `
-  <p class="banner" role="note">예시 리포트입니다. 입력하신 ${esc(entered)}의 실제 측정 결과가 아니며, 아직 AI 엔진과 연결되어 있지 않습니다.</p>
+  const when = d.live ? "측정일 " + new Date(d.measuredAt).toLocaleString("ko-KR", { year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" }) : d.measuredAt;
+  const banner = d.live
+    ? `<p class="banner live" role="note">Gemini(구글 검색 연동) 1개 엔진 기준 측정입니다. 실제 Gemini 앱이나 다른 AI의 답변과 다를 수 있고, 측정할 때마다 결과가 달라질 수 있어요.${o.cached ? " 24시간 이내 같은 조건으로 측정한 결과를 보여 드려요." : ""}</p>`
+    : `<p class="banner" role="note">예시 리포트입니다. 입력하신 ${esc(entered)}의 실제 측정 결과가 아니며, 아직 AI 엔진과 연결되어 있지 않습니다.</p>`;
+  const yn = (v, a, b) => v ? `<span class="ok-t">${a}</span>` : `<span class="no-t">${b}</span>`;
+  $("out").innerHTML = banner + `
   <section class="card rep-top" aria-labelledby="r1">
     <p class="kick">AI 검색 노출 진단서</p>
     <h2 id="r1">${esc(d.brand)}</h2>
     <p class="meta">${meta}</p>
-    <p class="meta">${esc(d.measuredAt)} · 측정 엔진 ${d.engines.map(e => esc(e.name)).join("·")}</p>
+    <p class="meta">${esc(when)} · 측정 엔진 ${d.engines.map(e => esc(e.name)).join("·")}</p>
   </section>
   <section class="card" aria-labelledby="r2">
     <h2 id="r2">AI 검색 실측</h2>
     <div class="stats">
       <div class="stat"><b>${total}건</b><small>질문 ${d.questions}개 × ${d.engines.length}엔진 답변</small></div>
       <div class="stat good"><b>${pct(men, total)}%</b><small>브랜드 멘션 ${men}/${total}</small></div>
-      <div class="stat bad"><b>${pct(cit, total)}%</b><small>자사 인용 ${cit}/${total}</small></div>
+      <div class="stat bad"><b>${citeOk ? pct(cit, total) + "%" : "-"}</b><small>${citeOk ? `자사 인용 ${cit}/${total}` : "홈페이지 주소를 입력하면 계산돼요"}</small></div>
     </div>
     <div class="tw"><table><thead><tr><th>엔진</th><th>멘션</th><th>인용</th><th>답변</th></tr></thead><tbody>
-      ${d.engines.map(e => `<tr><td>${esc(e.name)}</td><td class="n">${e.mention}/${e.answers}</td><td class="n">${e.cite}/${e.answers}</td><td class="n">${e.answers}</td></tr>`).join("")}
+      ${d.engines.map(e => `<tr><td>${esc(e.name)}</td><td class="n">${e.mention}/${e.answers}</td><td class="n">${citeOk ? e.cite + "/" + e.answers : "-"}</td><td class="n">${e.answers}</td></tr>`).join("")}
     </tbody></table></div>
     <p class="sub">AI가 답변 근거로 쓴 출처</p>
-    <div class="chips">${d.sources.map(s => `<span class="chip${s.own ? " own" : ""}">${esc(s.d)} ${s.n}회${s.own ? " · 자사" : ""}</span>`).join("")}</div>
+    ${d.sources.length ? `<div class="chips">${d.sources.map(s => `<span class="chip${s.own ? " own" : ""}">${esc(s.d)} ${s.n}회${s.own ? " · 자사" : ""}</span>`).join("")}</div>` : `<p class="note">답변에 표시된 출처가 없었어요.</p>`}
     <p class="sub">AI가 대신 추천한 업체</p>
-    <ul class="rivals">${d.rivals.map(r => `<li><b>${esc(r.name)}</b><span>${esc(r.why)}</span></li>`).join("")}</ul>
+    ${d.rivals.length ? `<ul class="rivals">${d.rivals.map(r => `<li><b>${esc(r.name)}</b><span>${esc(r.why)}</span></li>`).join("")}</ul>` : `<p class="note">답변에서 뚜렷하게 추천된 다른 업체가 없었어요.</p>`}
   </section>
-  <section class="card" aria-labelledby="r3">
+  ${d.questionList && d.questionList.length ? `<section class="card" aria-labelledby="r4">
+    <h2 id="r4">질문별 결과 · AI에게 이렇게 물었어요</h2>
+    <div class="tw"><table><thead><tr><th>질문</th><th>업체명 언급</th><th>자사 인용</th></tr></thead><tbody>
+      ${d.questionList.map(x => `<tr><td>${esc(x.q)}</td><td>${yn(x.mentioned, "나옴", "없음")}</td><td>${citeOk ? yn(x.cited, "인용됨", "없음") : "-"}</td></tr>`).join("")}
+    </tbody></table></div>
+  </section>` : ""}
+  ${d.keywords && d.keywords.length ? `<section class="card" aria-labelledby="r3">
     <h2 id="r3">키워드 · 검색 수요와 현재 위치</h2>
     <div class="tw"><table><thead><tr><th>키워드</th><th>월 검색량(네이버)</th><th>구글 순위</th><th>AI 브리핑</th></tr></thead><tbody>
       ${d.keywords.map(k => `<tr><td><b>${esc(k.k)}</b></td><td class="n">${k.vol.toLocaleString("ko-KR")}회</td><td class="${k.rank ? "n" : "bad"}">${k.rank ? k.rank + "위" : "100위 밖"}</td><td>${esc(k.brief)}</td></tr>`).join("")}
     </tbody></table></div>
     <p class="note">표시된 숫자는 모두 형식을 보여 주기 위한 예시입니다.</p>
-  </section>`;
+  </section>` : ""}
+  ${d.live ? `<p class="note">멘션은 답변 본문에 업체명이 포함된 경우, 인용은 답변 출처에 홈페이지 도메인이 포함된 경우입니다. 월 검색량·구글 순위는 아직 제공하지 않아요.</p>` : ""}`;
   $("out").firstElementChild.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+}
+
+const FIELDS = { name: "f-name", region: "f-region", ind: "f-ind", url: "f-url" };
+const setErr = (k, t) => { const el = $(FIELDS[k]), m = $("e-" + k); m.textContent = t || ""; if (t) el.setAttribute("aria-invalid", "true"); else el.removeAttribute("aria-invalid"); };
+let busy = false, timer = null;
+
+async function runLive(input) {
+  busy = true; $("go").disabled = true;
+  let sec = 0; const tick = () => { $("progress").textContent = `AI에게 질문하는 중이에요. 보통 30초~1분 걸려요. (${sec}초)`; };
+  tick(); timer = setInterval(() => { sec++; tick(); }, 1000);
+  try {
+    const { data, error } = await sb.functions.invoke("aeo-diagnose", { body: input });
+    if (error) {
+      let code = "";
+      try { code = (await error.context.json()).error; } catch (_) {}
+      $("out").innerHTML = `<p class="banner" role="alert">${esc(MSG[code] || FAIL)}</p>`;
+      return;
+    }
+    if (!data || !data.result) { $("out").innerHTML = `<p class="banner" role="alert">${FAIL}</p>`; return; }
+    render(data.result, input.name, { cached: data.cached });
+  } catch (_) {
+    $("out").innerHTML = `<p class="banner" role="alert">${FAIL}</p>`;
+  } finally {
+    clearInterval(timer); $("progress").textContent = ""; busy = false; $("go").disabled = false;
+  }
 }
 
 $("form").addEventListener("submit", e => {
   e.preventDefault();
-  const name = $("f-name").value.trim(), url = $("f-url").value.trim();
-  let bad = false;
-  $("e-name").textContent = ""; $("f-name").removeAttribute("aria-invalid");
-  $("e-url").textContent = ""; $("f-url").removeAttribute("aria-invalid");
-  if (!name) { $("e-name").textContent = "업체명을 입력해 주세요."; $("f-name").setAttribute("aria-invalid", "true"); bad = true; }
-  if (url) { try { if (!/^https?:$/.test(new URL(url).protocol)) throw 0; } catch (_) { $("e-url").textContent = "https:// 로 시작하는 주소를 입력해 주세요."; $("f-url").setAttribute("aria-invalid", "true"); bad = true; } }
-  if (bad) { (document.querySelector("[aria-invalid=true]") || $("f-name")).focus(); return; }
-  render(SAMPLE, name);
+  if (busy) return;
+  const v = id => $(id).value.trim(), name = v("f-name"), region = v("f-region"), industry = v("f-ind"), url = v("f-url");
+  const errs = {};
+  if (!name) errs.name = "업체명을 입력해 주세요."; else if (LIVE && name.length < 2) errs.name = MSG.bad_name;
+  if (LIVE && !region) errs.region = "지역을 입력해 주세요. (예: 강남)";
+  if (LIVE && !industry) errs.ind = "업종을 선택해 주세요.";
+  if (url) { try { if (!/^https?:$/.test(new URL(url).protocol)) throw 0; } catch (_) { errs.url = MSG.bad_url; } }
+  Object.keys(FIELDS).forEach(k => setErr(k, errs[k]));
+  const first = Object.keys(errs)[0];
+  if (first) return $(FIELDS[first]).focus();
+  if (!LIVE) return render(SAMPLE, name);
+  if (!sb) { $("out").innerHTML = `<p class="banner" role="alert">${MSG.not_configured}</p>`; return; }
+  runLive({ name, region, industry, url });
 });
 </script>
 </body>
