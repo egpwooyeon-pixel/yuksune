@@ -14,6 +14,16 @@
   // 레퍼런스 섹션 (SHOW_REFERENCE: false 로 끄기)
   if (L.SHOW_REFERENCE === false) { const r = $("reference"); if (r) r.hidden = true; }
 
+  // 진단 화면에서 넘어온 값으로 상담 폼 채우기 (값은 입력칸에만 넣고 HTML 로는 쓰지 않음)
+  (function () {
+    const qp = new URLSearchParams(location.search); let any = false;
+    const put = (id, v, max) => { const el = $(id); if (el && v) { el.value = String(v).slice(0, max); any = true; } };
+    put("f-company", qp.get("company"), 100); put("f-web", qp.get("web"), 200); put("f-msg", qp.get("msg"), 1000);
+    const t = qp.get("topic"), sel = $("f-topic");
+    if (t && sel) { const o = [...sel.options].find(x => x.text === t || (t === "웨딩홀" && x.text === "웨딩")); if (o) { sel.value = o.value || o.text; any = true; } }
+    const st = $("status"); if (any && st) { st.hidden = false; st.className = "status"; st.textContent = "진단 화면에서 입력한 내용을 가져왔어요. 확인하고 담당자·연락처를 입력해 주세요."; }
+  })();
+
   // 모바일 메뉴
   const mb = $("menu-btn"), nav = $("nav");
   const setMenu = o => { nav.classList.toggle("open", o); mb.setAttribute("aria-expanded", o); mb.setAttribute("aria-label", o ? "메뉴 닫기" : "메뉴 열기"); };

@@ -66,11 +66,25 @@
     .btn.sm{min-height:48px;padding:0 18px;font-size:15px;white-space:nowrap}
     .hint{font-size:13px;color:#5b6070;margin:0}#prefill-msg:empty{display:none}
     input.auto,select.auto{background:#edf7ef!important;border-color:#7fb88c!important}
+    .order{display:grid;gap:16px}.ord-h{font-size:17px;color:var(--char);margin:0}
+    fieldset.prod-set{border:0;margin:0;padding:0;min-width:0}.prod-set legend{font-size:13px;font-weight:700;color:#5b6070;padding:0;margin-bottom:8px}
+    .prods{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+    .prod{display:flex;gap:10px;border:2px solid var(--line);border-radius:14px;padding:14px;cursor:pointer;background:#fff}
+    .prod.on{border-color:var(--purple);background:#f7f4fe}.prod input{width:auto;min-height:0;padding:0;border:0;border-radius:0;box-shadow:none;background:none;margin-top:4px;accent-color:var(--char)}
+    .p-body{display:grid;gap:4px;min-width:0}.p-name{font-weight:800;color:var(--char)}.p-price{font-size:18px;font-weight:800;color:var(--char)}.p-note{font-size:13px;color:#5b6070}
+    .qty{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .qbox{border:1px solid var(--line);background:#fafaff;border-radius:14px;padding:14px;display:grid;gap:8px;min-width:0}
+    .qbox label{font-size:13px;font-weight:700}.qrow{display:flex;align-items:center;gap:8px}.qrow input{font-size:18px;font-weight:700}
+    .qbox input[type=range]{width:100%;min-height:0;padding:0;border:0;accent-color:var(--purple);background:transparent}
+    .qr-l{display:flex;justify-content:space-between;font-size:12px;color:#5b6070}
+    .sum{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;border-top:1px solid var(--line);padding-top:12px}
+    .sum-l p{margin:0;font-size:13px;color:#5b6070}.sum-l p+p{font-weight:700;color:var(--char)}.sum-total{margin:0;font-size:22px;font-weight:800;color:var(--char)}
     .banner.live{background:var(--lav);border-color:#cdbff5;color:var(--char)}
     .ok-t{color:var(--good);font-weight:700}.no-t{color:#5b6070}
     .note{font-size:13px;color:#5b6070;margin:12px 0 0}
     @media(max-width:640px){
       .url-row{flex-wrap:wrap}.url-row .btn{width:100%}
+      .qty{grid-template-columns:1fr}.sum{flex-direction:column;align-items:flex-start}
       .form{grid-template-columns:1fr}
       .stats{grid-template-columns:1fr;gap:12px}
       .rivals li{grid-template-columns:1fr;gap:2px}
@@ -96,6 +110,22 @@
       <div class="f full"><label for="f-service">대표 서비스 <span class="opt">(선택)</span></label><input id="f-service" name="service" maxlength="70" placeholder="예: 피부과 외래 진료"><small class="hint">진료과·진료 항목처럼 고객이 찾는 서비스를 적어 주세요.</small></div>
       <div class="full actions"><button class="btn" type="submit" id="go">진단하기</button><span id="progress" role="status"></span></div>
     </form>
+  </section>
+
+  <section class="card order" id="order" aria-labelledby="order-title" hidden>
+    <h2 class="ord-h" id="order-title">발행 설정</h2>
+    <fieldset class="prod-set"><legend>상품 선택</legend><div class="prods" id="prods"></div></fieldset>
+    <div class="qty">
+      <div class="qbox"><label for="q-per">하루 발행 건수</label>
+        <div class="qrow"><input id="q-per" type="number" inputmode="numeric" min="1" max="20" value="1"><span>건</span></div>
+        <input id="r-per" type="range" min="1" max="20" value="1" aria-label="하루 발행 건수 조절"><div class="qr-l"><span>1건</span><span id="mx-per">20건</span></div></div>
+      <div class="qbox"><label for="q-days">진행 일수</label>
+        <div class="qrow"><input id="q-days" type="number" inputmode="numeric" min="1" max="180" value="1"><span>일</span></div>
+        <input id="r-days" type="range" min="1" max="180" value="1" aria-label="진행 일수 조절"><div class="qr-l"><span>1일</span><span id="mx-days">180일</span></div></div>
+    </div>
+    <div class="sum"><div class="sum-l"><p id="sum-unit"></p><p id="sum-calc"></p></div><p class="sum-total" id="sum-total" aria-live="polite"></p></div>
+    <div><button class="btn" type="button" id="order-go">이 조건으로 상담 신청</button></div>
+    <p class="hint">※ 이 단계에서 결제나 발행이 진행되지는 않아요. 고른 조건은 상담 신청으로 전달되고, 담당자가 안내해 드려요.</p>
   </section>
 
   <div id="out" aria-live="polite"></div>
@@ -232,6 +262,50 @@ async function runLive(input) {
   } finally {
     clearInterval(timer); $("progress").textContent = ""; busy = false; $("go").disabled = false;
   }
+}
+
+// ---- 발행 설정: 상품 선택 · 발행 수량과 기간 (ORDER_UI). 결제·발행은 하지 않고 상담 신청으로 값을 넘김 ----
+const ORD = (L.ORDER_UI === true && L.ORDER && Array.isArray(L.ORDER.products) && L.ORDER.products.length) ? L.ORDER : null;
+if (ORD) {
+  const maxPer = (ORD.maxPerDay | 0) || 20, maxDays = (ORD.maxDays | 0) || 180, prods = ORD.products.slice(0, 6);
+  const fmt = n => Number(n).toLocaleString("ko-KR");
+  const priced = p => typeof p.price === "number" && p.price >= 0;
+  const clamp = (v, max) => { v = parseInt(v, 10); return Math.min(max, Math.max(1, Number.isFinite(v) ? v : 1)); };
+  let cur = 0, per = 1, days = 1;
+  $("order").hidden = false;
+  $("mx-per").textContent = maxPer + "건"; $("mx-days").textContent = maxDays + "일";
+  const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  prods.forEach((p, i) => {                       // 설정 값은 textContent 로만 넣음
+    const lab = mk("label", "prod" + (i === 0 ? " on" : "")), r = mk("input"); r.type = "radio"; r.name = "prod"; r.value = String(i); r.checked = i === 0;
+    const b = mk("span", "p-body");
+    b.append(mk("span", "p-name", p.name || "상품 " + (i + 1)), mk("span", "p-price", priced(p) ? (p.unitLabel || "건당") + " " + fmt(p.price) + "원" : "금액은 상담 후 안내"));
+    if (p.note) b.append(mk("span", "p-note", p.note));
+    lab.append(r, b); $("prods").append(lab);
+    r.addEventListener("change", () => { cur = i; document.querySelectorAll(".prod").forEach((x, j) => x.classList.toggle("on", j === i)); update(); });
+  });
+  function update() {
+    const p = prods[cur], total = per * days;
+    $("sum-unit").textContent = priced(p) ? (p.unitLabel || "건당") + " " + fmt(p.price) + "원" : "금액은 상담 후 안내";
+    $("sum-calc").textContent = "하루 " + per + "건 × " + days + "일 = 총 " + fmt(total) + "건";
+    $("sum-total").textContent = priced(p) ? fmt(p.price * total) + "원" : "총 " + fmt(total) + "건";
+  }
+  function bind(numId, rngId, max, set) {
+    const n = $(numId), r = $(rngId); n.max = r.max = max;
+    n.addEventListener("input", () => { if (n.value === "") return; const v = clamp(n.value, max); if (String(v) !== n.value) n.value = v; r.value = v; set(v); update(); });
+    n.addEventListener("change", () => { const v = clamp(n.value, max); n.value = v; r.value = v; set(v); update(); });
+    r.addEventListener("input", () => { const v = clamp(r.value, max); n.value = v; set(v); update(); });
+  }
+  bind("q-per", "r-per", maxPer, v => per = v); bind("q-days", "r-days", maxDays, v => days = v);
+  update();
+  $("order-go").addEventListener("click", () => {
+    const p = prods[cur], total = per * days, v = id => $(id).value.trim();
+    let msg = "[발행 희망] 상품: " + (p.name || "") + " / 하루 " + per + "건 × " + days + "일 (총 " + total + "건)";
+    if (priced(p)) msg += " / 예상 금액 " + fmt(p.price * total) + "원";
+    if (v("f-service")) msg += "\n대표 서비스: " + v("f-service");
+    const qs = new URLSearchParams();
+    if (v("f-name")) qs.set("company", v("f-name")); if (v("f-ind")) qs.set("topic", v("f-ind")); if (v("f-url")) qs.set("web", v("f-url")); qs.set("msg", msg);
+    location.href = "landing.html?" + qs.toString() + "#contact";
+  });
 }
 
 // ---- 홈페이지 주소로 업체 정보 자동 채우기 (PREFILL_LIVE) ----
