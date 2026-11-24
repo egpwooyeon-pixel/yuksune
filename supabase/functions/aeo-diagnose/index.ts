@@ -7,7 +7,7 @@
 //   결과는 diagnose.html 의 리포트 데이터 형식으로 돌려줍니다.
 //
 // 비밀값(Supabase > Edge Functions > Secrets): GEMINI_API_KEY (필수)
-//   선택: GEMINI_MODEL(기본 gemini-2.5-flash), IP_HASH_SALT, DIAGNOSE_IP_LIMIT(기본 3), DIAGNOSE_DAILY_LIMIT(기본 100)
+//   선택: GEMINI_MODEL(기본 gemini-3.8-flash), IP_HASH_SALT, DIAGNOSE_IP_LIMIT(기본 3), DIAGNOSE_DAILY_LIMIT(기본 100)
 //   키는 x-goog-api-key 헤더로만 보내며, 브라우저·응답·로그로 나가지 않습니다.
 //
 // 측정의 한계 (리포트 화면에도 표시됩니다)
@@ -233,7 +233,7 @@ function realDeps() {
   };
   const num = (k, d) => { const n = parseInt(env(k) || "", 10); return n > 0 ? n : d; };
   return {
-    config: () => ({ apiKey: env("GEMINI_API_KEY"), model: env("GEMINI_MODEL") || "gemini-2.5-flash" }),
+    config: () => ({ apiKey: env("GEMINI_API_KEY"), model: env("GEMINI_MODEL") || "gemini-3.8-flash" }),
     fetch,
     run: diagnose,
     cached: key => rpc("get_cached_diagnose", { p_key: key }),
