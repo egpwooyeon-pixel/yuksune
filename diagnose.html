@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI 노출 진단 - EGP AI 스튜디오</title>
+  <meta name="description" content="업체명을 입력하면 AI 검색 엔진별 노출 현황을 진단서 형태로 보여 줍니다. 현재는 예시 리포트 화면입니다.">
+  <style>
+    :root{--purple:#A88AF4;--lav:#E9E0FC;--lime:#CAFE61;--char:#20242E;--text:#363C49;--line:#e6e4ef;--bg:#f5f4fa;--good:#1a7f37;--bad:#c92a2a}
+    *{box-sizing:border-box}
+    [hidden]{display:none!important}
+    body{margin:0;background:var(--bg);color:var(--text);font:16px/1.65 "Pretendard",-apple-system,"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+    a{color:inherit}
+    button,input,select{font:inherit;color:inherit}
+    :focus-visible{outline:3px solid var(--purple);outline-offset:2px}
+    .bar{background:var(--char);padding:0 20px}
+    .bar-in{max-width:820px;margin:0 auto;height:56px;display:flex;align-items:center;justify-content:space-between}
+    .bar img{height:26px;width:auto;display:block}
+    .bar .back{color:var(--lime);font-weight:700;font-size:15px;text-decoration:none}
+    main{max-width:820px;margin:0 auto;padding:32px 20px 72px;display:grid;gap:16px}
+    main>*,.card{min-width:0}
+    h1{font-size:clamp(26px,4vw,34px);color:var(--char);margin:0;letter-spacing:-.02em;line-height:1.3}
+    h2{font-size:15px;color:#5b6070;margin:0 0 12px;font-weight:700}
+    .card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px}
+    .lead{margin:6px 0 0}
+    .form{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}
+    .f{display:grid;gap:6px;align-content:start}
+    .full{grid-column:1/-1}
+    label{font-weight:700;font-size:15px;color:var(--char)}
+    label em{color:#d6336c;font-style:normal}
+    .opt{font-weight:400;color:#5b6070}
+    input,select{width:100%;min-height:48px;border:2px solid var(--line);border-radius:12px;padding:10px 14px;background:#fff}
+    input:focus,select:focus{border-color:var(--purple);outline:none;box-shadow:0 0 0 3px rgba(168,138,244,.3)}
+    [aria-invalid=true]{border-color:#d6336c!important}
+    .err{color:#c2255c;font-size:14px}
+    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 28px;border-radius:999px;border:0;background:var(--char);color:#fff;font-weight:800;cursor:pointer}
+    .btn:hover{background:#000}
+    .banner{background:#fff3bf;color:#5c4a00;border:1px solid #f0d96b;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:600}
+    /* 리포트 */
+    .rep-top{border-top:4px solid var(--purple)}
+    .kick{font-size:12px;letter-spacing:.06em;color:#5b6070;margin:0 0 10px}
+    .rep-top h2{font-size:26px;color:var(--char);margin:0 0 6px}
+    .meta{font-size:14px;color:#5b6070;margin:2px 0}
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:18px}
+    .stat b{display:block;font-size:40px;line-height:1.15;letter-spacing:-.02em;color:var(--char)}
+    .stat small{display:block;font-size:13px;color:#5b6070}
+    .stat.good b{color:var(--good)}.stat.bad b{color:var(--bad)}
+    .tw{overflow-x:auto}
+    table{width:100%;border-collapse:collapse;font-size:15px;min-width:420px}
+    th,td{padding:11px 10px;text-align:left;border-bottom:1px solid var(--line)}
+    th{font-size:13px;font-weight:600;color:#5b6070;white-space:nowrap}
+    td.n{font-variant-numeric:tabular-nums}
+    td.bad{color:var(--bad);font-weight:600}
+    .sub{margin:22px 0 10px;font-size:13px;color:#5b6070;font-weight:600}
+    .chips{display:flex;flex-wrap:wrap;gap:8px}
+    .chip{border:1px solid var(--line);border-radius:8px;padding:3px 10px;font-size:14px}
+    .chip.own{border-color:#3b5bdb;color:#3b5bdb;font-weight:600}
+    .rivals{list-style:none;margin:0;padding:0}
+    .rivals li{display:grid;grid-template-columns:150px 1fr;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);font-size:15px}
+    .rivals b{color:var(--char)}
+    .actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+    #progress{font-size:14px;color:#5b6070}
+    .btn:disabled{opacity:.6;cursor:default}
+    .url-row{display:flex;gap:8px}.url-row input{flex:1;min-width:0}
+    .btn.line{background:#fff;color:var(--char);border-color:var(--char)}.btn.line:hover{background:#f1eefb}
+    .btn.sm{min-height:48px;padding:0 18px;font-size:15px;white-space:nowrap}
+    .hint{font-size:13px;color:#5b6070;margin:0}#prefill-msg:empty{display:none}
+    input.auto,select.auto{background:#edf7ef!important;border-color:#7fb88c!important}
+    .banner.live{background:var(--lav);border-color:#cdbff5;color:var(--char)}
+    .ok-t{color:var(--good);font-weight:700}.no-t{color:#5b6070}
+    .note{font-size:13px;color:#5b6070;margin:12px 0 0}
+    @media(max-width:640px){
+      .url-row{flex-wrap:wrap}.url-row .btn{width:100%}
+      .form{grid-template-columns:1fr}
+      .stats{grid-template-columns:1fr;gap:12px}
+      .rivals li{grid-template-columns:1fr;gap:2px}
+      .card{padding:18px}
+    }
+  </style>
+</head>
+<body>
+<header class="bar"><div class="bar-in"><a href="landing.html" aria-label="처음으로"><img src="assets/logo.png" alt="EGP" width="72" height="25"></a><a class="back" href="landing.html#diagnosis">← 돌아가기</a></div></header>
+
+<main>
+  <section class="card" aria-labelledby="t">
+    <h1 id="t">우리 업체는 AI 답변에 얼마나 나올까요?</h1>
+    <p class="lead">업체 정보를 입력하면 AI 검색 엔진별 노출 현황을 진단서로 보여 드립니다.</p>
+    <form class="form" id="form" novalidate>
+      <div class="f full"><label for="f-url">홈페이지 주소 <span class="opt">(선택)</span></label>
+        <div class="url-row"><input id="f-url" name="url" type="url" inputmode="url" maxlength="200" placeholder="https://" autocomplete="url" aria-describedby="e-url prefill-msg"><button class="btn line sm" type="button" id="prefill-btn" hidden>정보 불러오기</button></div>
+        <small class="err" id="e-url" role="alert"></small><p class="hint" id="prefill-msg" role="status"></p></div>
+      <div class="f full"><label for="f-name">업체명 <em aria-hidden="true">*</em><span class="sr" style="position:absolute;left:-9999px"> (필수)</span></label><input id="f-name" name="name" maxlength="100" placeholder="예: 업체 이름" autocomplete="organization" aria-describedby="e-name"><small class="err" id="e-name" role="alert"></small></div>
+      <div class="f"><label for="f-region"><span id="l-region">지역 <span class="opt">(선택)</span></span></label><input id="f-region" name="region" maxlength="40" placeholder="예: 강남" aria-describedby="e-region"><small class="err" id="e-region" role="alert"></small></div>
+      <div class="f"><label for="f-ind"><span id="l-ind">업종 <span class="opt">(선택)</span></span></label>
+        <select id="f-ind" aria-describedby="e-ind"><option value="">선택해 주세요</option><option>병의원</option><option>웨딩홀</option><option>음식점</option><option>쇼핑몰</option><option>기타</option></select><small class="err" id="e-ind" role="alert"></small></div>
+      <div class="f full"><label for="f-service">대표 서비스 <span class="opt">(선택)</span></label><input id="f-service" name="service" maxlength="70" placeholder="예: 피부과 외래 진료"><small class="hint">진료과·진료 항목처럼 고객이 찾는 서비스를 적어 주세요.</small></div>
+      <div class="full actions"><button class="btn" type="submit" id="go">진단하기</button><span id="progress" role="status"></span></div>
+    </form>
+  </section>
+
+  <div id="out" aria-live="polite"></div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="landing-config.js"></script>
+<script>
+/* 리포트 데이터 형식 (aeo-diagnose 함수가 이 형식으로 돌려주며, 샘플도 같은 형식입니다)
+   { brand, url, region, industry, measuredAt, questions, live?, citeAvailable?,
+     engines:[{name, mention, cite, answers}],
+     sources:[{d, n, own?}], rivals:[{name, why}],
+     keywords:[{k, vol, rank|null, brief}],
+     questionList?:[{q, mentioned, cited}] } */
+const SAMPLE = {
+  brand: "샘플웨딩홀 (예시)", url: "https://example.com", region: "서울 강남", industry: "웨딩홀",
+  measuredAt: "예시 데이터 · 실제 측정값이 아닙니다", questions: 10,
+  engines: [
+    { name: "네이버", mention: 3, cite: 0, answers: 10 },
+    { name: "Gemini", mention: 5, cite: 2, answers: 10 },
+    { name: "GPT", mention: 2, cite: 1, answers: 10 },
+    { name: "PPLX", mention: 4, cite: 0, answers: 10 },
+  ],
+  sources: [
+    { d: "blog.example-a.com", n: 17 }, { d: "wedding-guide.example", n: 12 }, { d: "community.example", n: 10 },
+    { d: "review.example", n: 9 }, { d: "example.com", n: 3, own: true }, { d: "video.example", n: 3 },
+  ],
+  rivals: [
+    { name: "예시 업체 A", why: "접근성 좋은 웨딩홀 추천 질문에서 여러 엔진이 공통 추천" },
+    { name: "예시 업체 B", why: "소규모 예식 가능 웨딩홀 질문에서 첫 번째로 언급" },
+    { name: "예시 업체 C", why: "하우스웨딩 질문에서 대명사처럼 소개" },
+    { name: "예시 업체 D", why: "고급 웨딩홀 추천 질문에서 단독 건물 특징과 함께 추천" },
+  ],
+  keywords: [
+    { k: "지역 웨딩홀", vol: 2800, rank: null, brief: "없음" },
+    { k: "샘플웨딩홀", vol: 8800, rank: 1, brief: "없음" },
+    { k: "소규모 웨딩", vol: 20, rank: null, brief: "표시됨" },
+  ],
+};
+
+const L = window.LANDING || {}, W = window.WOORI || {};
+const LIVE = L.DIAGNOSE_LIVE === true;
+const PREFILL = L.PREFILL_LIVE === true;
+const sb = (LIVE || PREFILL) && W.SUPABASE_ANON_KEY && window.supabase ? window.supabase.createClient(W.SUPABASE_URL, W.SUPABASE_ANON_KEY) : null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+const MSG = {
+  bad_name: "업체명을 2자 이상 입력해 주세요.", need_region_industry: "지역과 업종을 입력해 주세요.", bad_url: "https:// 로 시작하는 주소를 입력해 주세요.",
+  ip_limit: "오늘 이용할 수 있는 횟수를 모두 사용했어요. 내일 다시 시도해 주세요.",
+  global_limit: "오늘 진단 가능한 전체 횟수가 모두 소진됐어요. 내일 다시 시도해 주세요.",
+  rate_limited: "AI 서비스가 잠시 바빠요. 1분 뒤에 다시 시도해 주세요.",
+  not_configured: "진단 서버가 아직 준비되지 않았어요.",
+};
+const FAIL = "측정에 실패했어요. 잠시 후 다시 시도해 주세요.";
+
+if (LIVE) {   // 실제 측정에는 지역·업종이 꼭 필요함
+  $("l-region").innerHTML = '지역 <em aria-hidden="true" style="color:#d6336c;font-style:normal">*</em><span style="position:absolute;left:-9999px"> (필수)</span>';
+  $("l-ind").innerHTML = '업종 <em aria-hidden="true" style="color:#d6336c;font-style:normal">*</em><span style="position:absolute;left:-9999px"> (필수)</span>';
+}
+
+function render(d, entered, o) {
+  o = o || {};
+  const total = d.engines.reduce((s, e) => s + e.answers, 0);
+  const men = d.engines.reduce((s, e) => s + e.mention, 0);
+  const cit = d.engines.reduce((s, e) => s + e.cite, 0);
+  const citeOk = d.citeAvailable !== false;
+  const meta = [d.url, d.region, d.industry].filter(Boolean).map(esc).join(" · ");
+  const when = d.live ? "측정일 " + new Date(d.measuredAt).toLocaleString("ko-KR", { year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" }) : d.measuredAt;
+  const banner = d.live
+    ? `<p class="banner live" role="note">Gemini(구글 검색 연동) 1개 엔진 기준 측정입니다. 실제 Gemini 앱이나 다른 AI의 답변과 다를 수 있고, 측정할 때마다 결과가 달라질 수 있어요.${o.cached ? " 24시간 이내 같은 조건으로 측정한 결과를 보여 드려요." : ""}</p>`
+    : `<p class="banner" role="note">예시 리포트입니다. 입력하신 ${esc(entered)}의 실제 측정 결과가 아니며, 아직 AI 엔진과 연결되어 있지 않습니다.</p>`;
+  const yn = (v, a, b) => v ? `<span class="ok-t">${a}</span>` : `<span class="no-t">${b}</span>`;
+  $("out").innerHTML = banner + `
+  <section class="card rep-top" aria-labelledby="r1">
+    <p class="kick">AI 검색 노출 진단서</p>
+    <h2 id="r1">${esc(d.brand)}</h2>
+    <p class="meta">${meta}</p>
+    <p class="meta">${esc(when)} · 측정 엔진 ${d.engines.map(e => esc(e.name)).join("·")}</p>
+  </section>
+  <section class="card" aria-labelledby="r2">
+    <h2 id="r2">AI 검색 실측</h2>
+    <div class="stats">
+      <div class="stat"><b>${total}건</b><small>질문 ${d.questions}개 × ${d.engines.length}엔진 답변</small></div>
+      <div class="stat good"><b>${pct(men, total)}%</b><small>브랜드 멘션 ${men}/${total}</small></div>
+      <div class="stat bad"><b>${citeOk ? pct(cit, total) + "%" : "-"}</b><small>${citeOk ? `자사 인용 ${cit}/${total}` : "홈페이지 주소를 입력하면 계산돼요"}</small></div>
+    </div>
+    <div class="tw"><table><thead><tr><th>엔진</th><th>멘션</th><th>인용</th><th>답변</th></tr></thead><tbody>
+      ${d.engines.map(e => `<tr><td>${esc(e.name)}</td><td class="n">${e.mention}/${e.answers}</td><td class="n">${citeOk ? e.cite + "/" + e.answers : "-"}</td><td class="n">${e.answers}</td></tr>`).join("")}
+    </tbody></table></div>
+    <p class="sub">AI가 답변 근거로 쓴 출처</p>
+    ${d.sources.length ? `<div class="chips">${d.sources.map(s => `<span class="chip${s.own ? " own" : ""}">${esc(s.d)} ${s.n}회${s.own ? " · 자사" : ""}</span>`).join("")}</div>` : `<p class="note">답변에 표시된 출처가 없었어요.</p>`}
+    <p class="sub">AI가 대신 추천한 업체</p>
+    ${d.rivals.length ? `<ul class="rivals">${d.rivals.map(r => `<li><b>${esc(r.name)}</b><span>${esc(r.why)}</span></li>`).join("")}</ul>` : `<p class="note">답변에서 뚜렷하게 추천된 다른 업체가 없었어요.</p>`}
+  </section>
+  ${d.questionList && d.questionList.length ? `<section class="card" aria-labelledby="r4">
+    <h2 id="r4">질문별 결과 · AI에게 이렇게 물었어요</h2>
+    <div class="tw"><table><thead><tr><th>질문</th><th>업체명 언급</th><th>자사 인용</th></tr></thead><tbody>
+      ${d.questionList.map(x => `<tr><td>${esc(x.q)}</td><td>${yn(x.mentioned, "나옴", "없음")}</td><td>${citeOk ? yn(x.cited, "인용됨", "없음") : "-"}</td></tr>`).join("")}
+    </tbody></table></div>
+  </section>` : ""}
+  ${d.keywords && d.keywords.length ? `<section class="card" aria-labelledby="r3">
+    <h2 id="r3">키워드 · 검색 수요와 현재 위치</h2>
+    <div class="tw"><table><thead><tr><th>키워드</th><th>월 검색량(네이버)</th><th>구글 순위</th><th>AI 브리핑</th></tr></thead><tbody>
+      ${d.keywords.map(k => `<tr><td><b>${esc(k.k)}</b></td><td class="n">${k.vol.toLocaleString("ko-KR")}회</td><td class="${k.rank ? "n" : "bad"}">${k.rank ? k.rank + "위" : "100위 밖"}</td><td>${esc(k.brief)}</td></tr>`).join("")}
+    </tbody></table></div>
+    <p class="note">표시된 숫자는 모두 형식을 보여 주기 위한 예시입니다.</p>
+  </section>` : ""}
+  ${d.live ? `<p class="note">멘션은 답변 본문에 업체명이 포함된 경우, 인용은 답변 출처에 홈페이지 도메인이 포함된 경우입니다. 월 검색량·구글 순위는 아직 제공하지 않아요.</p>` : ""}`;
+  $("out").firstElementChild.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+}
+
+const FIELDS = { name: "f-name", region: "f-region", ind: "f-ind", url: "f-url" };
+const setErr = (k, t) => { const el = $(FIELDS[k]), m = $("e-" + k); m.textContent = t || ""; if (t) el.setAttribute("aria-invalid", "true"); else el.removeAttribute("aria-invalid"); };
+let busy = false, timer = null;
+
+async function runLive(input) {
+  busy = true; $("go").disabled = true;
+  let sec = 0; const tick = () => { $("progress").textContent = `AI에게 질문하는 중이에요. 보통 30초~1분 걸려요. (${sec}초)`; };
+  tick(); timer = setInterval(() => { sec++; tick(); }, 1000);
+  try {
+    const { data, error } = await sb.functions.invoke("aeo-diagnose", { body: input });
+    if (error) {
+      let code = "";
+      try { code = (await error.context.json()).error; } catch (_) {}
+      $("out").innerHTML = `<p class="banner" role="alert">${esc(MSG[code] || FAIL)}</p>`;
+      return;
+    }
+    if (!data || !data.result) { $("out").innerHTML = `<p class="banner" role="alert">${FAIL}</p>`; return; }
+    render(data.result, input.name, { cached: data.cached });
+  } catch (_) {
+    $("out").innerHTML = `<p class="banner" role="alert">${FAIL}</p>`;
+  } finally {
+    clearInterval(timer); $("progress").textContent = ""; busy = false; $("go").disabled = false;
+  }
+}
+
+// ---- 홈페이지 주소로 업체 정보 자동 채우기 (PREFILL_LIVE) ----
+const PRE_MSG = {
+  bad_url: "https:// 로 시작하는 주소를 입력해 주세요.", blocked_url: "이 주소는 읽을 수 없어요. 일반 홈페이지 주소를 입력해 주세요.",
+  unsupported_naver: "네이버 플레이스·지도 주소는 아직 읽지 못해요. 업체명과 지역을 직접 입력해 주세요.",
+  not_html: "웹페이지가 아니에요. 홈페이지 주소를 입력해 주세요.", too_large: "페이지가 너무 커서 읽지 못했어요. 직접 입력해 주세요.",
+  nothing_found: "홈페이지에서 업체 정보를 찾지 못했어요. 직접 입력해 주세요.", fetch_failed: "홈페이지를 열지 못했어요. 주소를 확인하거나 직접 입력해 주세요.",
+  rate_limited: "잠시 후 다시 시도해 주세요. (시간당 이용 횟수를 넘었어요)",
+};
+const isNaver = u => { try { return /(^|\.)naver\.(com|me)$/i.test(new URL(u).hostname); } catch (_) { return false; } };
+const AUTO = [["f-name", "업체명"], ["f-region", "지역"], ["f-ind", "업종"], ["f-service", "대표 서비스"]];
+AUTO.forEach(([id]) => $(id).addEventListener("input", () => { $(id).dataset.auto = ""; $(id).classList.remove("auto"); }));
+function setAuto(id, v) {                       // 사용자가 직접 쓴 칸은 덮어쓰지 않음
+  const el = $(id); if (!v) return false;
+  if (el.value.trim() && el.dataset.auto !== "1") return false;
+  if (el.tagName === "SELECT") { const o = [...el.options].find(x => x.text === v); if (!o) return false; el.value = o.value || o.text; } else el.value = v;
+  el.dataset.auto = "1"; el.classList.add("auto"); return true;
+}
+let preBusy = false;
+if (PREFILL && sb) {
+  $("prefill-btn").hidden = false;
+  $("prefill-btn").addEventListener("click", async () => {
+    if (preBusy) return;
+    const url = $("f-url").value.trim(), msg = $("prefill-msg"); msg.textContent = ""; setErr("url", "");
+    try { if (!/^https?:$/.test(new URL(url).protocol)) throw 0; } catch (_) { setErr("url", PRE_MSG.bad_url); return $("f-url").focus(); }
+    if (isNaver(url)) { msg.textContent = PRE_MSG.unsupported_naver; return; }
+    preBusy = true; $("prefill-btn").disabled = true; msg.textContent = "홈페이지에서 정보를 읽는 중이에요…";
+    try {
+      const { data, error } = await sb.functions.invoke("aeo-prefill", { body: { url } });
+      if (error) { let c = ""; try { c = (await error.context.json()).error; } catch (_) {} msg.textContent = PRE_MSG[c] || PRE_MSG.fetch_failed; return; }
+      const d = data && data.data; if (!d) { msg.textContent = PRE_MSG.nothing_found; return; }
+      const got = [];
+      if (setAuto("f-name", d.name)) got.push("업체명");
+      if (setAuto("f-region", d.region)) got.push("지역");
+      if (setAuto("f-ind", d.industry)) got.push("업종");
+      if (setAuto("f-service", d.service)) got.push("대표 서비스");
+      msg.textContent = got.length ? "홈페이지에서 확인한 정보를 채웠어요 (" + got.join(", ") + "). 틀린 항목은 직접 고쳐 주세요." : "홈페이지에서 새로 채울 정보가 없었어요. 직접 입력해 주세요.";
+    } catch (_) { msg.textContent = PRE_MSG.fetch_failed; }
+    finally { preBusy = false; $("prefill-btn").disabled = false; }
+  });
+}
+
+$("form").addEventListener("submit", e => {
+  e.preventDefault();
+  if (busy) return;
+  const v = id => $(id).value.trim(), name = v("f-name"), region = v("f-region"), industry = v("f-ind"), url = v("f-url");
+  const errs = {};
+  if (!name) errs.name = "업체명을 입력해 주세요."; else if (LIVE && name.length < 2) errs.name = MSG.bad_name;
+  if (LIVE && !region) errs.region = "지역을 입력해 주세요. (예: 강남)";
+  if (LIVE && !industry) errs.ind = "업종을 선택해 주세요.";
+  if (url) { try { if (!/^https?:$/.test(new URL(url).protocol)) throw 0; } catch (_) { errs.url = MSG.bad_url; } }
+  Object.keys(FIELDS).forEach(k => setErr(k, errs[k]));
+  const first = Object.keys(errs)[0];
+  if (first) return $(FIELDS[first]).focus();
+  if (!LIVE) return render(SAMPLE, name);
+  if (!sb) { $("out").innerHTML = `<p class="banner" role="alert">${MSG.not_configured}</p>`; return; }
+  runLive({ name, region, industry, url, service: v("f-service") });
+});
+</script>
+</body>
+</html>
