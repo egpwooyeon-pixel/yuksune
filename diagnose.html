@@ -304,6 +304,7 @@ if (ORD) {
     if (v("f-service")) msg += "\n대표 서비스: " + v("f-service");
     const qs = new URLSearchParams();
     if (v("f-name")) qs.set("company", v("f-name")); if (v("f-ind")) qs.set("topic", v("f-ind")); if (v("f-url")) qs.set("web", v("f-url")); qs.set("msg", msg);
+    qs.set("prod", p.name || ""); qs.set("per", per); qs.set("days", days); if (priced(p)) { qs.set("price", p.price); qs.set("unit", p.unitLabel || "건당"); }
     location.href = "landing.html?" + qs.toString() + "#contact";
   });
 }

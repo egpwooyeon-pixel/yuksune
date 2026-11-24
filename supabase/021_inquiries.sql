@@ -19,9 +19,17 @@ create index if not exists inquiries_created_idx on public.inquiries (created_at
 
 alter table public.inquiries enable row level security;
 
+-- 발행 설정(진단 화면)에서 고른 조건과 운영자 메모. 이미 이 표를 만든 경우에도 안전하게 실행돼요(add column if not exists).
+--   order_info 예: {"product":"상품 이름","perDay":3,"days":7,"total":21,"unit":"건당","price":3000}
+--   note: 운영자만 쓸 수 있는 메모 (아래 등록 정책이 note 가 비어 있을 때만 등록을 허용)
+alter table public.inquiries add column if not exists order_info jsonb
+  check (order_info is null or (jsonb_typeof(order_info) = 'object' and pg_column_size(order_info) <= 2000));
+alter table public.inquiries add column if not exists note text
+  check (note is null or char_length(note) <= 1000);
+
 drop policy if exists "문의: 누구나 등록" on public.inquiries;
 create policy "문의: 누구나 등록" on public.inquiries for insert to anon, authenticated
-  with check (agreed and status = 'new');
+  with check (agreed and status = 'new' and note is null);
 
 drop policy if exists "문의: 운영자만 조회" on public.inquiries;
 create policy "문의: 운영자만 조회" on public.inquiries for select to authenticated

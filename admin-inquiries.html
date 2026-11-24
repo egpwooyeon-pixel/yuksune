@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>상담 접수 - 관리자</title>
+  <link rel="stylesheet" href="admin.css">
+  <style>
+    .iq-flt{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.iq-flt input,.iq-flt select{border:1px solid #dcdfe6;border-radius:8px;padding:8px 10px;font:inherit;background:#fff}.iq-flt input{min-width:220px}
+    .iq-new{display:inline-block;white-space:nowrap;background:#eef2ff;color:#1f4dff;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:700}
+    .iq-msg{max-width:360px;white-space:pre-wrap;overflow-wrap:anywhere}.iq-ord{font-size:12px;color:#444;white-space:nowrap}
+    .iq-ph{border:0;background:none;color:#1f4dff;cursor:pointer;padding:0;font:inherit;text-decoration:underline}
+    details summary{cursor:pointer;color:#1f4dff}
+  </style>
+</head>
+<body>
+<div class="ad-gate" id="gate">관리자 확인 중…</div>
+<div class="ad" id="app" hidden>
+  <aside class="ad-side">
+    <a class="ad-brand" href="admin.html"><b>우리들 체험단</b><small>ADMIN · 관리자</small></a>
+    <nav id="nav"><a href="admin.html">← 관리자 홈</a><a href="admin-inquiries.html" class="on">상담 접수 (EGP)</a></nav>
+    <div class="ad-me"><div><b id="me-name"></b> <em>관리자</em><small id="me-mail"></small></div></div>
+    <a class="ad-back" href="campaigns.html">← 사이트로 돌아가기</a>
+  </aside>
+  <main class="ad-main">
+    <div class="ad-top"><div><small class="kick">INQUIRIES</small><h1>상담 접수</h1></div></div>
+    <p class="note">연락처는 가려서 보여요. 번호를 누르면 보여요. 이 화면은 읽기 전용이에요.</p>
+    <div class="box">
+      <div class="iq-flt"><input id="q" type="search" placeholder="업체명·담당자·내용 검색" aria-label="검색"><select id="st" aria-label="상태"><option value="">전체</option><option value="new">새 신청</option><option value="done">처리 완료</option></select><span class="muted" id="sum"></span></div>
+      <div class="tb-wrap"><table class="tb" id="tb"></table></div>
+      <p class="empty" id="empty" hidden></p>
+    </div>
+  </main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="admin-inquiries.js"></script>
+</body>
+</html>
