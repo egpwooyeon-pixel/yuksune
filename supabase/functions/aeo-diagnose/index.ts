@@ -89,25 +89,32 @@ export function aggregate(input, qa, rivals) {
 
 // ---------- Gemini 호출 ----------
 async function sleep(ms) { await new Promise(r => setTimeout(r, ms)); }
-export async function callGemini(body, model, apiKey, fetchImpl = fetch, retries = 2) {
+export async function callGemini(body, model, apiKey, fetchImpl = fetch, retries = 2, label = "") {
+  const trace = [];                                                    // 시도 기록(상태@걸린 ms). 실패했을 때 원인 파악용으로 오류에 붙임
+  const fail = (code, status, detail) => new UpErr(code, status, (label ? label + ": " : "") + (detail || "") + (trace.length ? " | 시도: " + trace.join(", ") : ""));
   for (let attempt = 0; ; attempt++) {
-    const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 45000);
+    const t0 = Date.now(), ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 45000);
     let r;
     try {
       r = await fetchImpl(GEMINI_BASE + encodeURIComponent(model) + ":generateContent", {
         method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify(body), signal: ctl.signal,
       });
-    } catch (e) { clearTimeout(to); if (attempt < retries) { await sleep(1500 * (attempt + 1)); continue; } throw new Error(e && e.name === "AbortError" ? "timeout" : "network"); }
-    clearTimeout(to);
-    if (r.status === 401 || r.status === 403) throw new UpErr("auth_failed", r.status, upDetail(await r.text().catch(() => "")));
+    } catch (e) {
+      clearTimeout(to); const aborted = e && e.name === "AbortError";
+      trace.push((aborted ? "시간초과@" : "연결실패@") + (Date.now() - t0));
+      if (attempt < retries) { await sleep(1500 * (attempt + 1)); continue; }
+      throw fail(aborted ? "timeout" : "network", null, aborted ? "Gemini 응답이 45초 안에 오지 않음" : "Gemini 에 연결하지 못함");
+    }
+    clearTimeout(to); trace.push(r.status + "@" + (Date.now() - t0));
+    if (r.status === 401 || r.status === 403) throw fail("auth_failed", r.status, upDetail(await r.text().catch(() => "")));
     if (r.status === 400) {                                           // 잘못된 키는 400("API key not valid")으로 오는 것으로 알려져 있어 문구로 구분
       const t = await r.text().catch(() => "");
-      throw new UpErr(/api key|api_key/i.test(t) ? "auth_failed" : "api_error", 400, upDetail(t));
+      throw fail(/api key|api_key/i.test(t) ? "auth_failed" : "api_error", 400, upDetail(t));
     }
     if ((r.status === 429 || r.status >= 500) && attempt < retries) { await sleep(2000 * (attempt + 1)); continue; }
-    if (r.status === 429) throw new UpErr("rate_limited", 429, upDetail(await r.text().catch(() => "")));
-    if (!r.ok) throw new UpErr("api_error", r.status, upDetail(await r.text().catch(() => "")));
-    try { return await r.json(); } catch (_) { throw new UpErr("api_error", r.status, "응답이 JSON 이 아님"); }
+    if (r.status === 429) throw fail("rate_limited", 429, upDetail(await r.text().catch(() => "")));
+    if (!r.ok) throw fail("api_error", r.status, upDetail(await r.text().catch(() => "")));
+    try { return await r.json(); } catch (_) { throw fail("api_error", r.status, "응답이 JSON 이 아님"); }
   }
 }
 
@@ -125,7 +132,7 @@ export async function makeQuestions(input, ctx) {
   const j = await callGemini({
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     generationConfig: { temperature: 0.7, responseMimeType: "application/json", responseSchema: { type: "ARRAY", items: { type: "STRING" } } },
-  }, ctx.model, ctx.apiKey, ctx.fetch);
+  }, ctx.model, ctx.apiKey, ctx.fetch, 2, "질문 생성");
   const arr = parseJsonArray(jsonText(j));
   const qs = (arr || []).map(q => clean(q, 120)).filter(q => q.length >= 6);
   const uniq = [...new Set(qs)].slice(0, QUESTION_COUNT);
@@ -139,7 +146,7 @@ async function askOne(q, input, ctx) {
       contents: [{ role: "user", parts: [{ text: q + "\n(한국어로 답변해 주세요.)" }] }],
       tools: [{ google_search: {} }],
       generationConfig: { temperature: 0.3 },
-    }, ctx.model, ctx.apiKey, ctx.fetch);
+    }, ctx.model, ctx.apiKey, ctx.fetch, 2, "답변");
     const { text, domains } = parseAnswer(j);
     if (!text) return { q, ok: false };
     return { q, ok: true, text, domains, mentioned: mentions(text, input.name), cited: domains.some(d => isOwn(d, input.host)) };
@@ -172,7 +179,7 @@ ${material}`;
     const j = await callGemini({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       generationConfig: { temperature: 0, responseMimeType: "application/json", responseSchema: { type: "ARRAY", items: { type: "OBJECT", properties: { name: { type: "STRING" }, why: { type: "STRING" } }, required: ["name", "why"] } } },
-    }, ctx.model, ctx.apiKey, ctx.fetch);
+    }, ctx.model, ctx.apiKey, ctx.fetch, 2, "경쟁 업체 정리");
     const arr = parseJsonArray(jsonText(j)) || [];
     const bn = normalize(input.name);
     const answersNorm = normalize(ok.map(x => x.text).join(" "));
