@@ -1,0 +1,133 @@
+#!/usr/bin/env node
+// 정보 가이드 정적 페이지 생성기: content/guides/*.json → guide/*.html (+ index.html, 공개 설정이 되어 있으면 sitemap.xml)
+//   사용: node tools/build-guides.mjs        (옵션: --src <글 폴더> --out <출력 폴더>)
+// 지켜야 할 것
+//  · 글의 모든 문구는 HTML 이스케이프해서 넣고, 링크는 http/https 만 허용해요. (글 데이터에 HTML 을 넣어도 실행되지 않음)
+//  · 검증에 실패하면 아무 파일도 쓰지 않고 멈춰요.
+//  · _site.json 의 indexable 이 true 이고 baseUrl 이 있기 전에는 모든 페이지에 noindex, sitemap 없음. sample:true 글은 항상 noindex.
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const arg = (k, d) => { const i = process.argv.indexOf(k); return i > -1 ? process.argv[i + 1] : d; };
+const SRC = path.resolve(arg("--src", path.join(root, "content/guides"))), OUT = path.resolve(arg("--out", path.join(root, "guide")));
+
+export const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+export const safeUrl = u => { try { const x = new URL(String(u)); return /^https?:$/.test(x.protocol) ? x.toString() : ""; } catch (_) { return ""; } };
+const jsonLd = o => JSON.stringify(o).replace(/</g, "\\u003c");
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+export function validate(a) {
+  const e = [], str = (v, min, max) => typeof v === "string" && v.trim().length >= min && v.length <= max;
+  if (!/^[a-z0-9][a-z0-9-]{2,80}$/.test(a.slug || "")) e.push("slug 은 영문 소문자·숫자·하이픈 3~81자");
+  if (!str(a.title, 5, 100)) e.push("title 은 5~100자");
+  if (!str(a.description, 10, 160)) e.push("description 은 10~160자");
+  if (!str(a.category, 1, 30)) e.push("category 필요");
+  if (!DATE.test(a.publishedAt || "")) e.push("publishedAt 은 YYYY-MM-DD");
+  if (a.updatedAt && !DATE.test(a.updatedAt)) e.push("updatedAt 은 YYYY-MM-DD");
+  if (!a.business || !str(a.business.name, 1, 60)) e.push("business.name 필요");
+  if (a.business && a.business.url && !safeUrl(a.business.url)) e.push("business.url 은 http/https 주소");
+  if (!Array.isArray(a.sections) || !a.sections.length) e.push("sections 1개 이상");
+  else a.sections.forEach((s, i) => { if (!str(s && s.heading, 2, 80) || !Array.isArray(s.paragraphs) || !s.paragraphs.length || s.paragraphs.some(p => !str(p, 1, 2000))) e.push(`sections[${i}] 는 heading 과 paragraphs(1개 이상, 각 2000자 이하) 필요`); });
+  (a.faq || []).forEach((f, i) => { if (!str(f && f.q, 2, 200) || !str(f && f.a, 2, 1500)) e.push(`faq[${i}] 는 q, a 필요`); });
+  (a.sources || []).forEach((s, i) => { if (!str(s && s.label, 1, 120) || (s.url && !safeUrl(s.url))) e.push(`sources[${i}] 는 label, http/https url`); });
+  (a.questions || []).forEach((q, i) => { if (!str(q, 2, 200)) e.push(`questions[${i}] 는 2~200자`); });
+  return e;
+}
+
+const head = (site, { title, desc, robots, canonical, ld = [] }) => `<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(title)}</title>
+<meta name="description" content="${esc(desc)}">
+<meta name="robots" content="${robots}">
+${canonical ? `<link rel="canonical" href="${esc(canonical)}">\n` : ""}<meta property="og:type" content="article">
+<meta property="og:title" content="${esc(title)}">
+<meta property="og:description" content="${esc(desc)}">
+<link rel="stylesheet" href="guide.css">
+${ld.map(o => `<script type="application/ld+json">${jsonLd(o)}</script>`).join("\n")}
+</head>`;
+const bar = site => `<header class="gbar"><div class="gbar-in"><a class="gbrand" href="index.html"><img src="../assets/logo.png" alt="EGP" width="72" height="25"><span>${esc(site.siteName)}</span></a></div></header>`;
+const foot = site => `<footer class="gfoot"><div class="gwrap"><p>${esc(site.adDisclosure || "")}</p><p>이 페이지의 내용은 업체가 제공한 정보를 바탕으로 하며, 의료·법률 등 전문가의 판단을 대신하지 않습니다. 이용 전 업체에 직접 확인해 주세요.</p></div></footer>`;
+
+export function renderArticle(a, site) {
+  const b = a.business, robots = (a.sample || !site.indexable || !site.baseUrl) ? "noindex,nofollow" : "index,follow";
+  const canonical = site.baseUrl ? site.baseUrl.replace(/\/$/, "") + "/" + a.slug + ".html" : "";
+  const bUrl = safeUrl(b.url);
+  const info = [["업체명", b.name], ["지역", b.region], ["주소", b.address], ["전화", b.phone], ["운영시간", b.hours]].filter(r => r[1]);
+  const ld = [{ "@context": "https://schema.org", "@type": "Article", headline: a.title, description: a.description, datePublished: a.publishedAt, dateModified: a.updatedAt || a.publishedAt, author: { "@type": "Organization", name: site.siteName }, about: { "@type": "LocalBusiness", name: b.name, ...(b.address ? { address: b.address } : {}), ...(bUrl ? { url: bUrl } : {}) }, ...(canonical ? { mainEntityOfPage: canonical } : {}) }];
+  if ((a.faq || []).length) ld.push({ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: a.faq.map(f => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })) });
+  return head(site, { title: `${a.title} | ${site.siteName}`, desc: a.description, robots, canonical, ld }) + `
+<body>
+${bar(site)}
+<nav class="gcrumb gwrap" aria-label="현재 위치"><a href="index.html">홈</a><span>/</span><span>${esc(a.category)}</span></nav>
+<main class="gwrap gart">
+  <article>
+    <div class="gchips">${site.adLabel ? '<span class="gchip ad">광고</span>' : ""}<span class="gchip">${esc(a.category)}</span>${a.sample ? '<span class="gchip sample">예시 글 · 가상 업체</span>' : ""}</div>
+    <h1>${esc(a.title)}</h1>
+    <p class="gmeta">발행 ${esc(a.publishedAt)} · 갱신 ${esc(a.updatedAt || a.publishedAt)} · 제공 업체 ${esc(b.name)}</p>
+    <aside class="gbiz" aria-label="소개 업체">
+      <p class="gbiz-k">이 글에서 소개하는 업체</p><p class="gbiz-n">${esc(b.name)}</p>
+      ${b.summary ? `<p class="gbiz-s">${esc(b.summary)}</p>` : ""}
+      ${bUrl ? `<a class="gbtn" href="${esc(bUrl)}" rel="sponsored nofollow noopener" target="_blank">${esc(b.name)} 업체 안내 바로가기 →</a>` : ""}
+      <p class="gnote">예약·운영 정보는 업체의 최신 안내에서 확인하세요.</p>
+    </aside>
+    ${info.length ? `<section class="ginfo" aria-labelledby="g-info"><h2 id="g-info">업체 정보 확인하기</h2><dl>${info.map(r => `<div><dt>${esc(r[0])}</dt><dd>${esc(r[1])}</dd></div>`).join("")}</dl></section>` : ""}
+    ${(a.questions || []).length ? `<section aria-labelledby="g-q"><h2 id="g-q">이 글에서 답하는 질문</h2><ul class="gq">${a.questions.map(q => `<li>${esc(q)}</li>`).join("")}</ul></section>` : ""}
+    ${a.sections.map(s => `<section><h2>${esc(s.heading)}</h2>${s.paragraphs.map(p => `<p>${esc(p)}</p>`).join("")}</section>`).join("\n    ")}
+    ${(a.sources || []).length ? `<section aria-labelledby="g-src"><h2 id="g-src">출처에서 확인된 정보</h2><ul class="gsrc">${a.sources.map(s => { const u = safeUrl(s.url); return `<li>${u ? `<a href="${esc(u)}" rel="nofollow noopener" target="_blank">${esc(s.label)}</a>` : esc(s.label)}${s.note ? `<span> — ${esc(s.note)}</span>` : ""}</li>`; }).join("")}</ul></section>` : ""}
+    ${(a.faq || []).length ? `<section aria-labelledby="g-faq"><h2 id="g-faq">자주 묻는 질문</h2>${a.faq.map(f => `<details><summary>${esc(f.q)}</summary><p>${esc(f.a)}</p></details>`).join("")}</section>` : ""}
+  </article>
+</main>
+${foot(site)}
+</body>
+</html>
+`;
+}
+
+export function renderIndex(list, site) {
+  const robots = (!site.indexable || !site.baseUrl) ? "noindex,nofollow" : "index,follow";
+  return head(site, { title: site.siteName, desc: `${site.siteName}: 업체 정보를 바탕으로 정리한 안내 글 모음`, robots, canonical: "" }) + `
+<body>
+${bar(site)}
+<main class="gwrap gart">
+  <h1>${esc(site.siteName)}</h1>
+  <ul class="glist">${list.map(a => `<li><a href="${esc(a.slug)}.html"><span class="gchips">${site.adLabel ? '<span class="gchip ad">광고</span>' : ""}<span class="gchip">${esc(a.category)}</span>${a.sample ? '<span class="gchip sample">예시</span>' : ""}</span><b>${esc(a.title)}</b><small>${esc(a.business.name)} · ${esc(a.publishedAt)}</small></a></li>`).join("") || "<li>아직 글이 없어요.</li>"}</ul>
+</main>
+${foot(site)}
+</body>
+</html>
+`;
+}
+
+export function renderSitemap(list, site) {
+  const base = site.baseUrl.replace(/\/$/, "");
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${list.map(a => `  <url><loc>${esc(base + "/" + a.slug + ".html")}</loc><lastmod>${esc(a.updatedAt || a.publishedAt)}</lastmod></url>`).join("\n")}\n</urlset>\n`;
+}
+
+export function build(src = SRC, out = OUT) {
+  const site = { siteName: "정보 가이드", baseUrl: "", indexable: false, adLabel: true, adDisclosure: "", ...JSON.parse(fs.readFileSync(path.join(src, "_site.json"), "utf8")) };
+  const files = fs.readdirSync(src).filter(f => f.endsWith(".json") && !f.startsWith("_")).sort();
+  const arts = [], errors = [], seen = new Set();
+  for (const f of files) {
+    let a; try { a = JSON.parse(fs.readFileSync(path.join(src, f), "utf8")); } catch (e) { errors.push(`${f}: JSON 형식 오류`); continue; }
+    const v = validate(a); if (seen.has(a.slug)) v.push("slug 중복"); seen.add(a.slug);
+    if (v.length) errors.push(...v.map(x => `${f}: ${x}`)); else arts.push(a);
+  }
+  if (errors.length) { const err = new Error("검증 실패:\n - " + errors.join("\n - ")); err.errors = errors; throw err; }
+  arts.sort((x, y) => y.publishedAt.localeCompare(x.publishedAt));
+  fs.mkdirSync(out, { recursive: true });
+  for (const a of arts) fs.writeFileSync(path.join(out, a.slug + ".html"), renderArticle(a, site));
+  fs.writeFileSync(path.join(out, "index.html"), renderIndex(arts, site));
+  const indexed = arts.filter(a => !a.sample);
+  const sm = path.join(out, "sitemap.xml");
+  if (site.indexable && site.baseUrl && indexed.length) fs.writeFileSync(sm, renderSitemap(indexed, site)); else if (fs.existsSync(sm)) fs.rmSync(sm);
+  return { count: arts.length, out };
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try { const r = build(); console.log(`글 ${r.count}개 → ${r.out}`); } catch (e) { console.error(e.message); process.exit(1); }
+}
