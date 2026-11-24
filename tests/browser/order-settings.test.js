@@ -1,0 +1,42 @@
+const ROOT_DIR = require('path').resolve(__dirname, '../..');
+const ROOT = require('url').pathToFileURL(ROOT_DIR).href + '/';
+const OUTDIR = process.argv[2] || require('os').tmpdir();
+const { chromium } = require('playwright'); const ok=(n,c)=>console.log(c?'PASS':'FAIL',n);
+const PRODS=[{name:'예시 상품 A',unitLabel:'건당',price:3000,note:'설명 한 줄입니다'},{name:'예시 상품 B',note:'가격 미정 상품'}];
+(async()=>{ const b=await chromium.launch(); const errs=[];
+ async function open(cfg,w=1280){ const p=await b.newPage({viewport:{width:w,height:900}}); p.on('pageerror',e=>errs.push(e.message));
+  await p.route('**/supabase-js*',r=>r.abort());
+  await p.route('**/landing-config.js',r=>r.fulfill({contentType:'application/javascript',body:'window.LANDING='+JSON.stringify(cfg)+';'}));
+  await p.goto(ROOT + 'diagnose.html'); return p; }
+ let p=await open({}); ok('default: order card hidden', !(await p.isVisible('#order')));
+ p=await open({ORDER_UI:true,ORDER:{products:[]}}); ok('flag on but no products: hidden', !(await p.isVisible('#order')));
+ p=await open({ORDER_UI:false,ORDER:{products:PRODS}}); ok('flag off: hidden', !(await p.isVisible('#order')));
+ p=await open({ORDER_UI:true,ORDER:{maxPerDay:20,maxDays:180,products:PRODS}});
+ ok('visible with 2 products', await p.isVisible('#order') && (await p.$$('.prod')).length===2);
+ ok('initial: 건당 3,000원 / 하루 1건 × 1일 / 3,000원', (await p.textContent('#sum-unit')).includes('3,000원') && (await p.textContent('#sum-calc'))==='하루 1건 × 1일 = 총 1건' && (await p.textContent('#sum-total'))==='3,000원');
+ await p.fill('#q-per','5'); await p.fill('#q-days','10');
+ ok('number inputs -> total 150,000원, sliders synced', (await p.textContent('#sum-total'))==='150,000원' && (await p.inputValue('#r-per'))==='5' && (await p.inputValue('#r-days'))==='10' && (await p.textContent('#sum-calc')).includes('총 50건'));
+ await p.fill('#q-per','99'); ok('over max clamps to 20 immediately', (await p.inputValue('#q-per'))==='20' && (await p.textContent('#sum-total'))==='600,000원');
+ await p.fill('#q-per','0'); await p.dispatchEvent('#q-per','change'); ok('0 clamps to 1 on change', (await p.inputValue('#q-per'))==='1');
+ await p.evaluate(()=>{const r=document.getElementById('r-days'); r.value=180; r.dispatchEvent(new Event('input',{bubbles:true}));});
+ ok('range slider -> 180 days syncs number', (await p.inputValue('#q-days'))==='180');
+ await p.click('.prod:nth-child(2)'); ok('product B (no price): shows 상담 후 안내 + 총 N건 only', (await p.textContent('#sum-unit')).includes('상담 후 안내') && (await p.textContent('#sum-total')).startsWith('총 ') && !(await p.textContent('#sum-total')).includes('원'));
+ ok('selected card highlighted', await p.evaluate(()=>document.querySelectorAll('.prod')[1].classList.contains('on') && !document.querySelectorAll('.prod')[0].classList.contains('on')));
+ // 상담 신청으로 넘기기
+ await p.fill('#f-name','샘플웨딩홀'); await p.selectOption('#f-ind','웨딩홀'); await p.fill('#f-url','https://sample-hall.co.kr'); await p.fill('#f-service','야외 예식');
+ await p.fill('#q-per','3'); await p.fill('#q-days','7'); await p.click('.prod:nth-child(1)');
+ await p.screenshot({path:OUTDIR+'/order-d.png',fullPage:true});
+ await Promise.all([p.waitForURL('**/landing.html**'), p.click('#order-go')]);
+ await p.waitForTimeout(400);
+ ok('landing: company prefilled', (await p.inputValue('#f-company'))==='샘플웨딩홀');
+ ok('landing: industry 웨딩홀 -> 웨딩', (await p.inputValue('#f-topic'))==='웨딩');
+ ok('landing: website prefilled', (await p.inputValue('#f-web'))==='https://sample-hall.co.kr');
+ const msg=await p.inputValue('#f-msg'); ok('landing: message has product/qty/price/service', msg.includes('예시 상품 A') && msg.includes('하루 3건 × 7일 (총 21건)') && msg.includes('63,000원') && msg.includes('야외 예식'));
+ ok('landing: notice shown', (await p.textContent('#status')).includes('가져왔어요'));
+ // 안전: 악성 값은 텍스트로만
+ const q=await b.newPage(); q.on('pageerror',e=>errs.push(e.message)); await q.route('**/supabase-js*',r=>r.abort());
+ await q.goto(ROOT + 'landing.html?company=%3Cimg%20src%3Dx%20onerror%3Dwindow.__x%3D1%3E&msg=%3Cscript%3Ewindow.__y%3D1%3C%2Fscript%3E&topic=%3Cb%3E'); await q.waitForTimeout(300);
+ ok('XSS params stay plain text', (await q.inputValue('#f-company')).startsWith('<img') && !(await q.evaluate(()=>window.__x||window.__y)) && (await q.$$('#f-company ~ img')).length===0);
+ const m=await open({ORDER_UI:true,ORDER:{products:PRODS}},390); ok('mobile no xscroll', !(await m.evaluate(()=>document.documentElement.scrollWidth>innerWidth)));
+ await m.screenshot({path:OUTDIR+'/order-m.png',fullPage:true});
+ console.log('page errors:',errs.filter(x=>!/supabase/i.test(x))); await b.close(); })();

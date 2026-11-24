@@ -232,7 +232,7 @@ function render(d, entered, o) {
       <div class="stat good"><b>${pct(men, total)}%</b><small>브랜드 멘션 ${men}/${total}</small></div>
       <div class="stat bad"><b>${citeOk ? pct(cit, total) + "%" : "-"}</b><small>${citeOk ? `자사 인용 ${cit}/${total}` : "홈페이지 주소를 입력하면 계산돼요"}</small></div>
     </div>
-    <div class="tw"><table><thead><tr><th>엔진</th><th>멘션</th><th>인용</th><th>답변</th></tr></thead><tbody>
+    <div class="tw" tabindex="0" role="region" aria-label="엔진별 결과 표 (좌우로 스크롤)"><table><thead><tr><th>엔진</th><th>멘션</th><th>인용</th><th>답변</th></tr></thead><tbody>
       ${d.engines.map(e => `<tr><td>${esc(e.name)}</td><td class="n">${e.mention}/${e.answers}</td><td class="n">${citeOk ? e.cite + "/" + e.answers : "-"}</td><td class="n">${e.answers}</td></tr>`).join("")}
     </tbody></table></div>
     <p class="sub">AI가 답변 근거로 쓴 출처</p>
@@ -242,13 +242,13 @@ function render(d, entered, o) {
   </section>
   ${d.questionList && d.questionList.length ? `<section class="card" aria-labelledby="r4">
     <h2 id="r4">질문별 결과 · AI에게 이렇게 물었어요</h2>
-    <div class="tw"><table><thead><tr><th>질문</th><th>업체명 언급</th><th>자사 인용</th></tr></thead><tbody>
+    <div class="tw" tabindex="0" role="region" aria-label="질문별 결과 표 (좌우로 스크롤)"><table><thead><tr><th>질문</th><th>업체명 언급</th><th>자사 인용</th></tr></thead><tbody>
       ${d.questionList.map(x => `<tr><td>${esc(x.q)}</td><td>${yn(x.mentioned, "나옴", "없음")}</td><td>${citeOk ? yn(x.cited, "인용됨", "없음") : "-"}</td></tr>`).join("")}
     </tbody></table></div>
   </section>` : ""}
   ${d.keywords && d.keywords.length ? `<section class="card" aria-labelledby="r3">
     <h2 id="r3">키워드 · 검색 수요와 현재 위치</h2>
-    <div class="tw"><table><thead><tr><th>키워드</th><th>월 검색량(네이버)</th><th>구글 순위</th><th>AI 브리핑</th></tr></thead><tbody>
+    <div class="tw" tabindex="0" role="region" aria-label="키워드 표 (좌우로 스크롤)"><table><thead><tr><th>키워드</th><th>월 검색량(네이버)</th><th>구글 순위</th><th>AI 브리핑</th></tr></thead><tbody>
       ${d.keywords.map(k => `<tr><td><b>${esc(k.k)}</b></td><td class="n">${k.vol.toLocaleString("ko-KR")}회</td><td class="${k.rank ? "n" : "bad"}">${k.rank ? k.rank + "위" : "100위 밖"}</td><td>${esc(k.brief)}</td></tr>`).join("")}
     </tbody></table></div>
     <p class="note">표시된 숫자는 모두 형식을 보여 주기 위한 예시입니다.</p>

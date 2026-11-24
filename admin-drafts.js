@@ -10,7 +10,8 @@ const el = (tag, props, ...kids) => {
   for (const [k, v] of Object.entries(props || {})) { if (k === "class") e.className = v; else if (k === "text") e.textContent = v; else if (k.startsWith("on")) e[k] = v; else e.setAttribute(k, v); }
   e.append(...kids.filter(x => x != null)); return e;
 };
-const field = (label, input) => el("div", { class: "dr-f" }, el("label", { text: label }), input);
+let uid = 0;
+const field = (label, input) => { if (!input.id) input.id = "fld" + (++uid); return el("div", { class: "dr-f" }, el("label", { for: input.id, text: label }), input); };   // 라벨과 입력칸을 연결(접근성)
 const MSG = {
   forbidden: "운영자만 쓸 수 있어요.", bad_name: "업체명을 2자 이상 입력해 주세요.", need_industry: "업종을 입력해 주세요.", need_facts: "사실을 2개 이상 입력해 주세요. (한 줄에 하나, 6자 이상) 사실이 없으면 AI가 지어낼 수 있어요.",
   bad_url: "홈페이지 주소는 http(s):// 로 시작해야 해요.", bad_source: "출처는 '이름 | https://주소' 형식으로 한 줄에 하나씩 써 주세요.", not_configured: "서버에 Gemini 키가 설정되지 않았어요.",
