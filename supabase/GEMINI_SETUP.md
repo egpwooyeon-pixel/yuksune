@@ -24,7 +24,7 @@ Supabase 대시보드 > Edge Functions > Secrets (또는 `supabase secrets set N
 | 이름 | 필수 | 설명 |
 |---|---|---|
 | `GEMINI_API_KEY` | 필수 | 위에서 받은 키 |
-| `GEMINI_MODEL` | 선택 | 기본 `gemini-3.8-flash`. 모델은 자주 종료·교체돼요(`gemini-2.5-flash` 는 새 사용자에게 종료됐음). 진단이 `404 … no longer available` 로 실패하면 Gemini 가 안내하는 새 모델 이름을 여기에 넣으면 코드를 다시 올리지 않아도 돼요 |
+| `GEMINI_MODEL` | 선택 | 기본 `gemini-3.8-flash`. **쉼표로 여러 개** 적으면 앞에서부터 시도하고, 앞 모델이 과부하(503)·시간 초과·종료(404)일 때 다음 모델로 넘어가요. 예: `gemini-3.8-flash,다른모델이름`. 모델은 자주 종료·교체돼요(`gemini-2.5-flash` 는 새 사용자에게 종료됨). 사용할 수 있는 모델 이름은 https://ai.google.dev/gemini-api/docs/models 에서 확인하세요 |
 | `IP_HASH_SALT` | 선택 | IP 해시에 섞는 임의 문자열. 비워 두면 서비스 키를 써요 |
 | `DIAGNOSE_IP_LIMIT` | 선택 | IP 하나당 24시간 이용 횟수. 기본 3 |
 | `DIAGNOSE_DAILY_LIMIT` | 선택 | 전체 24시간 이용 횟수. 기본 100 (= 하루 Gemini 약 1,200회) |

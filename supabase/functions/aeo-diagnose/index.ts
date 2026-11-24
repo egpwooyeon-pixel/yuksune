@@ -118,6 +118,24 @@ export async function callGemini(body, model, apiKey, fetchImpl = fetch, retries
   }
 }
 
+// 모델을 쉼표로 여러 개 적으면(예: "a,b") 앞에서부터 시도해, 과부하(5xx)·시간초과·종료(404) 때 다음 모델로 넘어감
+export const parseModels = v => String(v || "").split(",").map(x => x.trim()).filter(Boolean);
+export async function callModels(body, ctx, label) {
+  const models = Array.isArray(ctx.models) ? ctx.models : parseModels(ctx.model);
+  const retries = models.length > 1 ? 1 : 2;                         // 대체 모델이 있으면 한 모델에서 오래 붙잡지 않음
+  let last;
+  for (const m of models) {
+    try { return await callGemini(body, m, ctx.apiKey, ctx.fetch, retries, label + (models.length > 1 ? " [" + m + "]" : "")); }
+    catch (e) {
+      last = e;
+      const code = e && e.message, st = e && e.status;
+      const next = code === "timeout" || code === "network" || code === "rate_limited" || (code === "api_error" && (st === 404 || st >= 500));
+      if (!next) throw e;                                             // 키 오류·잘못된 요청은 다른 모델로 가도 같으므로 즉시 중단
+    }
+  }
+  throw last;
+}
+
 const jsonText = j => parseAnswer(j).text;
 function parseJsonArray(text) {
   const t = String(text || "").replace(/^```(?:json)?\s*|\s*```$/g, "").trim();
@@ -129,10 +147,10 @@ export async function makeQuestions(input, ctx) {
 - 특정 업체 이름을 넣지 마세요. (예: "강남에서 ~ 찾아줘" 같은 탐색 질문)
 - 서로 다른 조건(가격대, 분위기, 규모, 접근성, 후기, 예약 등)을 섞고, 자연스러운 한국어 한 문장으로 쓰세요.
 - 결과는 문자열 ${QUESTION_COUNT}개로 이뤄진 JSON 배열만 출력하세요.`;
-  const j = await callGemini({
+  const j = await callModels({
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     generationConfig: { temperature: 0.7, responseMimeType: "application/json", responseSchema: { type: "ARRAY", items: { type: "STRING" } } },
-  }, ctx.model, ctx.apiKey, ctx.fetch, 2, "질문 생성");
+  }, ctx, "질문 생성");
   const arr = parseJsonArray(jsonText(j));
   const qs = (arr || []).map(q => clean(q, 120)).filter(q => q.length >= 6);
   const uniq = [...new Set(qs)].slice(0, QUESTION_COUNT);
@@ -142,11 +160,11 @@ export async function makeQuestions(input, ctx) {
 
 async function askOne(q, input, ctx) {
   try {
-    const j = await callGemini({
+    const j = await callModels({
       contents: [{ role: "user", parts: [{ text: q + "\n(한국어로 답변해 주세요.)" }] }],
       tools: [{ google_search: {} }],
       generationConfig: { temperature: 0.3 },
-    }, ctx.model, ctx.apiKey, ctx.fetch, 2, "답변");
+    }, ctx, "답변");
     const { text, domains } = parseAnswer(j);
     if (!text) return { q, ok: false };
     return { q, ok: true, text, domains, mentioned: mentions(text, input.name), cited: domains.some(d => isOwn(d, input.host)) };
@@ -176,10 +194,10 @@ export async function findRivals(input, qa, ctx) {
 
 ${material}`;
   try {
-    const j = await callGemini({
+    const j = await callModels({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       generationConfig: { temperature: 0, responseMimeType: "application/json", responseSchema: { type: "ARRAY", items: { type: "OBJECT", properties: { name: { type: "STRING" }, why: { type: "STRING" } }, required: ["name", "why"] } } },
-    }, ctx.model, ctx.apiKey, ctx.fetch, 2, "경쟁 업체 정리");
+    }, ctx, "경쟁 업체 정리");
     const arr = parseJsonArray(jsonText(j)) || [];
     const bn = normalize(input.name);
     const answersNorm = normalize(ok.map(x => x.text).join(" "));
