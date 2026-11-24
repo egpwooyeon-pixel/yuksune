@@ -625,3 +625,17 @@ a.write-btn:hover{background:var(--primary-dark);text-decoration:none}
   .egp-banner{position:absolute;right:calc(100% + 14px);top:28px;width:150px;margin:0;flex-direction:column;align-items:flex-start;gap:10px;padding:16px 14px}
   .egp-cta{margin-left:0}
 }
+
+/* ===== 모바일 헤더 정리 (위의 데스크톱 규칙보다 뒤에 두어야 적용됨) ===== */
+@media (max-width:800px){
+  .header-top{padding-top:14px;padding-bottom:10px;gap:10px;justify-content:space-between}
+  .logo{flex:none;width:auto;font-size:22px;letter-spacing:-1px;white-space:nowrap}
+  .search{display:none}
+  .util{display:flex;flex:none;margin-left:auto;gap:8px;font-size:12px;white-space:nowrap}
+  .util a{color:#555}
+  .gnb{gap:16px;height:44px;font-size:14px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .gnb::-webkit-scrollbar{display:none}
+  .gnb>a,.gnb-dd>a{flex:none;white-space:nowrap}
+  .gnb-dd{flex:none}
+  .gnb-dd .dd{display:none!important}
+}
