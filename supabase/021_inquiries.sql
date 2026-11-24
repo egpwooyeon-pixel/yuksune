@@ -9,7 +9,8 @@ create table if not exists public.inquiries (
   email text check (email is null or char_length(email) <= 120),
   company text check (company is null or char_length(company) <= 100),
   topic text check (topic is null or char_length(topic) <= 50),
-  message text not null check (char_length(message) between 1 and 3000),
+  website text check (website is null or (char_length(website) <= 200 and website ~* '^https?://')),
+  message text not null default '' check (char_length(message) <= 3000),   -- 문의 내용은 선택 입력
   agreed boolean not null check (agreed),            -- 개인정보 수집·이용 동의 (필수)
   status text not null default 'new' check (status in ('new','done')),
   created_at timestamptz not null default now()
