@@ -18,48 +18,6 @@
   nav.addEventListener("click", e => { if (e.target.closest("a")) setMenu(false); });
   document.addEventListener("keydown", e => { if (e.key === "Escape") setMenu(false); });
 
-  // 업종별 진단 예시 탭
-  const DATA = [
-    { tab: "병의원", q: "강남에서 토요일에도 여드름 상담을 받을 수 있는 피부과를 찾아줘.", c: ["지역", "진료 분야", "운영시간"] },
-    { tab: "웨딩", q: "서울에서 야외 예식을 할 수 있고 100명 규모 상담이 가능한 웨딩홀을 찾아줘.", c: ["지역", "야외 공간", "하객 규모"] },
-    { tab: "음식점", q: "성수에서 기념일에 조용히 식사할 수 있는 예약 가능한 레스토랑을 찾아줘.", c: ["지역", "방문 목적", "예약"] },
-    { tab: "쇼핑몰", q: "좁은 방에서 쓰기 좋은 화이트 이동식 컴퓨터 책상을 찾아줘.", c: ["사용 공간", "색상", "이동성"] },
-  ];
-  const tabs = $("tabs"); let cur = 0;
-  DATA.forEach((d, i) => {
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "tab"; b.id = "tab-" + i; b.setAttribute("role", "tab");
-    b.setAttribute("aria-controls", "panel"); b.textContent = d.tab; tabs.appendChild(b);
-  });
-  function select(i, focus) {
-    cur = i; const d = DATA[i];
-    [...tabs.children].forEach((b, j) => { b.setAttribute("aria-selected", j === i); b.tabIndex = j === i ? 0 : -1; });
-    $("panel").setAttribute("aria-labelledby", "tab-" + i);
-    $("q").textContent = d.q;
-    $("chk").innerHTML = ""; d.c.forEach(t => { const li = document.createElement("li"); li.textContent = t; $("chk").appendChild(li); });
-    $("copy-msg").textContent = "";
-    const p = $("panel"); p.style.animation = "none"; void p.offsetWidth; p.style.animation = "";
-    if (focus) tabs.children[i].focus();
-  }
-  tabs.addEventListener("click", e => { const b = e.target.closest(".tab"); if (b) select([...tabs.children].indexOf(b)); });
-  tabs.addEventListener("keydown", e => {
-    const n = DATA.length; let i = cur;
-    if (e.key === "ArrowRight") i = (cur + 1) % n; else if (e.key === "ArrowLeft") i = (cur + n - 1) % n;
-    else if (e.key === "Home") i = 0; else if (e.key === "End") i = n - 1; else return;
-    e.preventDefault(); select(i, true);
-  });
-  select(0);
-
-  // 질문 복사
-  $("copy").addEventListener("click", async () => {
-    const text = DATA[cur].q, msg = $("copy-msg");
-    try {
-      if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(text);
-      else { const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select(); const ok = document.execCommand("copy"); ta.remove(); if (!ok) throw 0; }
-      msg.textContent = "질문을 복사했어요.";
-    } catch (_) { msg.textContent = "복사하지 못했어요. 질문을 직접 선택해 복사해 주세요."; }
-  });
-
   // 상담 폼
   const live = L.INQUIRY_LIVE === true, form = $("form"), status = $("status"), btn = $("submit");
   const sb = live && W.SUPABASE_ANON_KEY && window.supabase ? window.supabase.createClient(W.SUPABASE_URL, W.SUPABASE_ANON_KEY) : null;

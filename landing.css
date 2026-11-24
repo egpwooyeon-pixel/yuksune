@@ -69,29 +69,11 @@ h2{font-size:clamp(25px,3.6vw,34px);line-height:1.3;color:var(--char);letter-spa
 .bubbles li{background:#fff;color:var(--char);padding:18px 22px;border-radius:22px 22px 22px 6px;font-weight:600;box-shadow:0 8px 0 rgba(32,36,46,.12)}
 .bubbles li:nth-child(2){margin-left:36px;border-radius:22px 22px 6px 22px}
 
-/* 진단 */
-.dg{display:grid;grid-template-columns:.8fr 1.2fr;gap:24px;align-items:center;margin-top:34px}
-.dg-art{margin:0;position:relative;aspect-ratio:1;border-radius:var(--r);background:var(--lav);display:grid;place-items:center;overflow:hidden}
-.dg-art img{width:100%;height:100%;object-fit:contain}
-.dg-fallback{display:none}
-.dg-art.noimg .dg-fallback{display:block;position:absolute;inset:0}
-.dg-fallback i{position:absolute;border-radius:30%;background:var(--purple)}
-.dg-fallback i:first-child{width:46%;height:46%;left:14%;top:18%;transform:rotate(-12deg)}
-.dg-fallback i:last-child{width:34%;height:34%;right:14%;bottom:16%;background:var(--lime);transform:rotate(16deg)}
-.dg-card{background:#fff;border:2px solid var(--line);border-radius:var(--r);padding:18px}
-.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
-.tab{border:0;background:var(--lav);color:var(--char);font-weight:700;padding:9px 16px;border-radius:999px;cursor:pointer;font-size:15px}
-.tab[aria-selected=true]{background:var(--char);color:var(--lime)}
-.panel{animation:fade .25s ease}
-@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-.chip{display:inline-block;background:var(--lime);color:var(--char);font-weight:800;font-size:13px;padding:2px 10px;border-radius:999px}
-.q{font-size:19px;font-weight:700;color:var(--char);line-height:1.5;margin:10px 0 14px}
-.chk-t{font-size:14px;font-weight:700;color:var(--purple);filter:brightness(.7)}
-.chk{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 16px}
-.chk li{border:1.5px solid var(--line);border-radius:999px;padding:3px 12px;font-size:14px}
-.copy-row{display:flex;align-items:center;gap:12px;min-height:40px}
-#copy-msg{font-size:14px;font-weight:600}
-.note{margin-top:12px;font-size:13px;color:#5b6070}
+/* AI 진단 */
+.dg-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:30px 0 26px}
+.dg-steps li{display:flex;align-items:center;gap:12px;background:var(--lav);color:var(--char);font-weight:700;border-radius:16px;padding:16px 18px}
+.dg-steps b{flex:none;width:30px;height:30px;border-radius:50%;background:var(--char);color:var(--lime);display:grid;place-items:center;font-size:15px}
+.dg-cta{text-align:center;margin:0}
 
 /* 서비스 */
 .sv{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:30px}
@@ -158,10 +140,9 @@ input:focus,select:focus,textarea:focus{border-color:var(--purple);outline:none;
   .hero-bg .o3{width:110px;height:110px;right:-24px}
   .trio{grid-template-columns:1fr}
   .worry{padding:48px 20px}
-  .worry-in,.dg,.sv{grid-template-columns:1fr}
+  .worry-in,.sv,.dg-steps{grid-template-columns:1fr}
   .worry-in{gap:24px}.worry h2{text-align:center}
   .bubbles li:nth-child(2){margin-left:0}
-  .dg-art{max-width:300px;margin:0 auto;width:100%}
   .sec{padding-top:64px}
   .form{grid-template-columns:1fr;padding:20px}
   .actions .btn{flex:1 1 100%}
