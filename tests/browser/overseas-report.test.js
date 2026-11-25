@@ -14,12 +14,13 @@ const ok = (n, c) => { console.log((c ? 'PASS ' : 'FAIL ') + n); if (!c) fail++;
   p.on('pageerror', e => errs.push(String(e))); p.on('console', m => { if (m.type() === 'error' && !/pretendard|net::ERR|Failed to load resource/i.test(m.text())) errs.push(m.text()); });
   await p.goto(URL0); await p.waitForSelector('html[data-ready="1"]');
   const ids = await p.$$eval('main section[id], main .cover', els => els.map(e => e.id));
-  const order = ['cover', 'summary', 'map', 's1', 's2', 's3', 's4', 's5', 's5b', 'trend', 'compare', 'keep', 'fix', 'structure', 'content', 'roadmap', 'service', 'next'];
+  const order = ['cover', 'auto', 'summary', 'map', 's1', 's2', 's3', 's4', 's5', 's5b', 'trend', 'compare', 'keep', 'fix', 'structure', 'content', 'roadmap', 'service', 'next'];
   ok('sections in required order', JSON.stringify(ids) === JSON.stringify(order));
   ok('cover shows client, date, sites, langs, rivals', await p.$eval('#cover', e => ['예시의원', '2026.11.20', '본점', '일본어', '경쟁의원 A'].every(t => e.textContent.includes(t))));
   ok('sample notice shown', (await p.$$('.sample-note')).length === 1);
+  ok('auto section is the first section (page default highlight 자동 점검)', await p.$eval('#toc-list a[aria-current]', e => e.dataset.t) === 'auto');
   ok('summary has 3 reasons + 4 KPI cards + diag table', (await p.$$('#summary .num li')).length === 3 && (await p.$$('#summary .kpi')).length === 4 && (await p.$$('#summary tbody tr')).length === 6);
-  ok('TOC has 10 items in page order', JSON.stringify(await p.$$eval('#toc-list a', a => a.map(x => x.textContent))) === JSON.stringify(['요약', '색인', '주제', '신뢰', 'AI', '기회', '개선안', '콘텐츠', '일정', '서비스']));
+  ok('TOC has 11 items in page order', JSON.stringify(await p.$$eval('#toc-list a', a => a.map(x => x.textContent))) === JSON.stringify(['자동 점검', '요약', '색인', '주제', '신뢰', 'AI', '기회', '개선안', '콘텐츠', '일정', '서비스']));
   ok('desktop TOC visible & sticky, mobile TOC hidden', await p.$eval('.toc', e => getComputedStyle(e).position === 'sticky' && e.offsetParent !== null) && await p.$eval('#toc-mob', e => getComputedStyle(e).display === 'none'));
 
   // 막대: 조각 너비는 검색량에 비례, 같은 척도
@@ -57,6 +58,43 @@ const ok = (n, c) => { console.log((c ? 'PASS ' : 'FAIL ') + n); if (!c) fail++;
   await x.goto(URL0); await x.waitForSelector('html[data-ready="1"]');
   ok('XSS: markup in data is escaped', (await x.evaluate(() => window.__x)) === undefined && (await x.$('#hack')) === null);
   await x.close();
+  // ---------- 자동 점검 (예시 모드: 기본 설정) ----------
+  await p.goto(URL0); await p.waitForSelector('html[data-ready="1"]');
+  await p.fill('#auto-url', 'abc'); await p.click('#auto-go');
+  ok('auto: bad url -> message, no result', (await p.textContent('#auto-msg')).includes('https://') && (await p.$('.auto-res')) === null && (await p.getAttribute('#auto-url', 'aria-invalid')) === 'true');
+  await p.fill('#auto-url', 'https://m.place.naver.com/x'); await p.click('#auto-go');
+  ok('auto: naver url unsupported msg', (await p.textContent('#auto-msg')).includes('네이버'));
+  await p.fill('#auto-url', 'https://www.example-clinic.example'); await p.click('#auto-go');
+  ok('auto(demo): shows 예시 결과 notice + findings + pages + 미측정', await p.$eval('#auto-out', e => e.textContent.includes('예시 결과') && e.querySelectorAll('tbody tr').length >= 10 && e.textContent.includes('월 검색량') && e.querySelectorAll('.rk.nm').length >= 4));
+  ok('auto(demo): states it did not read the address', (await p.textContent('#auto-msg')).includes('예시 결과'));
+
+  // ---------- 자동 점검 (실제 모드: 모의 서버) ----------
+  const mk = async (res) => {
+    const q = await b.newPage({ viewport: { width: 1100, height: 900 } }); const pe = []; q.on('pageerror', e => pe.push(String(e)));
+    await q.route('**/supabase-js*', r => r.abort());
+    await q.route('**/landing-config.js', r => r.fulfill({ contentType: 'application/javascript', body: 'window.LANDING={OVERSEAS_LIVE:true};' }));
+    await q.route('**/config.js', r => r.fulfill({ contentType: 'application/javascript', body: 'window.WOORI={SUPABASE_URL:"https://x.supabase.co",SUPABASE_ANON_KEY:"k"};' }));
+    await q.addInitScript(res => { window.__calls = []; window.supabase = { createClient: () => ({ functions: { invoke: async (n, o) => { window.__calls.push({ n, o }); await new Promise(r => setTimeout(r, 150)); return res.code ? { data: null, error: { context: { json: async () => ({ error: res.code }) } } } : res; } } }) }; }, res);
+    await q.goto(URL0); await q.waitForSelector('html[data-ready="1"]'); return { q, pe };
+  };
+  const audit = { site: { host: 'www.sample-clinic.kr' }, measuredAt: '2026-11-25', skipped: 1, unmeasured: ['월 검색량(국가별 검색어)'], pages: [{ lang: 'ko', title: '<img src=x onerror="window.__x=1">', titleWidth: 10, description: '', descWidth: 0, h1: '', h1Count: 2, hreflang: ['ko', 'ja'] }],
+    findings: [{ area: '제목(title)', status: 'ok', found: '<b id="hack">정상</b>', todo: '유지' }, { area: 'AI 크롤러 접근', status: 'warn', found: 'GPTBot 차단', todo: '검토' }, { area: '사이트맵(sitemap)', status: 'none', found: '못 읽음', todo: '만드세요' }] };
+  let { q, pe } = await mk({ data: { audit }, error: null });
+  ok('auto(live): demo notice absent', !(await q.textContent('#auto-msg')).includes('예시 결과'));
+  await q.fill('#auto-url', 'https://www.sample-clinic.kr/'); await q.click('#auto-go'); await q.click('#auto-go', { force: true }).catch(() => {});
+  ok('auto(live): busy -> button disabled + progress', await q.isDisabled('#auto-go') && (await q.textContent('#auto-msg')).includes('읽는 중'));
+  await q.waitForSelector('.auto-res'); await q.waitForTimeout(100);
+  const calls = await q.evaluate(() => window.__calls);
+  ok('auto(live): exactly one call to aeo-prefill with mode overseas', calls.length === 1 && calls[0].n === 'aeo-prefill' && calls[0].o.body.mode === 'overseas' && calls[0].o.body.url === 'https://www.sample-clinic.kr/');
+  ok('auto(live): 측정 결과 notice with host/date/skipped, tally, button re-enabled', await q.$eval('#auto-out', e => e.textContent.includes('www.sample-clinic.kr') && e.textContent.includes('2026-11-25') && e.textContent.includes('읽지 못한 언어 페이지 1개') && e.textContent.includes('정상 1') && e.textContent.includes('개선 필요 1') && e.textContent.includes('확인 불가 1')) && !(await q.isDisabled('#auto-go')));
+  ok('auto(live): XSS — markup from server is escaped', (await q.evaluate(() => window.__x)) === undefined && (await q.$('#hack')) === null && (await q.$eval('#auto-out', e => e.textContent.includes('<img src=x'))));
+  ok('auto(live): no page errors', pe.length === 0); await q.close();
+  for (const [code, text] of [['rate_limited', '시간당'], ['blocked_url', '읽을 수 없어요'], ['fetch_failed', '열지 못했어요']]) {
+    const r = await mk({ code });
+    await r.q.fill('#auto-url', 'https://www.sample-clinic.kr/'); await r.q.click('#auto-go'); await r.q.waitForFunction(t => document.getElementById('auto-msg').textContent.includes(t), text);
+    ok('auto(live): error ' + code + ' -> friendly message, no result, button usable', (await r.q.$('.auto-res')) === null && !(await r.q.isDisabled('#auto-go'))); await r.q.close();
+  }
+
 
   await p.screenshot({ path: process.env.SHOTS ? process.env.SHOTS + '/rep-d-top.png' : '/dev/null' }).catch(() => {});
   ok('no console/page errors (desktop)', errs.length === 0);

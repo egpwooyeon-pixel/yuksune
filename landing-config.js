@@ -16,6 +16,10 @@ window.LANDING = {
   //  false: 버튼을 숨깁니다. (기본값)
   //  true : Supabase Edge Function aeo-prefill 을 부릅니다. 켜기 전에 023_prefill.sql 실행 + 함수 배포가 필요해요 (Gemini 키는 필요 없음).
   PREFILL_LIVE: true,
+  // 해외 진단 페이지(overseas-report.html)의 "홈페이지 주소로 자동 점검".
+  //  false: 입력해도 실제로 읽지 않고 "예시 결과"만 보여 줍니다. (기본값)
+  //  true : Supabase Edge Function aeo-prefill(mode:"overseas")로 실제 홈페이지를 읽어 점검합니다. 켜기 전에 023_prefill.sql 실행 + 최신 aeo-prefill 배포가 필요해요(Gemini 키 불필요).
+  OVERSEAS_LIVE: false,
   // 레퍼런스(한방병원 사례) 카드 표시. false 로 바꾸면 숨겨집니다.
   //  켜 두기 전에 사례로 쓰는 업체(병원)의 사용 동의와 의료광고 관련 문구 적합성을 확인하세요.
   SHOW_REFERENCE: true,

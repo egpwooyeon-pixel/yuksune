@@ -42,6 +42,7 @@ const mockSb = () => {
     await audit('diagnose(all-on)', 'diagnose.html', w);
     await audit('diagnose(report)', 'diagnose.html', w, diag);
     await audit('overseas-report', 'overseas-report.html', w);
+    await audit('overseas-report(auto demo)', 'overseas-report.html', w, async p => { await p.fill('#auto-url', 'https://www.example-clinic.example'); await p.click('#auto-go'); await p.waitForSelector('.auto-res'); });
     await audit('overseas-report(cn tab)', 'overseas-report.html', w, async p => { await p.click('#tab-cn'); });
     await audit('privacy', 'landing-privacy.html', w);
     await audit('guide-article', 'guide/sample-outdoor-wedding.html', w);
