@@ -87,6 +87,13 @@
     .ph-list button{position:absolute;right:4px;top:4px;width:24px;height:24px;border-radius:50%;border:0;background:rgba(32,36,46,.85);color:#fff;cursor:pointer;line-height:1}
     #ph-file{padding:10px 12px;min-height:0}
     #ph-next a{font-weight:700;text-decoration:underline}
+    .plan{display:grid;gap:10px}.plan h2{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.plan h3{font-size:14px;color:var(--char);margin:10px 0 0}
+    .ai-chip{background:var(--lav);color:var(--char);font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px}
+    .plan-disc{margin:0}.plan-sum{margin:0;font-weight:600;color:var(--char)}
+    .plan-topics,.plan-fmt,.plan-chk{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+    .plan-topics li{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:2px}.plan-topics b{color:var(--char)}
+    .plan-topics span{font-size:14px}.plan-topics small{color:#5b6070;font-size:13px}
+    .plan-fmt li,.plan-chk li{font-size:14px}.plan-chk li::before{content:"✓ ";color:var(--good);font-weight:700}
     .banner.live{background:var(--lav);border-color:#cdbff5;color:var(--char)}
     .ok-t{color:var(--good);font-weight:700}.no-t{color:#5b6070}
     .note{font-size:13px;color:#5b6070;margin:12px 0 0}
@@ -178,6 +185,18 @@ const SAMPLE = {
     { name: "예시 업체 C", why: "하우스웨딩 질문에서 대명사처럼 소개" },
     { name: "예시 업체 D", why: "고급 웨딩홀 추천 질문에서 단독 건물 특징과 함께 추천" },
   ],
+  plan: {
+    summary: "업체를 고를 때 고객이 스스로 확인할 기준과 질문을 중심으로, 정보형 글부터 발행하는 것을 제안해요.",
+    topics: [
+      { title: "야외 예식 웨딩홀을 고를 때 확인할 기준", purpose: "고객이 스스로 확인할 항목을 안내", question: "야외 예식은 무엇을 먼저 확인하나요?", facts: ["야외 공간 유무", "우천 시 대체 공간 여부"] },
+      { title: "예식 상담 전에 준비하면 좋은 정보", purpose: "상담을 빠르게 하기 위한 준비 사항 정리", question: "상담 전에 무엇을 준비하면 되나요?", facts: ["희망 날짜", "예상 하객 수"] },
+      { title: "웨딩홀 방문 전에 확인할 질문 모음", purpose: "방문 때 물어볼 질문 정리", question: "방문해서 무엇을 물어보면 되나요?", facts: ["운영 시간", "예약 방법"] },
+    ],
+    formats: [{ name: "질문-답변형", desc: "자주 묻는 질문에 답할 때" }, { name: "선택 기준형", desc: "고르는 기준을 알려 줄 때" }, { name: "방문 준비형", desc: "방문 전 준비를 알려 줄 때" }],
+    cadence: "먼저 핵심 주제부터 발행한 뒤, 업체 확인을 거쳐 이어서 발행하는 순서를 제안해요.",
+    checklist: ["업체가 확인한 운영 정보", "사진 사용 권한 확인", "출처로 쓸 공식 페이지 주소"],
+    medical: false, caution: "", disclaimer: "AI가 입력한 정보만으로 만든 제안이에요. 노출이나 효과를 보장하지 않고, 실제로 발행하기 전에 업체 확인과 사실 점검이 필요해요.",
+  },
   keywords: [
     { k: "지역 웨딩홀", vol: 2800, rank: null, brief: "없음" },
     { k: "샘플웨딩홀", vol: 8800, rank: 1, brief: "없음" },
@@ -204,6 +223,24 @@ const FAIL = "측정에 실패했어요. 잠시 후 다시 시도해 주세요."
 if (LIVE) {   // 실제 측정에는 지역·업종이 꼭 필요함
   $("l-region").innerHTML = '지역 <em aria-hidden="true" style="color:#d6336c;font-style:normal">*</em><span style="position:absolute;left:-9999px"> (필수)</span>';
   $("l-ind").innerHTML = '업종 <em aria-hidden="true" style="color:#d6336c;font-style:normal">*</em><span style="position:absolute;left:-9999px"> (필수)</span>';
+}
+
+function planHtml(pl) {          // 콘텐츠 발행 제안 (모든 값은 esc 로 이스케이프)
+  const qs = new URLSearchParams(), nm = $("f-name").value.trim(), ind = $("f-ind").value, web = $("f-url").value.trim();
+  if (nm) qs.set("company", nm); if (ind) qs.set("topic", ind); if (web) qs.set("web", web); qs.set("msg", "콘텐츠 발행 제안을 바탕으로 상담을 희망합니다.");
+  const li = a => a.map(x => `<li>${esc(x)}</li>`).join("");
+  return `<section class="card plan" aria-labelledby="r5">
+    <h2 id="r5">콘텐츠 발행 제안 <span class="ai-chip">AI 제안</span></h2>
+    <p class="note plan-disc">${esc(pl.disclaimer)}</p>
+    ${pl.caution ? `<p class="banner" role="note">${esc(pl.caution)}</p>` : ""}
+    ${pl.summary ? `<p class="plan-sum">${esc(pl.summary)}</p>` : ""}
+    <h3>제안하는 주제</h3>
+    <ul class="plan-topics">${pl.topics.map(t => `<li><b>${esc(t.title)}</b><span>목적: ${esc(t.purpose)}</span><span>고객 질문: ${esc(t.question)}</span>${t.facts && t.facts.length ? `<small>업체가 확인해 줘야 할 사실: ${t.facts.map(esc).join(" · ")}</small>` : ""}</li>`).join("")}</ul>
+    ${pl.formats && pl.formats.length ? `<h3>글 형식</h3><ul class="plan-fmt">${pl.formats.map(f => `<li><b>${esc(f.name)}</b> ${esc(f.desc)}</li>`).join("")}</ul>` : ""}
+    ${pl.cadence ? `<h3>발행 순서·빈도</h3><p>${esc(pl.cadence)}</p>` : ""}
+    ${pl.checklist && pl.checklist.length ? `<h3>발행 전에 준비할 자료</h3><ul class="plan-chk">${li(pl.checklist)}</ul>` : ""}
+    <p><a class="btn sm" href="landing.html?${esc(qs.toString())}#contact">이 제안으로 발행 상담 신청</a></p>
+  </section>`;
 }
 
 function render(d, entered, o) {
@@ -240,6 +277,7 @@ function render(d, entered, o) {
     <p class="sub">AI가 대신 추천한 업체</p>
     ${d.rivals.length ? `<ul class="rivals">${d.rivals.map(r => `<li><b>${esc(r.name)}</b><span>${esc(r.why)}</span></li>`).join("")}</ul>` : `<p class="note">답변에서 뚜렷하게 추천된 다른 업체가 없었어요.</p>`}
   </section>
+  ${d.plan && d.plan.topics && d.plan.topics.length ? planHtml(d.plan) : ""}
   ${d.questionList && d.questionList.length ? `<section class="card" aria-labelledby="r4">
     <h2 id="r4">질문별 결과 · AI에게 이렇게 물었어요</h2>
     <div class="tw" tabindex="0" role="region" aria-label="질문별 결과 표 (좌우로 스크롤)"><table><thead><tr><th>질문</th><th>업체명 언급</th><th>자사 인용</th></tr></thead><tbody>

@@ -6,12 +6,21 @@ let pass=0; const t=(n,f)=>Promise.resolve().then(f).then(()=>{pass++;console.lo
 const gem = (text, titles=[]) => ({ candidates:[{ content:{parts:[{text}]}, groundingMetadata:{ groundingChunks: titles.map(t=>({web:{uri:'https://vertexaisearch.cloud.google.com/x',title:t}})) } }] });
 const okRes = j => ({ ok:true, status:200, json:async()=>j, text:async()=>JSON.stringify(j) });
 const QS = Array.from({length:10},(_,i)=>`강남에서 조건${i+1} 웨딩홀 추천해줘`);
+const PLAN_OK = { summary:'업체를 고를 때 고객이 확인할 기준을 중심으로 정리합니다.',
+  topics:[
+    {title:'야외 예식 웨딩홀을 고를 때 확인할 기준', purpose:'고객이 스스로 확인할 항목을 안내', question:'야외 예식은 무엇을 먼저 확인하나요?', facts:['야외 공간 유무','우천 시 대체 공간 여부']},
+    {title:'예식 상담 전에 준비하면 좋은 정보', purpose:'상담을 빠르게 하기 위한 준비 사항', question:'상담 전에 무엇을 준비하나요?', facts:['희망 날짜','예상 하객 수']},
+    {title:'웨딩홀 방문 전 확인할 질문 모음', purpose:'방문 때 물어볼 질문 정리', question:'방문해서 무엇을 물어보나요?', facts:['운영 시간','예약 방법']},
+    {title:'예약 절차와 확인할 서류 안내', purpose:'예약 과정 이해', question:'예약은 어떻게 진행되나요?', facts:['예약 방식']}],
+  formats:[{name:'질문-답변형',desc:'자주 묻는 질문에 답할 때'},{name:'선택 기준형',desc:'고르는 기준을 알려 줄 때'},{name:'방문 준비형',desc:'방문 전 준비를 알려 줄 때'}],
+  cadence:'먼저 핵심 주제부터 발행한 뒤 업체 확인을 거쳐 이어서 발행합니다.', checklist:['업체가 확인한 운영 정보','사진 사용 권한','출처로 쓸 공식 페이지'] };
 function mockFetch(log){
   return async (url, init) => {
     const b = JSON.parse(init.body); log.push({url, key:init.headers['x-goog-api-key'], tools:!!b.tools});
     if (b.generationConfig?.responseSchema?.type==='ARRAY' && b.generationConfig.responseSchema.items.type==='STRING') return okRes(gem(JSON.stringify(QS)));
     if (b.generationConfig?.responseSchema?.items?.type==='OBJECT') return okRes(gem(JSON.stringify([{name:'예시홀A',why:'공통 추천'},{name:'지어낸홀',why:'없음'},{name:'샘플 웨딩홀',why:'자기자신'}])));
     const q = b.contents[0].parts[0].text;
+    if (q.includes('발행 계획을 제안하세요')) return okRes(gem(JSON.stringify(PLAN_OK)));
     const n = Number(q.match(/조건(\d+)/)[1]);
     // 짝수 질문엔 업체명 등장, 3의 배수엔 자사 도메인 출처
     const text = (n%2===0 ? '샘플 웨딩홀과 예시홀A를 추천합니다.' : '예시홀A를 추천합니다.');
@@ -29,7 +38,8 @@ await t('runPool limits concurrency & keeps order', async ()=>{ let cur=0,max=0;
 const input = m.parseInput({name:'샘플 웨딩홀',region:'강남',industry:'웨딩홀',url:'https://sample-hall.co.kr'});
 await t('diagnose end-to-end (mock Gemini)', async ()=>{
   const log=[]; const r = await m.diagnose(input,{apiKey:'KEY123',model:'gemini-2.5-flash',fetch:mockFetch(log)});
-  assert.equal(log.length,12);                                   // 질문 생성 1 + 답변 10 + 경쟁업체 1
+  assert.equal(log.length,13);                                   // 질문 생성 1 + 답변 10 + 경쟁업체 1 + 발행 제안 1
+  assert.ok(r.plan && r.plan.topics.length===4 && r.plan.disclaimer.includes('보장하지 않고') && r.plan.medical===false);
   assert.ok(log.every(l=>l.key==='KEY123' && l.url.includes('gemini-2.5-flash:generateContent')));
   assert.equal(log.filter(l=>l.tools).length,10);                // 검색 연동은 답변 호출에만
   const e=r.engines[0]; assert.equal(e.answers,10); assert.equal(e.mention,5); assert.equal(e.cite,3);   // 짝수 5개, 3의 배수 3개
@@ -110,3 +120,64 @@ await t('all models overloaded -> error lists attempts for both models', ()=>fas
   const f=async()=>({ok:false,status:503,text:async()=>'{"error":{"message":"high demand"}}'});
   await assert.rejects(()=>m.diagnose(input,{apiKey:'k',model:'modelA,modelB',fetch:f}), e=>{ assert.equal(e.status,503); assert.ok(e.detail.includes('[modelB]')); return true; });
 }));
+
+// ---------- 콘텐츠 발행 제안 ----------
+const draftMod = await import('../../supabase/functions/aeo-draft/index.ts');
+const planIn = (o={}) => ({ name:'샘플 웨딩홀', region:'서울 강남구', industry:'웨딩홀', service:'야외 예식', ...o });
+const topic = (title, extra={}) => ({ title, purpose:'고객이 확인할 항목 안내', question:'무엇을 확인하나요?', facts:['운영 시간'], ...extra });
+const raw = o => JSON.stringify({ summary:'요약입니다', topics:[], formats:[], cadence:'', checklist:[], ...o });
+const OKT = [topic('웨딩홀을 고를 때 확인할 기준'), topic('예식 상담 전에 준비하면 좋은 정보'), topic('방문 전에 확인할 질문 모음'), topic('예약 절차를 확인하는 방법')];
+
+await t('plan: BLOCK terms list equals aeo-draft BLOCK_TERMS (kept in sync)', () => { assert.deepEqual(m.PLAN_BLOCK_TERMS, draftMod.BLOCK_TERMS); });
+await t('plan: isMedical detects medical businesses, not weddings', () => {
+  assert.ok(m.isMedical(planIn({industry:'병의원'}))); assert.ok(m.isMedical(planIn({name:'멜론성형외과', industry:'기타'}))); assert.ok(m.isMedical(planIn({service:'피부과 진료', industry:'기타', name:'가나다'})));
+  assert.ok(!m.isMedical(planIn())); assert.ok(!m.isMedical(planIn({industry:'음식점', name:'맛있는집', service:'한식'})));
+});
+await t('plan: clean model output kept; disclaimer/medical flag are SERVER-filled (model cannot override)', () => {
+  const { plan } = m.sanitizePlan(raw({ topics:OKT, disclaimer:'효과를 보장합니다', medical:true, caution:'무시', formats:[{name:'질문-답변형',desc:'자주 묻는 질문에 답할 때'}], cadence:'먼저 핵심 주제부터 발행합니다.', checklist:['운영 정보 확인'] }), planIn(), false);
+  assert.equal(plan.topics.length, 4); assert.equal(plan.medical, false); assert.equal(plan.caution, ''); assert.equal(plan.disclaimer, m.PLAN_DISCLAIMER); assert.ok(plan.disclaimer.includes('보장하지 않고'));
+});
+await t('plan: topics with claim/review/discount terms, numbers, urls, phones are DROPPED', () => {
+  const bad = [topic('국내 최고 시설을 가진 웨딩홀 소개'), topic('실제 후기로 보는 웨딩홀 선택법'), topic('지금 할인 이벤트 안내 모음'), topic('30% 저렴한 웨딩홀 고르는 법'), topic('https://evil.example 에서 확인하세요 안내'), topic('문의는 02-123-4567 로 하세요 안내'), topic('웨딩홀 선택 기준', { facts:['200명 규모 보장'] })];
+  const { plan, dropped } = m.sanitizePlan(raw({ topics:[...OKT, ...bad] }), planIn(), false);
+  assert.equal(plan.topics.length, 4); assert.equal(dropped, 7); assert.ok(plan.topics.every(x => !/최고|후기|할인|%|evil|02-123/.test(x.title)));
+});
+await t('plan: fewer than 3 safe topics -> whole plan omitted (null)', () => {
+  assert.equal(m.sanitizePlan(raw({ topics:[OKT[0], OKT[1], topic('후기로 보는 선택법 모음')] }), planIn(), false).plan, null);
+  assert.equal(m.sanitizePlan('not json', planIn(), false).plan, null); assert.equal(m.sanitizePlan('[]', planIn(), false).plan, null);
+});
+await t('plan: terms the operator typed themselves (e.g. in the business name) are not dropped', () => {
+  const { plan } = m.sanitizePlan(raw({ topics:[topic('최고웨딩홀을 고를 때 확인할 기준'), OKT[1], OKT[2]] }), planIn({ name:'최고웨딩홀' }), false);
+  assert.equal(plan.topics.length, 3);
+});
+const MED = planIn({ name:'샘플성형외과', industry:'병의원', service:'눈 성형, 가슴확대, 리프팅' });
+await t('plan (medical): topics naming the business own services/procedures are dropped; info topics kept; caution is server-set', () => {
+  const t1 = [topic('병원을 고를 때 확인할 기준'), topic('방문 전에 준비할 것 안내'), topic('상담 절차와 확인할 질문 정리'), topic('가슴확대 상담 전에 확인할 점'), topic('눈 성형 병원 선택 기준 안내'), topic('리프팅 종류별 차이 정리')];
+  const { plan, dropped } = m.sanitizePlan(raw({ topics:t1 }), MED, true);
+  assert.equal(plan.topics.length, 3); assert.equal(dropped, 3); assert.equal(plan.medical, true); assert.equal(plan.caution, m.PLAN_MEDICAL_CAUTION); assert.ok(plan.caution.includes('전문가 확인'));
+  assert.ok(plan.topics.every(x => !/가슴확대|눈성형|눈 성형|리프팅/.test(x.title)));
+});
+await t('plan (medical): if the model only proposes procedure topics -> no plan at all', () => {
+  assert.equal(m.sanitizePlan(raw({ topics:[topic('가슴확대 상담 전에 확인할 점'), topic('눈 성형 병원 선택 기준 안내'), topic('리프팅 종류별 차이 정리'), topic('병원을 고를 때 확인할 기준')] }), MED, true).plan, null);
+});
+await t('plan: same procedure-looking title is fine for a non-medical business (rule is medical-only)', () => {
+  const { plan } = m.sanitizePlan(raw({ topics:OKT }), planIn({ service:'웨딩홀 선택 기준' }), false); assert.ok(plan && plan.topics.length >= 3);
+});
+await t('plan prompt: medical rules only for medical; never asks for article text; no urls in prompt', () => {
+  const med = m.buildPlanPrompt(MED, ['질문 하나'], true), gen = m.buildPlanPrompt(planIn(), ['질문 하나'], false);
+  assert.ok(med.includes('병원·의료 업종') && med.includes('시술명') && med.includes('정보형으로만')); assert.ok(!gen.includes('병원·의료 업종'));
+  assert.ok(med.includes('글 본문을 쓰지 마세요') && med.includes('지어내지 마세요'));
+});
+await t('diagnose: plan failure (model error) does NOT fail the diagnosis -> plan null, rest intact', async () => {
+  const base = mockFetch([]);
+  const f = async (url, init) => { const b = JSON.parse(init.body); if (b.contents[0].parts[0].text.includes('발행 계획을 제안하세요')) return { ok:false, status:400, text: async () => '{"error":{"message":"bad request"}}' }; return base(url, init); };
+  const r = await m.diagnose(m.parseInput({ name:'샘플 웨딩홀', region:'강남', industry:'웨딩홀', url:'https://sample-hall.co.kr' }), { apiKey:'k', model:'x', fetch:f });
+  assert.equal(r.plan, null); assert.equal(r.engines[0].answers, 10);
+});
+await t('diagnose (medical input): plan is filtered end to end, no procedure names in titles', async () => {
+  const base = mockFetch([]); const PLAN_MED = { ...PLAN_OK, topics:[{ ...PLAN_OK.topics[0], title:'병원을 고를 때 확인할 기준' }, { ...PLAN_OK.topics[1], title:'방문 전에 준비할 것 안내' }, { ...PLAN_OK.topics[2], title:'상담 절차와 확인할 질문 정리' }, { ...PLAN_OK.topics[3], title:'가슴확대 상담 전에 확인할 점' }] };
+  const f = async (url, init) => { const b = JSON.parse(init.body); if (b.contents[0].parts[0].text.includes('발행 계획을 제안하세요')) return okRes(gem(JSON.stringify(PLAN_MED))); return base(url, init); };
+  const r = await m.diagnose(m.parseInput({ name:'샘플성형외과', region:'서울', industry:'병의원', service:'가슴확대, 리프팅' }), { apiKey:'k', model:'x', fetch:f });
+  assert.equal(r.plan.topics.length, 3); assert.equal(r.plan.medical, true); assert.ok(r.plan.topics.every(x => !x.title.includes('가슴확대')));
+});
+

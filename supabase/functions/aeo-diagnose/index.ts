@@ -207,12 +207,90 @@ ${material}`;
   } catch (e) { if (e && e.message === "auth_failed") throw e; return []; }
 }
 
+// ---------- 콘텐츠 발행 제안 (AI 제안) ----------
+// 입력한 정보(업체명·지역·업종·대표 서비스)만으로 "어떤 주제의 안내 글을 발행하면 좋을지" 제안해요. 측정값이 아니라 AI 의견이에요.
+// 이 제안은 사람의 검수 없이 방문자에게 바로 보이므로, 서버가 결과를 걸러서 내보내요(걸리는 항목은 빼고, 남은 주제가 3개 미만이면 제안 전체를 빼요).
+//  · 면책 문구·의료 업종 여부·주의 문구는 AI 가 아니라 서버가 채워요.
+//  · 병원·의료 업종은 정보형 주제(고를 때 확인할 기준, 방문 전 준비, 상담 절차)만 허용하고,
+//    **업체의 대표 서비스(시술명 등)가 들어간 주제는 버려요.** 효과·후기·전후·가격·할인 같은 표현도 버려요.
+// 아래 PLAN_BLOCK_TERMS 는 supabase/functions/aeo-draft 의 BLOCK_TERMS 와 같은 목록이에요(시험으로 일치를 확인하니, 한쪽을 고치면 다른 쪽도 고치세요).
+export const PLAN_BLOCK_TERMS = ["완치", "100%", "백퍼센트", "부작용없", "부작용이없", "통증없", "무통", "최고", "최상", "최초", "최대", "유일", "독보적", "1위", "국내1", "업계1", "가장좋", "가장뛰어", "보장", "확실한효과", "효과적인", "치료효과", "성공률", "전후사진", "비포애프터", "비포&애프터", "후기", "체험담", "리뷰", "할인", "이벤트", "특가", "무료시술", "공짜", "추천드립니다", "강력추천", "믿고맡"];
+const MEDICAL_RE = /병원|의원|한의|한방|치과|클리닉|피부과|성형|정형|내과|외과|산부인과|안과|이비인후과|비뇨|재활|의료|병의원/;
+export const isMedical = input => MEDICAL_RE.test([input.industry, input.name, input.service].join(" "));
+const normT = t => String(t == null ? "" : t).replace(/\s+/g, "").toLowerCase();
+export const serviceTerms = service => String(service || "").split(/[,，·/|]/).map(x => x.trim()).filter(x => normT(x).length >= 2);
+export const PLAN_DISCLAIMER = "AI가 입력한 정보만으로 만든 제안이에요. 노출이나 효과를 보장하지 않고, 실제로 발행하기 전에 업체 확인과 사실 점검이 필요해요.";
+export const PLAN_MEDICAL_CAUTION = "병원·의료 업종은 의료광고 규정을 고려해, 시술명·효과·후기·가격을 쓰지 않는 정보형 주제만 제안해요. 실제 발행 전에 전문가 확인이 필요해요.";
+const NUM_UNIT_T = /\d[\d,.]*\s?(?:원|만원|천원|%|퍼센트|배|명|건|년|개월|일|시간|분|회|개|곳|위|점)/g;
+
+export function buildPlanPrompt(input, questions, medical) {
+  const info = [["업체명", input.name], ["지역", input.region], ["업종", input.industry], ["대표 서비스", input.service]].filter(r => r[1]).map(r => `- ${r[0]}: ${r[1]}`).join("\n");
+  return `당신은 한국어 콘텐츠 기획자입니다. 아래 [업체 정보]만 보고, 이 업체에 대해 고객이 AI 검색에서 답을 찾을 때 도움이 되는 "안내 글(블로그·웹문서)"의 발행 계획을 제안하세요. 발행 제안이므로 글 본문을 쓰지 마세요.
+
+규칙 (반드시 지키세요):
+1. [업체 정보]에 없는 사실(가격·할인·효과·성공률·수상·순위·후기·인원·경력·규모)을 지어내지 마세요. 주제는 고객이 스스로 확인할 기준·질문·준비 사항 중심의 "정보형"으로 쓰세요.
+2. 최고·유일·1위·보장·100%·완치·전후·후기·체험담·할인·이벤트처럼 과장·보장·비교하는 표현을 쓰지 마세요. 숫자·링크·전화번호도 쓰지 마세요.
+3. 특정 업체를 홍보하거나 상품을 권하지 말고, 중립적으로 쓰세요.${medical ? `
+4. 이 업체는 병원·의료 업종입니다. 주제는 "병원을 고를 때 확인할 기준", "방문 전 준비할 것", "상담 절차와 확인할 질문", "진료 시간·예약 확인 방법"처럼 정보형으로만 제안하세요. 시술명·치료명·효과·결과·비교·가격·권유가 들어간 주제는 절대 제안하지 마세요. 대표 서비스에 적힌 시술명은 제목과 설명에 쓰지 마세요.` : ""}
+
+[업체 정보]
+${info}
+
+[고객이 AI에게 물을 만한 질문 예시]
+${(questions || []).slice(0, 6).map(q => "- " + q).join("\n")}
+
+출력은 JSON 객체 하나만: {"summary": 한 문장 요약, "topics": [{"title": 제목(50자 안팎), "purpose": 이 글의 목적, "question": 이 글이 답하는 고객 질문, "facts": [글에 넣으려면 업체가 확인해 줘야 할 사실 2~3개]}] 5~8개, "formats": [{"name": 글 형식 이름, "desc": 언제 쓰는지}] 3개, "cadence": 발행 순서·빈도 제안 한 문장, "checklist": [발행 전에 준비할 자료] 4~6개}`;
+}
+
+// 모델이 돌려준 제안을 걸러서 안전한 것만 남김. 남는 주제가 3개 미만이면 null.
+export function sanitizePlan(raw, input, medical) {
+  let m; try { m = JSON.parse(String(raw).replace(/^```(?:json)?\s*|\s*```$/g, "")); } catch (_) { return { plan: null, dropped: 0 }; }
+  if (!m || typeof m !== "object") return { plan: null, dropped: 0 };
+  const allowedN = normT([input.name, input.region, input.industry, input.service].join(" "));
+  const svc = medical ? serviceTerms(input.service) : [];
+  const arr = v => (Array.isArray(v) ? v : []);
+  const bad = text => {                                              // true 면 버림
+    const t = String(text || ""), n = normT(t);
+    if (PLAN_BLOCK_TERMS.some(k => { const kk = normT(k); return n.includes(kk) && !allowedN.includes(kk); })) return true;
+    if (/https?:\/\/|\d{2,4}-\d{3,4}-\d{4}/.test(t)) return true;
+    if ((t.match(NUM_UNIT_T) || []).some(x => !allowedN.includes(normT(x)))) return true;
+    if (svc.some(k => n.includes(normT(k)))) return true;           // 의료: 시술명 등 대표 서비스가 들어간 문구
+    return false;
+  };
+  let dropped = 0;
+  const topics = [];
+  for (const t of arr(m.topics).slice(0, 12)) {
+    const title = clean(t && t.title, 60), purpose = clean(t && t.purpose, 120), question = clean(t && t.question, 120);
+    const facts = arr(t && t.facts).map(f => clean(f, 80)).filter(Boolean).slice(0, 4);
+    if (title.length < 8 || !purpose || !question || bad([title, purpose, question, ...facts].join(" "))) { dropped++; continue; }
+    topics.push({ title, purpose, question, facts });
+    if (topics.length >= 8) break;
+  }
+  if (topics.length < 3) return { plan: null, dropped };
+  const formats = arr(m.formats).map(f => ({ name: clean(f && f.name, 30), desc: clean(f && f.desc, 120) })).filter(f => f.name && f.desc && !bad(f.name + " " + f.desc)).slice(0, 4);
+  const checklist = arr(m.checklist).map(x => clean(x, 80)).filter(x => x && !bad(x)).slice(0, 6);
+  const cadence = clean(m.cadence, 140), summary = clean(m.summary, 160);
+  return {
+    plan: { summary: summary && !bad(summary) ? summary : "", topics, formats, cadence: cadence && !bad(cadence) ? cadence : "", checklist, medical, caution: medical ? PLAN_MEDICAL_CAUTION : "", disclaimer: PLAN_DISCLAIMER },
+    dropped,
+  };
+}
+
+export async function makePlan(input, questions, ctx) {
+  try {
+    const medical = isMedical(input);
+    const j = await callModels({ contents: [{ role: "user", parts: [{ text: buildPlanPrompt(input, questions, medical) }] }], generationConfig: { temperature: 0.5, responseMimeType: "application/json" } }, ctx, "발행 제안");
+    return sanitizePlan(jsonText(j), input, medical).plan;
+  } catch (_) { return null; }                                       // 제안은 덤이라, 실패해도 진단은 계속
+}
+
 export async function diagnose(input, ctx) {
   const qs = await makeQuestions(input, ctx);
   const qa = await runPool(qs, q => askOne(q, input, ctx));
   { const n = qa.filter(x => x.ok).length; if (n < 5) throw new UpErr("too_few", 200, "답변을 받은 질문이 " + n + "개뿐" + (ctx.lastErr ? " · 마지막 오류: " + ctx.lastErr : "")); }
   const rivals = await findRivals(input, qa, ctx);
-  return aggregate(input, qa, rivals);
+  const plan = await makePlan(input, qs, ctx);                       // 콘텐츠 발행 제안(없을 수 있음)
+  return { ...aggregate(input, qa, rivals), plan };
 }
 
 // ---------- 요청 처리 (의존 대상을 바깥에서 받아 시험하기 쉽게 분리) ----------
