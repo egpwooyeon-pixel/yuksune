@@ -7,7 +7,7 @@
 //   결과는 diagnose.html 의 리포트 데이터 형식으로 돌려줍니다.
 //
 // 비밀값(Supabase > Edge Functions > Secrets): GEMINI_API_KEY (필수)
-//   선택: GEMINI_MODEL(기본 gemini-3.8-flash), IP_HASH_SALT, DIAGNOSE_IP_LIMIT(기본 3), DIAGNOSE_DAILY_LIMIT(기본 100)
+//   선택: GEMINI_MODEL(기본 gemini-3.8-flash), IP_HASH_SALT, DIAGNOSE_IP_LIMIT(기본 1), DIAGNOSE_DAILY_LIMIT(기본 100)
 //   키는 x-goog-api-key 헤더로만 보내며, 브라우저·응답·로그로 나가지 않습니다.
 //
 // 측정의 한계 (리포트 화면에도 표시됩니다)
@@ -344,7 +344,7 @@ function realDeps() {
       const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "unknown";
       return sha256Hex(ip + "|" + (env("IP_HASH_SALT") || KEY));
     },
-    reserve: (ip, key, i) => rpc("reserve_diagnose", { p_ip: ip, p_key: key, p_brand: i.name, p_region: i.region, p_industry: i.industry, p_ip_limit: num("DIAGNOSE_IP_LIMIT", 3), p_global_limit: num("DIAGNOSE_DAILY_LIMIT", 100) }),
+    reserve: (ip, key, i) => rpc("reserve_diagnose", { p_ip: ip, p_key: key, p_brand: i.name, p_region: i.region, p_industry: i.industry, p_ip_limit: num("DIAGNOSE_IP_LIMIT", 1), p_global_limit: num("DIAGNOSE_DAILY_LIMIT", 100) }),
     finish: (id, status, result) => rpc("finish_diagnose", { p_id: id, p_status: status, p_result: result }),
   };
 }

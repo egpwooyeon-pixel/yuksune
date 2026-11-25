@@ -100,7 +100,7 @@ async function fixtures() {      // 진단 함수를 모의 Gemini 로 돌려 �
   p = await live('cached'); await p.fill('#f-name','샘플 웨딩홀'); await p.fill('#f-region','강남'); await p.selectOption('#f-ind','웨딩홀'); await p.click('#go'); await p.waitForSelector('.rep-top');
   ok('live cached notice', (await p.textContent('.banner')).includes('24시간 이내'));
   p = await live('limit'); await p.fill('#f-name','샘플 웨딩홀'); await p.fill('#f-region','강남'); await p.selectOption('#f-ind','웨딩홀'); await p.click('#go'); await p.waitForSelector('[role=alert].banner');
-  ok('live ip_limit message', (await p.textContent('.banner')).includes('모두 사용했어요'));
+  ok('live ip_limit message', (await p.textContent('.banner')).includes('하루에 한 번') && (await p.$$('.banner a[href$="landing.html#contact"]')).length===1);
   p = await live('fail'); await p.fill('#f-name','샘플 웨딩홀'); await p.fill('#f-region','강남'); await p.selectOption('#f-ind','웨딩홀'); await p.click('#go'); await p.waitForSelector('[role=alert].banner');
   ok('live generic failure message', (await p.textContent('.banner')).includes('측정에 실패'));
   console.log('page errors:',errs); await b.close();
