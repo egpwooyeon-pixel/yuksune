@@ -6,6 +6,5 @@ window.WOORI = {
   // 운영자 정보: 개인정보처리방침·이용약관·하단 안내에 그대로 표시됩니다. 비워 두면 "(입력 필요)"로 보입니다. 공개 전에 꼭 채워 주세요.
   COMPANY: { name: "주식회사 이지피", ceo: "김우형", bizNo: "653-87-02666", address: "서울특별시 강남구 봉은사로25길 23 정선빌딩 2층", email: "egpholdings@naver.com", phone: "070-4518-9401", privacyOfficer: "" },  // privacyOfficer(개인정보 보호책임자)는 아직 미정 — 지정 후 입력
   LEGAL_DATE: "2026년 11월 24일",   // 시행일 (법적 문서를 공개하는 날짜로 바꿔 주세요)
-  RANK_PROVIDER: false, // 순위 자동 조회 스위치 (데이터 제공처 연동 후 true). false 면 운영자가 수동 확인한 값만 기록
   EMAIL_NOTIFY: false, // 선정 안내 메일 기능 스위치. 메일 설정(supabase/EMAIL_SETUP.md)을 끝낸 뒤 true 로 바꾸면 켜집니다.
 };

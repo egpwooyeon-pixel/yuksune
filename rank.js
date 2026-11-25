@@ -1,10 +1,10 @@
-// 내 순위 추적: 운영자가 설정한 키워드 1개의 순위 기록을 보여줍니다 (본인 것만 보임)
+// 내 플레이스 순위확인하기: 승인된 사업자가 내 플레이스(아이디당 1곳)와 키워드(최대 3개)를 신청하고, 운영자가 시작한 추적의 순위 기록을 봅니다 (본인 것만 보임)
 const $ = id => document.getElementById(id);
 const WD = ["일", "월", "화", "수", "목", "금", "토"];
 const key = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const msg = t => { $("rk-msg").hidden = !t; $("rk-msg").textContent = t || ""; };
 let logs = {};   // 날짜 → 기록 (지금 보고 있는 키워드)
-let trackers = [], cur = null;
+let trackers = [];
 
 const rankText = l => !l ? null : l.status === "out" || l.out_of_rank ? (l.source === "provider" ? "미노출" : "순위 밖") : l.status === "failed" ? null : l.rank != null ? l.rank : null;
 function delta(day, i, days) {            // 전날과 비교: 숫자가 작아지면 순위 상승(▲)
@@ -48,7 +48,6 @@ function drawChart() {
 $("rk-toggle").onclick = e => { const on = $("rk-grid").classList.toggle("show-rv"); e.target.textContent = on ? "리뷰 수치 숨기기" : "리뷰 수치 보기"; };
 
 async function showTracker(t) {
-  cur = t;
   const { data: ls } = await sb.from("rank_logs").select("*").eq("tracker_id", t.id).order("day", { ascending: false }).limit(60);
   logs = {}; (ls || []).forEach(l => { logs[l.day] = l; });
   $("rk-kw").textContent = t.keyword;

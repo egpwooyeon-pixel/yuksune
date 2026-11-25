@@ -32,7 +32,6 @@ async function init() {
   window.addEventListener("hashchange", route); route(); inqBadge();
 }
 
-const loaded = {};
 function route() {
   const [s, qs] = (location.hash || "#dashboard").slice(1).split("?");
   if (s === "rank") rk.camp = new URLSearchParams(qs || "").get("c") || null;

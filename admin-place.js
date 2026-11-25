@@ -236,7 +236,6 @@ function npOpenLink(id, extra) {
 }
 
 /* ---------- 재검색 · 1회 검색 · 등록 (버튼을 눌렀을 때만) ---------- */
-const npSig = h => h && h[0] ? `${h[0].day}|${h[0].rank}|${h[0].status}|${h[0].checkedAt || ""}` : "";
 async function npOnce(e) {
   e.preventDefault(); if (np.busy.has("once")) return;
   const kw = $("np-o-kw").value.trim(), pid = parsePlaceId($("np-o-place").value), mode = document.querySelector('input[name="npmode"]:checked').value;
