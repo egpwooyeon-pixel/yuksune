@@ -15,6 +15,7 @@ document.getElementById("header-slot").outerHTML = `<!-- 1. 헤더 -->
       <button class="burger" id="burger" aria-label="전체 메뉴" aria-expanded="false"><svg width="14" height="12" viewBox="0 0 14 12" stroke="currentColor" stroke-width="1.3"><path d="M0 1h14M0 6h9M0 11h14"/></svg></button>
       <div class="gnb-dd"><a href="campaigns.html" data-key="campaigns">체험단모집</a><ul class="dd"><li><a href="campaigns.html?type=블로그">블로그체험단</a></li><li><a href="campaigns.html?type=인스타">인스타그램체험단</a></li><li><a href="campaigns.html?type=유튜브">유튜브체험단</a></li><li><a href="campaigns.html?type=구매평">구매평체험단</a></li></ul></div>
       <a href="place.html" data-key="place">플레이스 무료 진단</a>
+      <a href="rank.html" data-key="rank">내 플레이스 순위확인하기</a>
       <div class="gnb-dd sepwrap"><a href="board.html?b=place" class="sep" data-key="community">커뮤니티</a><ul class="dd"><li><a href="board.html?b=notice">공지사항</a></li><li><a href="board.html?b=place">플레이스 사장님 커뮤니티</a></li><li><a href="board.html?b=ecom">E-커머스 사장님 커뮤니티</a></li><li><a href="board.html?b=review">체험단 후기·노하우</a></li></ul></div>
     </nav>
     <div class="mega wrap" id="mega"><div class="mega-in">

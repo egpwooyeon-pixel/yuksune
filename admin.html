@@ -20,6 +20,7 @@
       <a href="#campaigns" data-s="campaigns">체험단 관리</a>
       <a href="#apps" data-s="apps">신청 현황</a>
       <a href="#rank" data-s="rank">순위 추적</a>
+      <a href="#place" data-s="place">네이버 플레이스</a>
       <a href="#posts" data-s="posts">게시판 관리</a>
       <a href="#inq" data-s="inq">상담 문의 <i id="inq-new" hidden></i></a>
       <a href="admin-inquiries.html">상담 접수 (EGP)</a>
@@ -113,6 +114,76 @@
       <p class="muted">AI 검색 최적화(landing.html) 상담 폼으로 들어온 문의예요. 개인정보(이름·연락처)가 들어 있으니 운영자만 확인하고, 처리가 끝나면 삭제해 주세요.</p>
       <div class="box rk-scroll"><table class="tb" id="inq"></table><p class="empty" id="inq-empty" hidden>접수된 문의가 아직 없어요.</p></div>
     </section>
+    <!-- 네이버 플레이스 (업플로우 공식 API) -->
+    <section id="s-place" hidden>
+      <div class="ad-top"><div><small class="kick">NAVER PLACE</small><h1>네이버 플레이스</h1><p class="muted" id="np-sub">업플로우에 등록된 키워드의 순위를 읽어 와요. 페이지를 열거나 새로고침해도 새로 조회하지 않아요.</p></div>
+        <button type="button" class="btn" id="np-reload">목록 다시 읽기</button></div>
+      <p class="note" id="np-banner" hidden></p>
+      <div class="np-status" id="np-status" hidden></div>
+      <div class="seg np-tabs" id="np-tabs" role="tablist">
+        <button type="button" data-t="rank" class="on">순위 추적</button><button type="button" data-t="reg">키워드 등록</button><button type="button" data-t="once">1회 검색</button><button type="button" data-t="store">업체 분석</button><button type="button" data-t="kw">키워드 분석</button><button type="button" data-t="comp">경쟁사 분석</button><button type="button" data-t="trend">추세 분석</button>
+      </div>
+      <p class="rk-toast" id="np-toast" role="status" aria-live="polite" hidden></p>
+
+      <div id="np-p-rank">
+        <div class="box np-today" id="np-today" hidden><b>오늘 확인할 항목</b><ul id="np-today-list"></ul></div>
+        <div class="box">
+          <div class="np-bar">
+            <div class="seg" id="np-view"><button type="button" data-v="kw" class="on">키워드 기준</button><button type="button" data-v="store">매장 기준</button></div>
+            <select id="np-f-store" aria-label="매장"><option value="">매장 전체</option></select>
+            <select id="np-f-camp" aria-label="캠페인"><option value="">캠페인 전체</option></select>
+            <select id="np-f-group" aria-label="그룹"><option value="">그룹 전체</option></select>
+            <input id="np-f-q" type="search" placeholder="키워드·매장 검색" aria-label="검색">
+            <button type="button" class="btn" id="np-sum" title="목록에 보이는 키워드의 최신·직전·최초 순위만 한 번에 읽어요 (새 검색을 하지 않아요)">순위 요약 새로고침</button>
+            <button type="button" class="btn" id="np-csv">엑셀(CSV) 내려받기</button>
+          </div>
+          <div class="rk-scroll"><table class="tb np-table" id="np-table"></table></div>
+          <p class="empty" id="np-empty" hidden></p>
+          <div class="np-pager" id="np-pager" hidden><button type="button" class="btn" id="np-prev">이전</button><span id="np-pg"></span><button type="button" class="btn" id="np-next">다음</button></div>
+        </div>
+      </div>
+
+      <div id="np-p-reg" hidden>
+        <div class="box">
+          <b>키워드 등록 · 대량 등록</b>
+          <p class="muted">한 줄에 <b>키워드, 플레이스 주소 또는 ID</b>를 입력하세요. 한 번에 최대 50줄이에요. 먼저 <b>중복 확인</b>으로 이미 추적 중인 키워드를 찾고, 새로 등록할 것만 보내요. 등록은 업플로우의 추적 슬롯을 사용하고, <b>쓰기 권한</b>이 있어야 해요.</p>
+          <form class="np-form" id="np-reg">
+            <textarea id="np-r-lines" rows="6" placeholder="명동 빵집, https://m.place.naver.com/restaurant/2058364838/home&#10;명동 베이커리, 2058364838" aria-label="등록할 키워드와 플레이스"></textarea>
+            <div class="np-bar"><div class="rk-mode"><label><input type="radio" name="nrmode" value="standard" checked> 표준 검색</label><label><input type="radio" name="nrmode" value="location"> 업체 위치 기준 검색</label></div>
+              <select id="np-r-group" aria-label="업플로우 그룹"><option value="">그룹 없음</option></select></div>
+            <div class="np-acts"><button class="btn" type="button" id="np-r-check">중복 확인</button><button class="btn ok" type="submit" id="np-r-go" disabled>새 키워드만 등록</button></div>
+          </form>
+          <div class="np-result" id="np-r-res" hidden></div>
+        </div>
+      </div>
+
+      <div id="np-p-once" hidden>
+        <div class="box">
+          <b>1회 검색</b><p class="muted">버튼을 눌렀을 때만 실제로 검색해요. 업플로우 웹과 조회 한도를 함께 쓰니 필요할 때만 눌러 주세요.</p>
+          <form class="np-form" id="np-once">
+            <input id="np-o-kw" placeholder="키워드 (예: 명동 빵집)" maxlength="40" aria-label="키워드">
+            <input id="np-o-place" placeholder="플레이스 주소 또는 ID" maxlength="300" aria-label="플레이스 주소 또는 ID">
+            <div class="rk-mode"><label><input type="radio" name="npmode" value="standard" checked> 표준 검색</label><label><input type="radio" name="npmode" value="location"> 업체 위치 기준 검색</label></div>
+            <div class="np-acts"><button class="btn ok" type="submit" id="np-o-go">1회 검색</button><button class="btn" type="button" id="np-o-reg" disabled>이 키워드를 추적 등록</button></div>
+          </form>
+          <div class="np-result" id="np-o-res" hidden></div>
+        </div>
+      </div>
+
+      <div id="np-p-store" hidden><div class="box"><div class="np-bar"><select id="np-s-sel" aria-label="매장 선택"></select></div><div id="np-s-body"></div></div></div>
+      <div id="np-p-kw" hidden><div class="box"><div class="np-bar"><input id="np-k-q" type="search" placeholder="키워드 검색" aria-label="키워드 검색"></div><div class="rk-scroll"><table class="tb np-table" id="np-k-table"></table></div><p class="empty" id="np-k-empty" hidden></p></div></div>
+      <div id="np-p-comp" hidden><div class="box"><p class="muted">같은 키워드·같은 검색 조건으로 업플로우 계정에 등록된 추적 매장끼리만 비교해요. 계정에 없는 경쟁 매장은 보이지 않아요.</p><div id="np-c-body"></div></div></div>
+      <details class="box np-hook" id="np-hook"><summary><b>웹훅 연결 정보</b> <small class="muted">(선택 · 놓쳐도 '목록 다시 읽기'로 따라잡아요)</small></summary>
+        <p class="muted">웹훅은 업플로우가 "이 키워드의 이력이 바뀌었어요"라고 알려 주는 신호예요. 받은 신호는 순위 데이터를 저장하지 않고, 해당 키워드의 이력을 다시 읽도록 표시만 해요. 실패한 전달은 업플로우가 다시 보내지 않아요.</p>
+        <ul class="np-hook-l"><li>받는 주소: <code id="np-hook-url"></code></li><li>받는 이벤트: <code>rank.changed</code> · <code>refresh.completed</code> · <code>refresh.failed</code></li><li>서버 비밀값 이름: <code>UPFLOW_WEBHOOK_SECRET</code> (Supabase > Edge Functions > Secrets)</li><li>마지막 수신: <b id="np-hook-last">확인 중…</b></li></ul>
+        <p class="muted">위 주소를 업플로우 개발자 페이지에서 <b>직접 등록</b>해 주세요. 이 화면은 웹훅 등록 요청을 보내지 않아요. 서명(X-UpFlow-Signature)이 맞지 않거나 이미 받은 전달(X-UpFlow-Delivery)은 처리하지 않아요.</p></details>
+
+      <div id="np-p-trend" hidden><div class="box">
+        <div class="np-bar"><select id="np-t-sel" aria-label="매장 선택"></select>
+          <div class="seg" id="np-t-range"><button type="button" data-d="7" class="on">7일</button><button type="button" data-d="14">14일</button><button type="button" data-d="30">30일</button></div>
+          <label class="np-inl">시작 <input type="date" id="np-t-from"></label><label class="np-inl">끝 <input type="date" id="np-t-to"></label></div>
+        <div id="np-t-body"></div></div></div>
+    </section>
   </main>
 </div>
 
@@ -127,9 +198,32 @@
   </form>
 </dialog>
 
+
+<dialog id="np-link" class="pn-dlg">
+  <div class="pn-dh"><div><b>매장·캠페인 연결</b><small class="muted" id="np-l-info"></small></div><button type="button" id="np-l-close" aria-label="닫기">✕</button></div>
+  <form class="pn-add" id="np-l-form">
+    <label>매장명 <input id="np-l-store" maxlength="60"></label>
+    <label>캠페인 <select id="np-l-camp"></select></label>
+    <label>그룹 <input id="np-l-group" maxlength="30" placeholder="예) 11월 신규"></label>
+    <label>시작일 <small class="muted">(비우면 캠페인 등록일)</small> <input id="np-l-start" type="date"></label>
+    <label>메모 <input id="np-l-memo" maxlength="300"></label>
+    <div class="np-acts"><button class="btn ok" type="submit">저장</button><button class="btn" type="button" id="np-l-del">우리 사이트 연결 해제</button></div>
+    <p class="muted small">"연결 해제"는 우리 사이트의 매장·캠페인 연결만 지워요. 업플로우의 추적에는 영향이 없어요.</p>
+  </form>
+  <div class="np-up">
+    <b>업플로우에서 (별도 작업)</b>
+    <div class="np-acts"><select id="np-l-ugroup" aria-label="업플로우 그룹"><option value="">그룹 없음</option></select><button class="btn" type="button" id="np-l-move">그룹 이동</button></div>
+    <div class="np-acts"><button class="btn" type="button" disabled title="업플로우 웹에서 처리해 주세요">업플로우 추적 중지</button><button class="btn bad" type="button" disabled title="업플로우 웹에서 처리해 주세요">업플로우 휴지통으로 이동</button></div>
+    <p class="muted small">추적 중지와 휴지통 이동은 업플로우 웹에서 해 주세요. (공식 API 문서를 확인하지 못해 이 화면에서는 실행하지 않아요)</p>
+  </div>
+</dialog>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
 <script src="boarddata.js"></script>
+<script src="place-normalize.js"></script>
+<script src="admin-place-sample.js"></script>
+<script src="admin-place.js"></script>
 <script src="admin.js"></script>
 </body>
 </html>

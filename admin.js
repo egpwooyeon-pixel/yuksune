@@ -32,14 +32,13 @@ async function init() {
   window.addEventListener("hashchange", route); route(); inqBadge();
 }
 
-const loaded = {};
 function route() {
   const [s, qs] = (location.hash || "#dashboard").slice(1).split("?");
   if (s === "rank") rk.camp = new URLSearchParams(qs || "").get("c") || null;
-  const name = ["dashboard", "members", "campaigns", "apps", "rank", "posts", "inq"].includes(s) ? s : "dashboard";
+  const name = ["dashboard", "members", "campaigns", "apps", "rank", "posts", "inq", "place"].includes(s) ? s : "dashboard";
   document.querySelectorAll("main section").forEach(x => x.hidden = x.id !== "s-" + name);
   document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("on", a.dataset.s === name));
-  ({ dashboard: loadDash, members: () => loadMembers(true), campaigns: loadCamps, apps: loadApps, rank: loadRank, posts: loadPosts, inq: loadInq })[name]();
+  ({ dashboard: loadDash, members: () => loadMembers(true), campaigns: loadCamps, apps: loadApps, rank: loadRank, posts: loadPosts, inq: loadInq, place: loadPlace })[name]();
 }
 
 /* ---------- 대시보드 ---------- */
@@ -400,7 +399,7 @@ function stats(t) {
   return { logs, start, startLog, first, latest, delta };
 }
 function drawRank() {
-  const list = rk.trackers.filter(t => (rk.stopped || t.active) && (!rk.camp || t.campaign_id === rk.camp));
+  const list = rk.trackers.filter(t => (rk.stopped || t.active || t.self_registered) && (!rk.camp || t.campaign_id === rk.camp));   // 사업자가 신청한 대기 항목은 항상 보임
   const f = $("rk-filter"), c = rk.camp && rk.camps.find(x => x.id === rk.camp);
   f.hidden = !rk.camp; f.innerHTML = rk.camp ? `캠페인 필터: <b>${esc(c ? c.biz + " · " + c.title : "선택한 캠페인")}</b> <button class="btn" id="rk-unfilter">필터 해제</button>` : "";
   $("rk-empty").hidden = list.length > 0; $("rk-empty").textContent = rk.camp ? "이 캠페인에 등록된 키워드가 없어요." : "등록된 추적이 아직 없어요.";
@@ -410,7 +409,7 @@ function drawRank() {
     const startTxt = s.startLog ? s.startLog.rank + "번째" : "미수집" + (s.first ? `<small class="muted">첫 확인 ${s.first.rank}번째 (${s.first.day.slice(5)})</small>` : "");
     const today = s.logs.find(l => l.day === kstDay(Date.now()));
     const last = s.latest ? hm(s.latest.checked_at || s.latest.created_at) + `<small class="muted">${s.latest.source === "provider" ? "자동" : "수동 확인"}</small>` : "—";
-    return `<tr class="rk-row ${t.active ? "" : "stopped"} ${open ? "open" : ""}" data-id="${t.id}"><td data-l="매장"><b>${esc(t.place_name || (t.campaigns && t.campaigns.biz) || "-")}</b><small class="muted">${esc(nickOf(t))}${t.active ? "" : " · 중지됨"}</small></td>
+    return `<tr class="rk-row ${t.active ? "" : "stopped"} ${open ? "open" : ""}" data-id="${t.id}"><td data-l="매장"><b>${esc(t.place_name || (t.campaigns && t.campaigns.biz) || "-")}</b><small class="muted">${esc(nickOf(t))}${t.active ? "" : (t.self_registered ? " · 사업자 신청 · 대기 ('추적 재개'를 누르면 시작)" : " · 중지됨")}</small></td>
       <td data-l="키워드">${esc(t.keyword)}</td><td data-l="시작일 순위">${startTxt}</td>
       <td data-l="오늘 노출 순서">${today ? `<b>${rkText(today)}</b>` : `<b class="muted">오늘 미수집</b>${s.latest ? `<small class="muted">최근 ${s.latest.day.slice(5)}: ${rkText(s.latest)}</small>` : ""}`}</td>
       <td data-l="전일 대비">${s.delta}</td><td data-l="최근 7일 기록">${spark(s.logs)}</td><td data-l="마지막 조회">${last}</td>
