@@ -119,10 +119,13 @@ export async function runCron(deps) {
 // ---- 실제 서버 연결 (Deno 환경에서만 실행) ----
 function realDeps() {
   const env = k => Deno.env.get(k);
-  const URL_ = env("SUPABASE_URL"), KEY = env("SUPABASE_SERVICE_ROLE_KEY");
-  const H = { apikey: KEY, authorization: `Bearer ${KEY}`, "content-type": "application/json" };
-  const get = async path => { const r = await fetch(`${URL_}/rest/v1/${path}`, { headers: H }); return r.ok ? await r.json() : []; };
-  const rpc = async (fn, body) => { const r = await fetch(`${URL_}/rest/v1/rpc/${fn}`, { method: "POST", headers: H, body: JSON.stringify(body) }); if (!r.ok) throw new Error("rpc_" + fn); return await r.json(); };
+  const URL_ = env("SUPABASE_URL");
+  // 서버 전용 키: 새 방식 비밀 키(SUPABASE_SECRET_KEYS)가 있으면 그것을, 없으면 예전 service_role 키를 씀
+  let KEY = env("SUPABASE_SERVICE_ROLE_KEY");
+  try { const k = JSON.parse(env("SUPABASE_SECRET_KEYS") || "{}"); const v = k.default || Object.values(k)[0]; if (typeof v === "string" && v) KEY = v; } catch (_) { /* 무시 */ }
+  const H = KEY && KEY.startsWith("sb_") ? { apikey: KEY, "content-type": "application/json" } : { apikey: KEY, authorization: `Bearer ${KEY}`, "content-type": "application/json" };
+  const get = async path => { const r = await fetch(`${URL_}/rest/v1/${path}`, { headers: H }); if (!r.ok) throw new Error("db_" + r.status); return await r.json(); };   // 실패를 빈 목록으로 숨기지 않음
+  const rpc = async (fn, body) => { const r = await fetch(`${URL_}/rest/v1/rpc/${fn}`, { method: "POST", headers: H, body: JSON.stringify(body) }); if (!r.ok) throw new Error("rpc_" + fn + "_" + r.status); return await r.json(); };
   return {
     providerReady: () => !!env("SERPAPI_API_KEY"),
     async autoOn() { const r = await get("app_settings?key=eq.rank_auto&select=value"); return !!(r[0] && r[0].value === true); },
@@ -141,12 +144,17 @@ function realDeps() {
       if (!r.ok) throw new Error("save_failed");
     },
     async markTracker(id, patch) { await fetch(`${URL_}/rest/v1/rank_trackers?id=eq.${id}`, { method: "PATCH", headers: H, body: JSON.stringify(patch) }); },
-    async isAdmin(authHeader) {
-      const u = await fetch(`${URL_}/auth/v1/user`, { headers: { apikey: KEY, authorization: authHeader } });
-      if (!u.ok) return false;
+    async isAdmin(req) {                                                     // 관리자 로그인 확인 (읽기만 함). 브라우저가 보낸 로그인 토큰과 공개용 키로 확인
+      const auth = req.headers.get("authorization") || "";
+      const apikey = req.headers.get("apikey") || env("SUPABASE_ANON_KEY") || KEY;
+      if (!/^Bearer\s+\S+/.test(auth)) return { ok: false, why: "no_token" };
+      let u; try { u = await fetch(`${URL_}/auth/v1/user`, { headers: { apikey, authorization: auth } }); } catch (_) { return { ok: false, why: "auth_unreachable" }; }
+      if (!u.ok) return { ok: false, why: "auth_" + u.status };
       const { id } = await u.json();
-      const rows = await get(`profiles?id=eq.${id}&select=role`);
-      return !!rows[0] && rows[0].role === "admin";
+      let p; try { p = await fetch(`${URL_}/rest/v1/profiles?id=eq.${id}&select=role`, { headers: { apikey, authorization: auth } }); } catch (_) { return { ok: false, why: "profile_unreachable" }; }
+      if (!p.ok) return { ok: false, why: "profile_" + p.status };
+      const rows = await p.json();
+      return rows[0] && rows[0].role === "admin" ? { ok: true } : { ok: false, why: "not_admin" };
     },
     sleep: ms => new Promise(r => setTimeout(r, ms)),
   };
@@ -160,10 +168,10 @@ if (typeof Deno !== "undefined" && Deno.serve) {
     try {
       if (cron && req.headers.get("x-cron-secret") === cron) return json(await runCron(deps));            // 하루 한 번 예약 실행
       const body = await req.json().catch(() => ({}));
-      if (body.tracker_id && /^[0-9a-f-]{36}$/i.test(String(body.tracker_id)) && await deps.isAdmin(req.headers.get("authorization") || "")) {
-        return json(await runManual(body.tracker_id, deps));                                              // 관리자 '지금 조회'
-      }
-      return json({ error: "unauthorized" }, 401);
+      if (!body.tracker_id || !/^[0-9a-f-]{36}$/i.test(String(body.tracker_id))) return json({ error: "unauthorized", why: "bad_request" }, 401);
+      const adm = await deps.isAdmin(req);
+      if (!adm.ok) return json({ error: "unauthorized", why: adm.why }, 401);
+      return json(await runManual(body.tracker_id, deps));                                                // 관리자 '지금 조회'
     } catch (e) {
       return json({ error: "server_error", detail: redact(e && e.message) }, 500);                       // 키가 섞여 나가지 않게 가린 뒤 반환
     }

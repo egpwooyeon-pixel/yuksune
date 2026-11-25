@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
   <meta name="robots" content="noindex,nofollow">
   <title>관리자 - 우리들 체험단</title>
   <link rel="stylesheet" href="admin.css">
@@ -20,6 +21,7 @@
       <a href="#apps" data-s="apps">신청 현황</a>
       <a href="#rank" data-s="rank">순위 추적</a>
       <a href="#posts" data-s="posts">게시판 관리</a>
+      <a href="#inq" data-s="inq">상담 문의 <i id="inq-new" hidden></i></a>
       <a href="admin-inquiries.html">상담 접수 (EGP)</a>
       <a href="admin-drafts.html">글 초안 (EGP)</a>
     </nav>
@@ -105,6 +107,11 @@
     <section id="s-posts" hidden>
       <div class="ad-top"><div><small class="kick">BOARD</small><h1>게시판 관리</h1></div></div>
       <div class="box"><table class="tb" id="posts"></table><p class="empty" id="p-empty" hidden>글이 아직 없어요.</p></div>
+    </section>
+    <section id="s-inq" hidden>
+      <div class="ad-top"><div><small class="kick">INQUIRY</small><h1>상담 문의</h1></div></div>
+      <p class="muted">AI 검색 최적화(landing.html) 상담 폼으로 들어온 문의예요. 개인정보(이름·연락처)가 들어 있으니 운영자만 확인하고, 처리가 끝나면 삭제해 주세요.</p>
+      <div class="box rk-scroll"><table class="tb" id="inq"></table><p class="empty" id="inq-empty" hidden>접수된 문의가 아직 없어요.</p></div>
     </section>
   </main>
 </div>

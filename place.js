@@ -50,6 +50,28 @@ const rankScore = r => r <= 3 ? 100 : r <= 5 ? 90 : r <= 10 ? 75 : r <= 20 ? 55 
 const label = s => s >= 70 ? ["양호", "ok"] : s >= 40 ? ["보통", "mid"] : ["보완", "bad"];
 const grade = s => s >= 85 ? ["S", "매우 좋음"] : s >= 70 ? ["A", "좋음"] : s >= 55 ? ["B", "무난함"] : s >= 40 ? ["C", "개선 필요"] : ["D", "시급"];
 
+// 붙여 넣은 네이버 플레이스 화면에서 "방문자 리뷰 N", "블로그 리뷰 N", "영수증 리뷰 N"만 찾아요. (서버로 보내지 않음)
+// 라벨 없이 "리뷰 N"만 있으면 어떤 리뷰인지 알 수 없어서 채우지 않고 숫자만 알려 줘요.
+function parsePasted(raw) {
+  const t = String(raw == null ? "" : raw).replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ");
+  const pick = re => { const m = t.match(re); if (!m) return null; const n = parseInt(m[1].replace(/,/g, ""), 10); return Number.isFinite(n) && n >= 0 && n <= 999999 ? n : null; };
+  const out = { visitor: pick(/방문자\s*리뷰\s*([\d,]+)/), blog: pick(/블로그\s*리뷰\s*([\d,]+)/), receipt: pick(/영수증\s*리뷰\s*([\d,]+)/), others: [] };
+  if (out.visitor == null || out.blog == null) {
+    const seen = new Set(); for (const m of t.matchAll(/(?:^|[^가-힣])리뷰\s*([\d,]+)/g)) { const n = parseInt(m[1].replace(/,/g, ""), 10); if (n <= 999999) seen.add(n); }
+    out.others = [...seen].slice(0, 6);
+  }
+  return out;
+}
+$("pd-paste-go").onclick = () => {
+  const m = $("pd-paste-msg"), r = parsePasted($("pd-paste").value), got = [];
+  const set = (name, v, text) => { if (v != null) { document.querySelector(`#pd-form [name="${name}"]`).value = v; got.push(`${text} ${v.toLocaleString()}개`); } };
+  set("visitor", r.visitor, "방문자 리뷰"); set("blog", r.blog, "블로그 리뷰");
+  let t = got.length ? `${got.join(", ")}를 입력칸에 채웠어요. 맞는지 확인해 주세요.` : "방문자 리뷰·블로그 리뷰 숫자를 찾지 못했어요.";
+  if (r.receipt != null) t += ` (영수증 리뷰 ${r.receipt.toLocaleString()}개도 보여요. 이 진단에는 쓰지 않아요.)`;
+  if (r.others.length && got.length < 2) t += ` "리뷰" 옆에서 ${r.others.map(x => x.toLocaleString()).join(", ")} 같은 숫자를 봤지만 어떤 리뷰인지 구분할 수 없어 채우지 않았어요. 직접 입력해 주세요.`;
+  m.hidden = false; m.textContent = t;
+};
+
 $("pd-form").onsubmit = e => {
   e.preventDefault();
   const f = e.target, msg = $("pd-msg"); msg.hidden = true;

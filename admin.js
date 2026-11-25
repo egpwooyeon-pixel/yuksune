@@ -29,17 +29,17 @@ async function init() {
   $("gate").hidden = true; $("app").hidden = false;
   const nick = p.nickname || u.email.split("@")[0];
   $("me-av").textContent = nick.slice(0, 1).toUpperCase(); $("me-name").textContent = nick; $("me-mail").textContent = u.email;
-  window.addEventListener("hashchange", route); route();
+  window.addEventListener("hashchange", route); route(); inqBadge();
 }
 
 const loaded = {};
 function route() {
   const [s, qs] = (location.hash || "#dashboard").slice(1).split("?");
   if (s === "rank") rk.camp = new URLSearchParams(qs || "").get("c") || null;
-  const name = ["dashboard", "members", "campaigns", "apps", "rank", "posts"].includes(s) ? s : "dashboard";
+  const name = ["dashboard", "members", "campaigns", "apps", "rank", "posts", "inq"].includes(s) ? s : "dashboard";
   document.querySelectorAll("main section").forEach(x => x.hidden = x.id !== "s-" + name);
   document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("on", a.dataset.s === name));
-  ({ dashboard: loadDash, members: () => loadMembers(true), campaigns: loadCamps, apps: loadApps, rank: loadRank, posts: loadPosts })[name]();
+  ({ dashboard: loadDash, members: () => loadMembers(true), campaigns: loadCamps, apps: loadApps, rank: loadRank, posts: loadPosts, inq: loadInq })[name]();
 }
 
 /* ---------- 대시보드 ---------- */
@@ -244,9 +244,9 @@ async function lookupNow(id, btn) {                // '지금 조회': 서버가
     if (error && !r) { try { r = await error.context.json(); } catch (_) { r = null; } }
     if (!r) { msg = "조회 서비스에 연결하지 못했어요. (collect-ranks 함수가 배포되어 있는지 확인해 주세요)"; kind = "warn"; }
     else if (r.error === "provider_not_configured") { msg = "SerpApi 키가 서버에 설정되지 않았어요. Supabase > Edge Functions > Secrets 에 SERPAPI_API_KEY 를 등록해 주세요. (조회 횟수는 사용되지 않았어요)"; kind = "warn"; }
-    else if (r.error === "unauthorized") { msg = "권한이 없어요. 운영자 계정으로 로그인했는지 확인해 주세요."; kind = "warn"; }
+    else if (r.error === "unauthorized") { msg = "권한이 없어요. 운영자 계정으로 로그인했는지 확인해 주세요." + (r.why ? " (" + r.why + ")" : ""); kind = "warn"; }
     else if (r.error === "inactive") { msg = "추적이 중지된 키워드예요. 먼저 '추적 재개'를 눌러 주세요."; kind = "warn"; }
-    else if (r.error) { msg = "조회하지 못했어요. (" + r.error + ")"; kind = "warn"; }
+    else if (r.error) { msg = "조회하지 못했어요. (" + r.error + (r.detail ? ": " + r.detail : "") + ")"; kind = "warn"; }
     else if (r.denied === "daily_limit") { msg = "오늘 조회 한도(5회)에 도달해서 SerpApi를 호출하지 않았어요. 내일 다시 조회해 주세요."; kind = "warn"; }
     else if (r.denied === "monthly_limit") { msg = "이번 달 조회 한도(200회)에 도달해서 SerpApi를 호출하지 않았어요."; kind = "warn"; }
     else if (r.denied === "in_progress") { msg = "같은 키워드를 조회하는 중이에요. 잠시 후 새로고침해 주세요."; kind = "warn"; }
@@ -308,7 +308,7 @@ async function psSearch() {
     else if (err === "not_configured") psShow("네이버 API 키가 서버에 설정되지 않았어요. Supabase > Edge Functions > Secrets 에 NAVER_APIHUB_CLIENT_ID, NAVER_APIHUB_CLIENT_SECRET 를 등록해 주세요. 지금은 아래에 직접 입력해서 등록할 수 있어요.", "warn");
     else if (err === "auth_failed") psShow("네이버 API 키가 올바르지 않거나 사용 권한이 없어요. 키를 다시 확인해 주세요. 직접 입력해서 등록할 수도 있어요.", "warn");
     else if (err === "rate_limited") psShow("검색 요청이 많아 잠시 막혔어요. 잠시 후 다시 시도해 주세요.", "warn");
-    else if (err === "unauthorized") psShow("권한이 없어요. 운영자 계정으로 로그인했는지 확인해 주세요.", "warn");
+    else if (err === "unauthorized") psShow("권한이 없어요. 운영자 계정으로 로그인했는지 확인해 주세요." + (r.why ? " (" + r.why + ")" : ""), "warn");
     else if (err === "bad_query") psShow("검색어는 2~40글자로 입력해 주세요.", "warn");
     else if (err) psShow("검색하지 못했어요. 직접 입력해서 등록할 수 있어요. (" + err + ")", "warn");
     else if (!(r.items || []).length) psShow("검색 결과가 없어요. 이름을 바꿔 다시 검색하거나, 아래에 매장명과 플레이스 주소/ID를 직접 입력해 등록할 수 있어요.");
@@ -475,5 +475,28 @@ $("posts").onclick = async e => {
   const { error } = await sb.from("posts").delete().eq("id", tr.dataset.id);
   if (error) return alert("삭제하지 못했어요."); loadPosts();
 };
+/* ---------- 상담 문의 (landing.html 상담 폼) ---------- */
+async function loadInq() {
+  const { data, error } = await sb.from("inquiries").select("id,company,name,phone,topic,website,message,status,created_at").order("created_at", { ascending: false }).limit(200);
+  if (error) { $("inq").innerHTML = ""; $("inq-empty").hidden = false; $("inq-empty").textContent = "문의를 불러오지 못했어요. (supabase/021_inquiries.sql 실행 여부를 확인해 주세요)"; return; }
+  $("inq-empty").hidden = (data || []).length > 0; $("inq-empty").textContent = "접수된 문의가 아직 없어요.";
+  const n = (data || []).filter(x => x.status === "new").length; $("inq-new").hidden = !n; $("inq-new").textContent = n;
+  const web = w => /^https?:\/\//i.test(w || "") ? `<a href="${esc(w)}" target="_blank" rel="noopener noreferrer">${esc(w)}</a>` : "-";
+  $("inq").innerHTML = (data || []).length ? `<thead><tr><th>접수일</th><th>업체명</th><th>담당자</th><th>연락처</th><th>업종</th><th>홈페이지</th><th>문의 내용</th><th>상태</th><th>처리</th></tr></thead><tbody>${data.map(q => `<tr data-id="${q.id}" data-st="${q.status}"><td>${full(q.created_at)}</td><td><b>${esc(q.company || "-")}</b></td><td>${esc(q.name)}</td><td><a href="tel:${esc(String(q.phone).replace(/[^\d+]/g, ""))}">${esc(q.phone)}</a></td><td>${esc(q.topic || "-")}</td><td>${web(q.website)}</td><td class="t" style="white-space:pre-wrap;min-width:180px">${esc(q.message || "-")}</td><td><span class="tag ${q.status === "new" ? "bad" : ""}">${q.status === "new" ? "새 문의" : "처리 완료"}</span></td><td><button class="btn" data-iq="toggle">${q.status === "new" ? "처리 완료" : "되돌리기"}</button> <button class="btn bad" data-iq="del">삭제</button></td></tr>`).join("")}</tbody>` : "";
+}
+$("inq").onclick = async e => {
+  const act = e.target.dataset.iq; if (!act) return;
+  const tr = e.target.closest("tr"), id = tr.dataset.id;
+  if (act === "del") {
+    if (!confirm(`'${tr.children[1].textContent.trim()}' 문의를 삭제할까요? 되돌릴 수 없어요.`)) return;
+    const { error } = await sb.from("inquiries").delete().eq("id", id);
+    if (error) return alert("삭제하지 못했어요.");
+  } else {
+    const { error } = await sb.from("inquiries").update({ status: tr.dataset.st === "new" ? "done" : "new" }).eq("id", id);
+    if (error) return alert("상태를 바꾸지 못했어요.");
+  }
+  loadInq();
+};
+async function inqBadge() { const { count } = await sb.from("inquiries").select("id", { count: "exact", head: true }).eq("status", "new"); if (count) { $("inq-new").hidden = false; $("inq-new").textContent = count; } }
 $("logout").onclick = async () => { await sb.auth.signOut(); location.href = "admin-login.html"; };
 init();
