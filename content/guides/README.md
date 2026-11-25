@@ -3,7 +3,8 @@
 업체 정보를 바탕으로 만든 안내 글을 정적 페이지로 만드는 폴더예요. 아직 **예시 글(가상 업체)** 하나만 있어요.
 
 ## 쓰는 법
-1. 글 하나를 `content/guides/<slug>.json` 으로 만들어요. (형식은 `sample-outdoor-wedding.json` 참고)
+0. **승인된 AI 초안은** `node tools/export-approved.mjs` 로 이 폴더에 내보내요. 전체 절차와 공개 전 체크리스트는 `docs/PUBLISHING.md` 를 보세요.
+1. 글 하나를 `content/guides/<slug>.json` 으로 직접 만들어도 돼요. (형식은 `sample-outdoor-wedding.json` 참고)
 2. `node tools/build-guides.mjs` 를 실행하면 `guide/` 에 페이지가 만들어져요. (Node 18 이상, 설치할 것 없음)
 3. 만들어진 `guide/*.html` 을 저장소에 올리면 사이트에서 `/guide/` 로 열려요.
 
@@ -14,5 +15,5 @@
 - 모든 글에 "광고" 표시와 안내 문구가 붙어요(`adLabel`, `adDisclosure`).
 
 ## 아직 없는 것 (다음 단계)
-- 신청 접수 → 글 생성(Gemini) → **사람의 검수·승인** → 발행을 잇는 자동화. 지금은 글 데이터를 직접 넣어야 해요.
+- 승인 즉시 자동 공개. 지금은 사람이 내보내기 → 확인 → 커밋 → 배포해요(`docs/PUBLISHING.md`).
 - 병원·의료 글은 사실 확인과 의료광고 규정 검토 없이 발행하지 마세요.

@@ -14,11 +14,18 @@
   // 레퍼런스 섹션 (SHOW_REFERENCE: false 로 끄기)
   if (L.SHOW_REFERENCE === false) { const r = $("reference"); if (r) r.hidden = true; }
 
+  let orderInfo = null;   // 진단 화면의 발행 설정에서 넘어온 신청 조건
+  let photoBatch = null;  // 진단 화면에서 올린 사진 묶음 번호(UUID 형식일 때만)
   // 진단 화면에서 넘어온 값으로 상담 폼 채우기 (값은 입력칸에만 넣고 HTML 로는 쓰지 않음)
   (function () {
     const qp = new URLSearchParams(location.search); let any = false;
     const put = (id, v, max) => { const el = $(id); if (el && v) { el.value = String(v).slice(0, max); any = true; } };
     put("f-company", qp.get("company"), 100); put("f-web", qp.get("web"), 200); put("f-msg", qp.get("msg"), 1000);
+    // 신청 조건(상품·수량·기간)은 범위를 확인한 숫자만 구조화해 저장 (잘못된 값이면 저장하지 않음)
+    const int = (k, lo, hi) => { const raw = qp.get(k); if (raw == null || raw.trim() === "") return null; const n = Number(raw); return Number.isInteger(n) && n >= lo && n <= hi ? n : null; };   // 값이 없으면 null (Number(null)=0 이 되어 "0원"으로 저장되는 것을 막음)
+    const pb = (qp.get("pb") || "").toLowerCase(); if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(pb)) { photoBatch = pb; any = true; }
+    const prodName = (qp.get("prod") || "").trim().slice(0, 60), per = int("per", 1, 100), days = int("days", 1, 365), price = int("price", 0, 1e9);
+    if (prodName && per && days) orderInfo = { product: prodName, perDay: per, days, total: per * days, ...(price != null ? { unit: String(qp.get("unit") || "건당").slice(0, 10), price } : {}) };
     const t = qp.get("topic"), sel = $("f-topic");
     if (t && sel) { const o = [...sel.options].find(x => x.text === t || (t === "웨딩홀" && x.text === "웨딩")); if (o) { sel.value = o.value || o.text; any = true; } }
     const st = $("status"); if (any && st) { st.hidden = false; st.className = "status"; st.textContent = "진단 화면에서 입력한 내용을 가져왔어요. 확인하고 담당자·연락처를 입력해 주세요."; }
@@ -75,10 +82,14 @@
 
     busy = true; btn.disabled = true; say("접수 중입니다…", "");
     const v = id => $(id).value.trim();
-    const { error } = await sb.from("inquiries").insert({
+    const row = {
       company: v("f-company"), name: v("f-name"), phone: v("f-phone"), topic: v("f-topic"),
       website: v("f-web") || null, message: v("f-msg"), agreed: true,
-    });
+    };
+    // 새 열(order_info, photo_batch)은 값이 있을 때만 보내요. 그래야 021 SQL 을 예전 버전으로만 실행한 DB 에서도 일반 상담 신청이 계속 저장돼요.
+    if (orderInfo) row.order_info = orderInfo;
+    if (photoBatch) row.photo_batch = photoBatch;
+    const { error } = await sb.from("inquiries").insert(row);
     busy = false; btn.disabled = false;
     if (error) {
       const noTable = /relation|schema cache|does not exist|column/i.test(error.message || "");
