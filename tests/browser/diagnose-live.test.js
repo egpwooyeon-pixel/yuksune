@@ -20,8 +20,8 @@ async function fixtures() {      // 진단 함수를 모의 Gemini 로 돌려 �
     const n = Number(b.contents[0].parts[0].text.match(/조건(\d+)/)[1]);
     return ok(gem(n % 2 === 0 ? '샘플 웨딩홀과 예시홀A를 추천합니다.' : '예시홀A를 추천합니다.', n % 3 === 0 ? ['blog.example.com', 'sample-hall.co.kr'] : ['blog.example.com']));
   };
-  const R1 = await m.diagnose(m.parseInput({ name: '샘플 웨딩홀', region: '강남', industry: '웨딩홀', url: 'https://sample-hall.co.kr' }), { apiKey: 'k', model: 'x', fetch: f });
-  const R2 = await m.diagnose(m.parseInput({ name: '샘플 웨딩홀', region: '강남', industry: '웨딩홀' }), { apiKey: 'k', model: 'x', fetch: f });
+  const R1 = await m.diagnose(m.parseInput({ name: '샘플 웨딩홀', region: '강남', industry: '웨딩홀', url: 'https://sample-hall.co.kr' }), { apiKey: 'k', model: 'x', fetch: f, questions: 10 });
+  const R2 = await m.diagnose(m.parseInput({ name: '샘플 웨딩홀', region: '강남', industry: '웨딩홀' }), { apiKey: 'k', model: 'x', fetch: f, questions: 10 });
   return { R1, R2 };
 }
 (async () => {

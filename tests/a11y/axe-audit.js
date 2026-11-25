@@ -41,6 +41,8 @@ const mockSb = () => {
     await audit('landing', 'landing.html', w);
     await audit('diagnose(all-on)', 'diagnose.html', w);
     await audit('diagnose(report)', 'diagnose.html', w, diag);
+    await audit('overseas-report', 'overseas-report.html', w);
+    await audit('overseas-report(cn tab)', 'overseas-report.html', w, async p => { await p.click('#tab-cn'); });
     await audit('privacy', 'landing-privacy.html', w);
     await audit('guide-article', 'guide/sample-outdoor-wedding.html', w);
     await audit('guide-index', 'guide/index.html', w);
