@@ -42,13 +42,22 @@
   const say = (t, cls) => { status.hidden = !t; status.textContent = t || ""; status.className = "status " + (cls || ""); };
   let busy = false;
 
+  // 주소 앞의 https:// 는 직접 쓰지 않아도 돼요. "egp.kr" 처럼 쓰면 https://egp.kr 로 바꿔 줘요. (http:// 와 https:// 외의 방식은 거절)
+  function normWeb(v) {
+    v = String(v || "").trim(); if (!v) return "";
+    if (/^[a-z][a-z0-9+.-]*:/i.test(v) && !/^https?:\/\//i.test(v)) return null;           // javascript: 등
+    const u = /^https?:\/\//i.test(v) ? v : "https://" + v.replace(/^\/\//, "");
+    try { const x = new URL(u); return /^https?:$/.test(x.protocol) && /^[^.\s]+(\.[^.\s]+)+$/.test(x.hostname) ? x.href.replace(/\/$/, x.pathname === "/" && !x.search && !x.hash ? "" : "/") : null; } catch (_) { return null; }
+  }
+  $("f-web").addEventListener("blur", () => { const w = normWeb($("f-web").value); if (w) { $("f-web").value = w; setErr("web", ""); } });
+
   function validate() {
     const v = id => $(id).value.trim(), errs = {};
     if (!v("f-company")) errs.company = "업체명을 입력해 주세요.";
     if (!v("f-name")) errs.name = "담당자 이름을 입력해 주세요.";
     if (v("f-phone").replace(/\D/g, "").length < 9) errs.phone = "연락처를 정확히 입력해 주세요. (예: 010-0000-0000)";
     if (!v("f-topic")) errs.topic = "업종을 선택해 주세요.";
-    if (v("f-web")) { try { const u = new URL(v("f-web")); if (!/^https?:$/.test(u.protocol)) throw 0; } catch (_) { errs.web = "https:// 로 시작하는 주소를 입력해 주세요."; } }
+    if (v("f-web")) { const w = normWeb(v("f-web")); if (w) $("f-web").value = w; else errs.web = "홈페이지 주소를 확인해 주세요. (예: egp.kr)"; }
     if (live && !$("f-agree").checked) errs.agree = "개인정보 수집·이용에 동의해 주세요.";
     Object.keys(F).forEach(k => setErr(k, errs[k]));
     const first = Object.keys(errs)[0];
