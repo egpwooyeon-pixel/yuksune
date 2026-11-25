@@ -262,5 +262,27 @@ window.REPORT = {
   next: {
     needs: ["병원이 사용하는 현지 언어별 대표 시술(서비스) 목록", "현지 언어 검수를 맡을 담당자", "상담·예약을 받는 현지 수단(메신저 등)", "광고 심의·의료광고 확인 담당"],
     decisions: ["기존 홈페이지 수정 vs 신규 구축", "먼저 공략할 국가(일본·대만·영어권 중)", "월간 보고 형식과 받는 분", "상담·예약·사후관리 담당 범위"]
+  },
+
+  // 자동 점검 "예시 결과"(OVERSEAS_LIVE=false 일 때 보여 줌) — 가상의 값
+  autoDemo: {
+    site: { url: "https://www.example-clinic.example/", host: "www.example-clinic.example" },
+    measuredAt: "예시",
+    skipped: 0,
+    pages: [
+      { url: "https://www.example-clinic.example/", lang: "ko", title: "예시의원 | 서울 피부과", titleWidth: 22, description: "서울에 있는 피부과입니다. 처음 방문하는 분을 위한 진료 안내입니다.", descWidth: 64, h1: "예시의원", h1Count: 1, canonical: "https://www.example-clinic.example/", hreflang: ["ko", "ja", "en"] },
+      { url: "https://www.example-clinic.example/ja/", lang: "ja", title: "예시의원 | 서울 피부과", titleWidth: 22, description: "ソウルの皮膚科です。", descWidth: 20, h1: "ようこそ", h1Count: 1, canonical: "https://www.example-clinic.example/ja/", hreflang: ["ko"] },
+      { url: "https://www.example-clinic.example/en/", lang: "en", title: "Example Clinic Seoul - first visit guide", titleWidth: 40, description: "A dermatology clinic in Seoul. This page explains the first visit flow and how to book in English.", descWidth: 98, h1: "First visit guide", h1Count: 1, canonical: "https://www.example-clinic.example/en/", hreflang: ["ko"] }
+    ],
+    findings: [
+      { area: "언어별 페이지 연결(hreflang)", status: "ok", found: "연결된 언어: ko, ja, en", todo: "새 언어 페이지를 만들 때마다 같이 추가하세요." },
+      { area: "기본 언어(x-default)", status: "warn", found: "x-default 표시가 없습니다.", todo: "어느 언어 사용자에게도 맞지 않을 때 보여 줄 기본 페이지를 x-default 로 지정하세요." },
+      { area: "제목(title)", status: "ok", found: "모든 페이지에 적당한 길이의 제목이 있습니다.", todo: "현지 검색어와 맞는지 한 번 더 검수하세요." },
+      { area: "언어별 제목 중복", status: "warn", found: "서로 다른 언어 페이지가 같은 제목을 쓰고 있습니다(번역하지 않은 것으로 보입니다).", todo: "언어마다 그 나라 검색어에 맞는 제목으로 따로 쓰세요." },
+      { area: "설명(description)", status: "warn", found: "일부 설명이 너무 길거나 짧습니다.", todo: "한글·한자 약 80자, 영문 약 160자 안쪽으로 정리하세요." },
+      { area: "AI 크롤러 접근", status: "warn", found: "다음 AI 로봇이 막혀 있습니다: GPTBot", todo: "AI 답변에 소개되길 원한다면 해당 로봇 차단을 풀지 검토하세요(정책 결정 필요)." },
+      { area: "사이트맵(sitemap)", status: "ok", found: "사이트맵을 찾았습니다(주소 3개 표시).", todo: "새 페이지를 만들면 사이트맵에 넣으세요." }
+    ],
+    unmeasured: ["월 검색량(국가별 검색어)", "구글 검색 순위", "AI 답변 인용 횟수", "외부 참조 도메인·매체 소개", "경쟁사 비교"]
   }
 };

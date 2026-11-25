@@ -79,7 +79,7 @@ function decodeBody(bytes, contentType) {
   if (!cs) { const head = new TextDecoder("latin1").decode(bytes.slice(0, 2048)); cs = (head.match(/<meta[^>]+charset=["']?([\w-]+)/i) || [])[1]; }
   try { return new TextDecoder((cs || "utf-8").toLowerCase()).decode(bytes); } catch (_) { return new TextDecoder("utf-8").decode(bytes); }
 }
-export async function fetchPage(rawUrl, { fetchImpl = fetch, resolve } = {}) {
+export async function fetchPage(rawUrl, { fetchImpl = fetch, resolve, accept = /html|xml/i, maxBytes = MAX_BYTES } = {}) {
   let u = checkUrl(rawUrl);
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     if (isNaverHost(u.hostname)) throw new PrefillErr("unsupported_naver");
@@ -87,7 +87,7 @@ export async function fetchPage(rawUrl, { fetchImpl = fetch, resolve } = {}) {
     const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), TIMEOUT_MS);
     let res;
     try {
-      res = await fetchImpl(u.toString(), { redirect: "manual", signal: ctl.signal, headers: { "user-agent": "Mozilla/5.0 (compatible; EGPInfoPrefill/1.0)", accept: "text/html,application/xhtml+xml", "accept-language": "ko,en;q=0.8" } });
+      res = await fetchImpl(u.toString(), { redirect: "manual", signal: ctl.signal, headers: { "user-agent": "Mozilla/5.0 (compatible; EGPInfoPrefill/1.0)", accept: "text/html,application/xhtml+xml,text/plain,application/xml;q=0.9", "accept-language": "ko,en;q=0.8" } });
     } catch (e) { clearTimeout(to); throw new PrefillErr("fetch_failed"); }
     try {
       if ([301, 302, 303, 307, 308].includes(res.status)) {
@@ -97,9 +97,9 @@ export async function fetchPage(rawUrl, { fetchImpl = fetch, resolve } = {}) {
       }
       if (!res.ok) throw new PrefillErr("fetch_failed", res.status);
       const ct = res.headers.get("content-type") || "";
-      if (!/html|xml/i.test(ct)) throw new PrefillErr("not_html");
-      const len = Number(res.headers.get("content-length") || 0); if (len > MAX_BYTES) throw new PrefillErr("too_large");
-      return { html: decodeBody(await readLimited(res, MAX_BYTES), ct), finalUrl: u.toString() };
+      if (!accept.test(ct)) throw new PrefillErr("not_html");
+      const len = Number(res.headers.get("content-length") || 0); if (len > maxBytes) throw new PrefillErr("too_large");
+      return { html: decodeBody(await readLimited(res, maxBytes), ct), finalUrl: u.toString() };
     } finally { clearTimeout(to); }
   }
   throw new PrefillErr("fetch_failed");                               // 이동이 너무 많음
@@ -200,6 +200,131 @@ export function extractInfo(html) {
   return { name, address: address.slice(0, 120), region, industry, service };
 }
 
+// ---------- 해외 검색 자동 점검 (body.mode === "overseas") ----------
+// 홈페이지 주소 하나로 "서버가 직접 읽어서 확인할 수 있는 것"만 점검합니다. 외부 AI(Gemini)·유료 도구는 쓰지 않습니다.
+//   · 점검하는 것: 언어별 페이지 연결(hreflang), 페이지별 title·description·H1·canonical, 구조화 데이터, robots.txt(AI 크롤러 포함), sitemap
+//   · 점검하지 않는 것(외부 도구 필요): 월 검색량, 구글 순위, AI 답변 인용, 외부 참조 도메인 → 결과의 unmeasured 로 "미측정"을 돌려줍니다.
+//   · 다른 언어 페이지는 같은 사이트(같은 호스트·같은 상위 도메인) 것만 읽고, 최대 3개입니다. 모든 접속은 위의 SSRF 검사를 거칩니다.
+const AI_BOTS = ["GPTBot", "ChatGPT-User", "Google-Extended", "PerplexityBot", "ClaudeBot", "CCBot"];
+const absUrl = (h, base) => { try { const u = new URL(h, base); return /^https?:$/.test(u.protocol) ? u.toString() : ""; } catch (_) { return ""; } };
+const attrsOf = tag => { const a = {}; for (const m of tag.matchAll(/([a-zA-Z:_-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g)) a[m[1].toLowerCase()] = m[2] != null ? m[2] : m[3]; return a; };
+export const textWidth = s => [...String(s || "")].reduce((n, c) => n + (/[ᄀ-ᇿ぀-ヿ㐀-鿿가-힯＀-￯]/.test(c) ? 2 : 1), 0);   // 한글·한자·가나는 2칸으로 셈
+
+export function pageFacts(html, pageUrl) {
+  const meta = metaMap(html);
+  const title = tidy((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "", 200);
+  const h1s = [...html.matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/gi)].map(m => tidy(m[1].replace(/<[^>]+>/g, " "), 200)).filter(Boolean);
+  const lang = ((html.match(/<html[^>]*?\blang\s*=\s*["']([^"']+)["']/i) || [])[1] || "").trim();
+  let canonical = ""; const alternates = [];
+  for (const m of html.matchAll(/<link\s+([^>]*?)\/?>/gi)) {
+    const a = attrsOf(m[1]), rel = (a.rel || "").toLowerCase().split(/\s+/);
+    if (rel.includes("canonical") && a.href && !canonical) canonical = absUrl(a.href, pageUrl);
+    if (rel.includes("alternate") && a.hreflang && a.href) { const h = absUrl(a.href, pageUrl); if (h) alternates.push({ lang: a.hreflang.trim(), href: h }); }
+  }
+  const types = [...new Set(jsonLdNodes(html).flatMap(n => [].concat(n["@type"] || [])).map(String))].slice(0, 8);
+  return { url: pageUrl, lang, title, description: tidy(meta.description || "", 400), h1: h1s[0] || "", h1Count: h1s.length, canonical, alternates: alternates.slice(0, 20), schemaTypes: types };
+}
+
+export function parseRobots(text) {
+  const groups = []; let cur = null; const sitemaps = [];
+  for (const raw of String(text || "").split(/\r?\n/)) {
+    const line = raw.replace(/#.*/, "").trim(); const m = line.match(/^([A-Za-z-]+)\s*:\s*(.*)$/); if (!m) continue;
+    const k = m[1].toLowerCase(), v = m[2].trim();
+    if (k === "sitemap") { if (/^https?:\/\//i.test(v)) sitemaps.push(v); continue; }
+    if (k === "user-agent") { if (!cur || cur.rules.length) { cur = { agents: [], rules: [] }; groups.push(cur); } cur.agents.push(v.toLowerCase()); continue; }
+    if ((k === "disallow" || k === "allow") && cur) cur.rules.push([k, v]);
+  }
+  const blocks = agent => {                                           // 그 크롤러가 사이트 전체(/)를 막혀 있는가
+    const g = groups.find(x => x.agents.includes(agent.toLowerCase())) || groups.find(x => x.agents.includes("*"));
+    if (!g) return false;
+    return g.rules.some(([k, v]) => k === "disallow" && v === "/") && !g.rules.some(([k, v]) => k === "allow" && v === "/");
+  };
+  return { blockAll: blocks("*"), blockedBots: AI_BOTS.filter(b => groups.some(x => x.agents.includes(b.toLowerCase())) && blocks(b)), sitemaps: sitemaps.slice(0, 3) };
+}
+export const parseSitemap = xml => ({ urls: (String(xml || "").match(/<loc>/gi) || []).length, isIndex: /<sitemapindex/i.test(xml || ""), hasAlternates: /xhtml:link|hreflang/i.test(xml || "") });
+
+const labels = h => String(h || "").toLowerCase().replace(/\.$/, "").split(".");
+export function registrable(h) {                                       // www.example.co.kr → example.co.kr, jp.example.com → example.com
+  const l = labels(h); if (l.length <= 2) return l.join(".");
+  const sld = /^(co|or|go|ne|ac|re|pe|com|net|org|gov|edu)$/.test(l[l.length - 2]) && l[l.length - 1].length === 2;
+  return l.slice(sld ? -3 : -2).join(".");
+}
+export const sameSite = (a, b) => registrable(a) === registrable(b);
+
+const FA = (area, status, found, todo) => ({ area, status, found, todo });
+export function buildAudit({ home, alts = [], robots = null, sitemap = null }) {
+  const pages = [home, ...alts.filter(Boolean)];
+  const F = [];
+  const homeLang = (home.lang || "").toLowerCase();
+  // 1) 언어 페이지 연결
+  const altLangs = [...new Set(home.alternates.map(a => a.lang))];
+  if (!altLangs.length) F.push(FA("언어별 페이지 연결(hreflang)", "gap", "다른 언어 페이지와의 연결 표시가 없습니다.", "언어별 페이지가 있다면 서로 연결하는 hreflang 을 추가하세요. 없다면 현지 언어 페이지부터 만드세요."));
+  else F.push(FA("언어별 페이지 연결(hreflang)", "ok", "연결된 언어: " + altLangs.join(", "), "새 언어 페이지를 만들 때마다 같이 추가하세요."));
+  // 2) 서로 되돌아 연결(상호 참조) — 읽은 페이지 기준
+  const recip = alts.filter(Boolean);
+  if (recip.length) {
+    const bad = recip.filter(p => !p.alternates.some(a => sameUrl(a.href, home.url))).length;
+    F.push(bad ? FA("되돌아 연결", "warn", `읽은 ${recip.length}개 언어 페이지 중 ${bad}개가 처음 페이지로 되돌아가는 연결이 없습니다.`, "언어 페이지끼리 서로를 가리키도록 맞추세요.") : FA("되돌아 연결", "ok", `읽은 ${recip.length}개 언어 페이지가 모두 서로 연결돼 있습니다.`, "유지하세요."));
+  }
+  if (altLangs.length && !home.alternates.some(a => a.lang.toLowerCase() === "x-default")) F.push(FA("기본 언어(x-default)", "warn", "x-default 표시가 없습니다.", "어느 언어 사용자에게도 맞지 않을 때 보여 줄 기본 페이지를 x-default 로 지정하세요."));
+  // 3) 페이지별 문구
+  const titles = pages.map(p => p.title).filter(Boolean);
+  const noTitle = pages.filter(p => !p.title).length;
+  if (noTitle) F.push(FA("제목(title)", "gap", `${noTitle}개 페이지에 제목이 없습니다.`, "페이지마다 그 언어 검색어에 맞는 제목을 넣으세요."));
+  else if (pages.some(p => textWidth(p.title) > 60 || textWidth(p.title) < 10)) F.push(FA("제목(title)", "warn", "일부 페이지 제목이 너무 길거나 짧습니다(검색 결과에서 잘리거나 정보가 부족).", "한글·한자 약 30자, 영문 약 60자 안쪽으로 핵심 검색어를 앞에 두세요."));
+  else F.push(FA("제목(title)", "ok", "모든 페이지에 적당한 길이의 제목이 있습니다.", "현지 검색어와 맞는지 한 번 더 검수하세요."));
+  if (pages.length > 1 && new Set(titles).size < titles.length) F.push(FA("언어별 제목 중복", "warn", "서로 다른 언어 페이지가 같은 제목을 쓰고 있습니다(번역하지 않은 것으로 보입니다).", "언어마다 그 나라 검색어에 맞는 제목으로 따로 쓰세요."));
+  const noDesc = pages.filter(p => !p.description).length;
+  if (noDesc) F.push(FA("설명(description)", "gap", `${noDesc}개 페이지에 설명이 없습니다.`, "검색 결과 아래에 보일 한두 문장의 설명을 넣으세요."));
+  else if (pages.some(p => textWidth(p.description) > 170 || textWidth(p.description) < 40)) F.push(FA("설명(description)", "warn", "일부 설명이 너무 길거나 짧습니다.", "한글·한자 약 80자, 영문 약 160자 안쪽으로 정리하세요."));
+  else F.push(FA("설명(description)", "ok", "모든 페이지에 적당한 길이의 설명이 있습니다.", "유지하세요."));
+  const badH1 = pages.filter(p => p.h1Count !== 1).length;
+  F.push(badH1 ? FA("대표 제목(H1)", "warn", `${badH1}개 페이지의 H1 이 없거나 2개 이상입니다.`, "페이지마다 H1 을 하나만 두고 그 언어의 핵심 주제를 쓰세요.") : FA("대표 제목(H1)", "ok", "읽은 페이지마다 H1 이 하나씩 있습니다.", "유지하세요."));
+  const badCan = pages.filter(p => !p.canonical).length;
+  F.push(badCan ? FA("대표 주소(canonical)", "warn", `${badCan}개 페이지에 canonical 이 없습니다.`, "같은 내용의 주소가 여러 개일 때 대표 주소를 알리세요.") : FA("대표 주소(canonical)", "ok", "읽은 페이지에 canonical 이 있습니다.", "유지하세요."));
+  if (homeLang && altLangs.length && !altLangs.some(l => l.toLowerCase().split("-")[0] === homeLang.split("-")[0]) ) F.push(FA("페이지 언어 표시(lang)", "warn", `HTML lang="${home.lang}" 과 연결된 언어 목록이 맞지 않습니다.`, "각 페이지의 lang 속성을 실제 언어와 맞추세요."));
+  if (!home.lang) F.push(FA("페이지 언어 표시(lang)", "warn", "HTML 에 lang 표시가 없습니다.", "<html lang=\"ko\">처럼 언어를 표시하세요."));
+  F.push(home.schemaTypes.length ? FA("구조화 데이터", "ok", "확인된 종류: " + home.schemaTypes.join(", "), "병원·업체 정보가 정확한지 검수하세요.") : FA("구조화 데이터", "warn", "구조화 데이터(JSON-LD)를 찾지 못했습니다.", "업체·병원 기본 정보를 구조화 데이터로 넣으면 AI·검색이 이해하기 쉬워집니다."));
+  // 4) robots / sitemap
+  if (robots) {
+    if (robots.blockAll) F.push(FA("검색 로봇 허용(robots.txt)", "gap", "모든 검색 로봇에게 사이트 전체를 막고 있습니다.", "공개할 페이지는 막지 않도록 robots.txt 를 고치세요."));
+    else F.push(FA("검색 로봇 허용(robots.txt)", "ok", "사이트 전체를 막고 있지 않습니다.", "유지하세요."));
+    F.push(robots.blockedBots.length ? FA("AI 크롤러 접근", "warn", "다음 AI 로봇이 막혀 있습니다: " + robots.blockedBots.join(", "), "AI 답변에 소개되길 원한다면 해당 로봇 차단을 풀지 검토하세요(정책 결정 필요).") : FA("AI 크롤러 접근", "ok", "확인한 AI 로봇(" + AI_BOTS.join(", ") + ")을 따로 막고 있지 않습니다.", "유지하세요."));
+  } else F.push(FA("검색 로봇 허용(robots.txt)", "none", "robots.txt 를 읽지 못했습니다(없거나 접근 불가).", "robots.txt 를 만들고 sitemap 위치를 적어 두세요."));
+  if (sitemap) F.push(sitemap.hasAlternates || !altLangs.length ? FA("사이트맵(sitemap)", "ok", `사이트맵을 찾았습니다(주소 ${sitemap.isIndex ? "목록형 · " : ""}${sitemap.urls}개 표시).`, "새 페이지를 만들면 사이트맵에 넣으세요.") : FA("사이트맵(sitemap)", "warn", "사이트맵은 있으나 언어별 연결 표시가 보이지 않습니다.", "사이트맵에도 언어별 주소를 연결하면 검색엔진이 이해하기 쉽습니다."));
+  else F.push(FA("사이트맵(sitemap)", "none", "sitemap.xml 을 읽지 못했습니다.", "사이트맵을 만들어 검색엔진에 알리세요."));
+  return {
+    pages: pages.map(p => ({ url: p.url, lang: p.lang, title: p.title, titleWidth: textWidth(p.title), description: p.description, descWidth: textWidth(p.description), h1: p.h1, h1Count: p.h1Count, canonical: p.canonical, hreflang: p.alternates.map(a => a.lang) })),
+    findings: F,
+    robots: robots ? { blockAll: robots.blockAll, blockedBots: robots.blockedBots, sitemaps: robots.sitemaps.length } : null,
+    sitemap: sitemap || null,
+    unmeasured: ["월 검색량(국가별 검색어)", "구글 검색 순위", "AI 답변 인용 횟수", "외부 참조 도메인·매체 소개", "경쟁사 비교"],
+  };
+}
+const sameUrl = (a, b) => { try { const x = new URL(a), y = new URL(b); return x.host.toLowerCase() === y.host.toLowerCase() && x.pathname.replace(/\/$/, "") === y.pathname.replace(/\/$/, ""); } catch (_) { return false; } };
+
+export async function overseasAudit(rawUrl, deps) {
+  const first = await deps.fetchPage(rawUrl);
+  const home = pageFacts(first.html, first.finalUrl);
+  const origin = new URL(first.finalUrl).origin, host = new URL(first.finalUrl).hostname;
+  const optional = async (path, accept) => { try { return await deps.fetchPage(origin + path, { accept, maxBytes: 300 * 1024 }); } catch (_) { return null; } };
+  const targets = [];
+  for (const a of home.alternates) {
+    if (targets.length >= 3 || /^x-default$/i.test(a.lang) || sameUrl(a.href, first.finalUrl) || targets.some(t => sameUrl(t.href, a.href))) continue;
+    let h; try { h = new URL(a.href).hostname; } catch (_) { continue; }
+    if (sameSite(h, host)) targets.push(a);
+  }
+  const [rb, alts] = await Promise.all([
+    optional("/robots.txt", /text|plain|octet/i),
+    Promise.all(targets.map(async t => { try { const r = await deps.fetchPage(t.href); const f = pageFacts(r.html, r.finalUrl); if (!f.lang) f.lang = t.lang; return f; } catch (_) { return null; } })),
+  ]);
+  const robots = rb ? parseRobots(rb.html) : null;
+  let sm = null;
+  const smUrl = robots && robots.sitemaps.length ? robots.sitemaps[0] : origin + "/sitemap.xml";
+  try { const u = new URL(smUrl); if (sameSite(u.hostname, host)) { const r = await deps.fetchPage(u.toString(), { accept: /xml|text|octet/i, maxBytes: 600 * 1024 }); sm = parseSitemap(r.html); } } catch (_) {}
+  return { site: { url: first.finalUrl, host }, measuredAt: new Date().toISOString().slice(0, 10), skipped: targets.length - alts.filter(Boolean).length, ...buildAudit({ home, alts, robots, sitemap: sm }) };
+}
+
 // ---------- 요청 처리 (의존 대상을 바깥에서 받아 시험하기 쉽게 분리) ----------
 export async function handle(req, deps) {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -208,8 +333,10 @@ export async function handle(req, deps) {
   let u;
   try { u = checkUrl(body && body.url); } catch (e) { return json({ error: e.message }, 400); }
   if (isNaverHost(u.hostname)) return json({ error: "unsupported_naver" }, 422);
-  if (!(await deps.reserve(await deps.ipHash(req)))) return json({ error: "rate_limited" }, 429);   // 접속 전에 한도 확인
+  const overseas = body && body.mode === "overseas";
+  if (!(await deps.reserve(await deps.ipHash(req), overseas ? "overseas" : "prefill"))) return json({ error: "rate_limited" }, 429);   // 접속 전에 한도 확인
   try {
+    if (overseas) return json({ audit: await overseasAudit(u.toString(), deps) });
     const { html } = await deps.fetchPage(u.toString());
     const data = extractInfo(html);
     if (!data.name && !data.address) return json({ error: "nothing_found" }, 422);
@@ -228,14 +355,15 @@ function realDeps() {
   const env = k => Deno.env.get(k);
   const URL_ = env("SUPABASE_URL"), KEY = env("SUPABASE_SERVICE_ROLE_KEY");
   const limit = parseInt(env("PREFILL_HOURLY_LIMIT") || "", 10) > 0 ? parseInt(env("PREFILL_HOURLY_LIMIT"), 10) : 20;
+  const overseasLimit = parseInt(env("OVERSEAS_HOURLY_LIMIT") || "", 10) > 0 ? parseInt(env("OVERSEAS_HOURLY_LIMIT"), 10) : 5;   // 자동 점검은 한 번에 여러 곳을 읽어서 더 낮게
   return {
     ipHash: async req => sha256Hex(((req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "unknown") + "|" + (env("IP_HASH_SALT") || KEY)),
-    async reserve(ip) {
-      const r = await fetch(`${URL_}/rest/v1/rpc/reserve_prefill`, { method: "POST", headers: { apikey: KEY, authorization: `Bearer ${KEY}`, "content-type": "application/json" }, body: JSON.stringify({ p_ip: ip, p_limit: limit }) });
+    async reserve(ip, kind) {
+      const r = await fetch(`${URL_}/rest/v1/rpc/reserve_prefill`, { method: "POST", headers: { apikey: KEY, authorization: `Bearer ${KEY}`, "content-type": "application/json" }, body: JSON.stringify({ p_ip: ip, p_limit: kind === "overseas" ? overseasLimit : limit }) });
       if (!r.ok) throw new Error("db_error");
       return (await r.json()) === true;
     },
-    fetchPage: url => fetchPage(url, { resolve: typeof Deno !== "undefined" && Deno.resolveDns ? (h, t) => Deno.resolveDns(h, t) : undefined }),
+    fetchPage: (url, opts) => fetchPage(url, { ...(opts || {}), resolve: typeof Deno !== "undefined" && Deno.resolveDns ? (h, t) => Deno.resolveDns(h, t) : undefined }),
   };
 }
 if (typeof Deno !== "undefined" && Deno.serve) {

@@ -42,6 +42,54 @@
     "<div><dt>대상 사이트·지점</dt><dd>" + esc(M.sites) + "</dd></div><div><dt>대상 언어</dt><dd>" + esc(M.langs) + "</dd></div>" +
     "<div><dt>비교 대상</dt><dd>" + esc(M.rivals) + "</dd></div></dl>" + sample + "</div><i class=\"o1\"></i><i class=\"o2\"></i><i class=\"o3\"></i></section>";
 
+
+  // ---------- 홈페이지 주소로 자동 점검 ----------
+  var L = window.LANDING || {}, W = window.WOORI || {};
+  var LIVE = L.OVERSEAS_LIVE === true;
+  var sb = LIVE && W.SUPABASE_ANON_KEY && window.supabase ? window.supabase.createClient(W.SUPABASE_URL, W.SUPABASE_ANON_KEY) : null;
+  var A_MSG = {
+    bad_url: "https:// 로 시작하는 홈페이지 주소를 입력해 주세요.", blocked_url: "이 주소는 읽을 수 없어요. 일반 홈페이지 주소를 입력해 주세요.",
+    unsupported_naver: "네이버 플레이스·지도 주소는 읽지 못해요. 병원 홈페이지 주소를 입력해 주세요.", not_html: "웹페이지가 아니에요. 홈페이지 주소를 입력해 주세요.",
+    too_large: "페이지가 너무 커서 읽지 못했어요.", fetch_failed: "홈페이지를 열지 못했어요. 주소를 확인해 주세요.",
+    rate_limited: "잠시 후 다시 시도해 주세요. (시간당 이용 횟수를 넘었어요)", not_configured: "자동 점검을 아직 연결하지 못했어요. 관리자에게 문의해 주세요."
+  };
+  var autoSec = sec("auto", "auto", "홈페이지 주소로 자동 점검", "AUTO CHECK",
+    '<p class="lead">홈페이지 주소를 넣으면 서버가 사이트를 직접 읽어, <b>언어별 페이지 연결·제목·설명·검색 로봇 설정</b>을 점검합니다.</p>' +
+    '<form class="auto-form card" id="auto-form" novalidate><label for="auto-url">홈페이지 주소</label><div class="auto-row"><input id="auto-url" type="url" inputmode="url" autocomplete="url" placeholder="https://" aria-describedby="auto-msg"><button type="submit" class="btn" id="auto-go">해외 진단하기</button></div>' +
+    '<p class="auto-msg" id="auto-msg" role="status" aria-live="polite">' + (LIVE ? "" : "지금은 시험 단계라 주소를 읽지 않고 <b>예시 결과</b>를 보여 드려요.") + "</p></form>" +
+    '<div id="auto-out"></div>' +
+    '<p class="foot">월 검색량·순위·AI 인용·경쟁사 비교는 외부 도구가 필요해 이 자동 점검에 포함되지 않습니다. 아래 보고서의 해당 부분은 <b>가상 예시 데이터</b>입니다.</p>');
+  function renderAudit(a, demo) {
+    var cnt = { ok: 0, warn: 0, gap: 0, none: 0 }; a.findings.forEach(function (f) { cnt[f.status] = (cnt[f.status] || 0) + 1; });
+    return '<div class="auto-res"><p class="' + (demo ? "warn-box" : "ok-box") + '" role="note">' +
+      (demo ? "<b>예시 결과</b> — 입력한 주소를 읽지 않았고, 아래는 가상의 값입니다." : "<b>측정 결과</b> — " + esc(a.site.host) + " · 측정일 " + esc(a.measuredAt) + (a.skipped ? " · 읽지 못한 언어 페이지 " + a.skipped + "개" : "")) + "</p>" +
+      '<p class="tally"><span class="bd ok">정상 ' + cnt.ok + '</span> <span class="bd warn">개선 필요 ' + cnt.warn + '</span> <span class="bd gap">격차 큼 ' + cnt.gap + '</span> <span class="bd none">확인 불가 ' + cnt.none + "</span></p>" +
+      '<h3 class="sub-h">점검 결과</h3>' + table(["영역", "상태", "관측 근거", "먼저 할 일"], a.findings.map(function (f) { return [esc(f.area), badge(f.status), esc(f.found), esc(f.todo)]; })) +
+      '<h3 class="sub-h">읽은 페이지</h3>' + table(["언어", "제목 (길이)", "설명 (길이)", "H1", "연결된 언어"], a.pages.map(function (p) {
+        return [esc(p.lang || "-"), esc(p.title || "없음") + " <small>(" + p.titleWidth + ")</small>", esc(p.description || "없음") + " <small>(" + p.descWidth + ")</small>", esc(p.h1 || "없음") + (p.h1Count > 1 ? " <small>(" + p.h1Count + "개)</small>" : ""), esc((p.hreflang || []).join(", ") || "-")];
+      })) +
+      '<div class="card"><h3>미측정 항목</h3><ul class="bl">' + a.unmeasured.map(function (u) { return "<li>" + esc(u) + ' <span class="rk nm">미측정</span></li>'; }).join("") + "</ul></div></div>";
+  }
+  var autoBusy = false;
+  function wireAuto() {
+    var form = document.getElementById("auto-form"), out = document.getElementById("auto-out"), msg = document.getElementById("auto-msg"), btn = document.getElementById("auto-go"), inp = document.getElementById("auto-url");
+    form.addEventListener("submit", function (e) {
+      e.preventDefault(); if (autoBusy) return;
+      var url = inp.value.trim();
+      try { if (!/^https?:$/.test(new URL(url).protocol)) throw 0; } catch (_) { msg.textContent = A_MSG.bad_url; inp.setAttribute("aria-invalid", "true"); return inp.focus(); }
+      inp.removeAttribute("aria-invalid");
+      try { if (/(^|\.)naver\.(com|me)$/i.test(new URL(url).hostname)) { msg.textContent = A_MSG.unsupported_naver; return; } } catch (_) {}
+      if (!LIVE) { out.innerHTML = renderAudit(R.autoDemo, true); msg.textContent = "예시 결과를 보여 드렸어요. (실제 점검은 아직 켜지지 않았어요)"; return; }
+      if (!sb) { msg.textContent = A_MSG.not_configured; return; }
+      autoBusy = true; btn.disabled = true; msg.textContent = "홈페이지를 읽는 중이에요… (최대 30초)"; out.innerHTML = "";
+      sb.functions.invoke("aeo-prefill", { body: { url: url, mode: "overseas" } }).then(function (r) {
+        if (r.error) { return Promise.resolve(r.error.context && r.error.context.json ? r.error.context.json() : {}).catch(function () { return {}; }).then(function (b) { msg.textContent = A_MSG[b && b.error] || A_MSG.fetch_failed; }); }
+        var a = r.data && r.data.audit; if (!a || !a.findings) { msg.textContent = A_MSG.fetch_failed; return; }
+        out.innerHTML = renderAudit(a, false); msg.textContent = "점검을 마쳤어요."; 
+      }).catch(function () { msg.textContent = A_MSG.fetch_failed; }).then(function () { autoBusy = false; btn.disabled = false; });
+    });
+  }
+
   // ---------- 한 장 요약 ----------
   var S = R.summary;
   var kpis = S.kpis.map(function (k) {
@@ -187,7 +235,9 @@
     '<div class="two"><div class="card"><h3>확인이 필요한 자료</h3><ul class="bl">' + N.needs.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + '</ul></div><div class="card"><h3>다음 미팅에서 결정할 사항</h3><ol class="num">' + N.decisions.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ol></div></div>" +
     '<p class="foot">이 보고서의 수치는 측정 시점의 기록이며, 노출·순위·유입 증가를 보장하지 않습니다.</p>');
 
-  root.innerHTML = cover + '<div class="rbody">' + summary + map + s1 + s2 + s3 + s4 + s5 + serp + trend + cmp + keep + fix + structure + content + roadmap + service + next + "</div>";
+  root.innerHTML = cover + '<div class="rbody">' + autoSec + summary + map + s1 + s2 + s3 + s4 + s5 + serp + trend + cmp + keep + fix + structure + content + roadmap + service + next + "</div>";
+
+  wireAuto();
 
   // ---------- 탭 ----------
   var tablist = root.querySelector('[role="tablist"]');
@@ -204,7 +254,7 @@
   });
 
   // ---------- 목차 ----------
-  var toc = [["summary", "요약"], ["s1", "색인"], ["s2", "주제"], ["s3", "신뢰"], ["s4", "AI"], ["s5", "기회"], ["fix", "개선안"], ["content", "콘텐츠"], ["roadmap", "일정"], ["service", "서비스"]];
+  var toc = [["auto", "자동 점검"], ["summary", "요약"], ["s1", "색인"], ["s2", "주제"], ["s3", "신뢰"], ["s4", "AI"], ["s5", "기회"], ["fix", "개선안"], ["content", "콘텐츠"], ["roadmap", "일정"], ["service", "서비스"]];
   var links = toc.map(function (t) { return '<a href="#' + t[0] + '" data-t="' + t[0] + '">' + esc(t[1]) + "</a>"; }).join("");
   var side = document.getElementById("toc-list"), mob = document.getElementById("toc-mob-list");
   if (side) side.innerHTML = links;
@@ -213,7 +263,7 @@
   var secs = [].slice.call(root.querySelectorAll("section.rs"));
   var tick = false;
   function active() {
-    tick = false; var cur = "summary", line = window.innerHeight * 0.3;
+    tick = false; var cur = "auto", line = window.innerHeight * 0.3;
     secs.forEach(function (s) { if (s.getBoundingClientRect().top <= line) cur = s.getAttribute("data-toc"); });
     if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) cur = "service";
     tocLinks.forEach(function (a) { var on = a.getAttribute("data-t") === cur; if (on) a.setAttribute("aria-current", "true"); else a.removeAttribute("aria-current"); });

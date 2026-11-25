@@ -29,3 +29,12 @@
 - 시험용 HTML·모의 응답으로 시험했어요: 주소 검사(내부망·IP 표기 변형·리다이렉트 우회), 정보 추출, 크기·형식 제한, 한도, 화면 동작.
 - `023_prefill.sql` 은 로컬 PostgreSQL 16 에서 한도·만료 삭제·접근 차단을 시험했어요.
 - **실제 홈페이지로는 아직 실행해 보지 않았어요**(이 개발 환경에서 외부 접속이 안 돼요). 실제 사이트마다 구조가 달라 읽히는 정도가 다를 수 있어요.
+
+## 해외 진단 자동 점검 (mode: "overseas")
+`overseas-report.html` 의 "홈페이지 주소로 자동 점검"이 같은 함수(`aeo-prefill`)를 `{ url, mode: "overseas" }` 로 불러요. **Gemini 키가 필요 없고**, 새 SQL 도 없어요(023 의 한도 표를 같이 써요).
+- 서버가 읽는 것: 홈페이지 + 같은 사이트의 다른 언어 페이지(최대 3개, hreflang 기준) + robots.txt + sitemap.xml. 모든 접속은 위 SSRF 검사를 그대로 거쳐요. 다른 도메인의 언어 페이지는 읽지 않아요.
+- 점검 항목: 언어별 페이지 연결(hreflang·되돌아 연결·x-default), title·description·H1·canonical 길이/중복, lang 표시, 구조화 데이터, robots.txt(AI 크롤러 GPTBot 등 포함), sitemap.
+- **측정하지 않는 것**(결과에 "미측정"으로 표시): 월 검색량, 구글 순위, AI 인용 횟수, 외부 참조 도메인, 경쟁사 비교 — 외부 유료 도구가 필요해요.
+- 한도: IP(해시)당 1시간 `OVERSEAS_HOURLY_LIMIT`회(기본 5). 일반 정보 불러오기 횟수와 같은 표에 기록돼서, 두 기능을 합쳐 센 값이 한도에 쓰여요.
+- 켜는 법: ① 023 SQL 실행(이미 했다면 생략) ② `supabase/functions/aeo-prefill/index.ts` 를 다시 배포 ③ `landing-config.js` 의 `OVERSEAS_LIVE: true` ④ 실제 병원 홈페이지로 한 번 점검해 결과가 맞는지 눈으로 확인.
+- 아직 **실제 홈페이지로는 실행해 보지 않았어요**(개발 환경에서 외부 접속 불가). 모의 HTML·robots·sitemap 으로만 시험했어요. 사이트마다 구조가 달라 못 읽는 항목은 "확인 불가"로 나와요.

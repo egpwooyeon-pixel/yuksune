@@ -28,7 +28,7 @@
 |---|---|
 | 랜딩(상담 신청 폼, 레퍼런스) | `landing.html` · `landing.css` · `landing.js` |
 | AI 노출 진단 (홈페이지 주소로 자동 채우기, 사진, 발행 설정) | `diagnose.html` |
-| 해외 검색·AI 노출 진단 보고서 (병원 고객 전달용, **가상 예시 데이터**) | `overseas-report.html` — 값은 `overseas-report-data.js` 에서만 바꿔요 |
+| 해외 검색·AI 노출 진단 보고서 (병원 고객 전달용, **가상 예시 데이터**) | `overseas-report.html` — 보고서 값은 `overseas-report-data.js`, 상단의 "홈페이지 주소로 자동 점검"은 `aeo-prefill`(mode:overseas) 사용, 스위치 `OVERSEAS_LIVE` |
 | 개인정보처리방침 | `landing-privacy.html` |
 | 정보 가이드 (정적 글 페이지) | `guide/` ← `content/guides/*.json` 을 `tools/build-guides.mjs` 로 생성 |
 | 관리자: 상담 접수 / 글 초안 검수 | `admin-inquiries.html` · `admin-drafts.html` |
