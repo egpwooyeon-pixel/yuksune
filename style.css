@@ -639,3 +639,8 @@ a.write-btn:hover{background:var(--primary-dark);text-decoration:none}
   .gnb-dd{flex:none}
   .gnb-dd .dd{display:none!important}
 }
+
+/* 플레이스 진단: 붙여넣기 자동 입력 */
+.pd-paste{margin:10px 0 16px;border:1px dashed #b9c4e4;border-radius:10px;background:#f6f8ff;padding:10px 14px}
+.pd-paste summary{cursor:pointer;font-weight:700;font-size:14px;color:var(--primary)}
+.pd-paste textarea{width:100%;margin:8px 0;border:1px solid #cfd3e3;border-radius:8px;padding:10px;font:inherit;font-size:13px;resize:vertical;background:#fff}

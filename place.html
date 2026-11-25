@@ -30,6 +30,13 @@
   <form class="pd-form" id="pd-form">
     <h2>매장 정보 입력</h2>
     <p class="muted small" id="pd-id-hint"></p>
+    <details class="pd-paste" id="pd-paste-box">
+      <summary>네이버 플레이스 화면을 복사해 붙여 넣으면 리뷰 수를 자동으로 채워요</summary>
+      <p class="muted small">네이버 플레이스(지도) 화면에서 "방문자 리뷰 ○○ · 블로그 리뷰 ○○"가 보이는 부분을 드래그해서 복사한 뒤 아래에 붙여 넣으세요. 이 화면 안에서만 처리하고 어디에도 보내거나 저장하지 않아요.</p>
+      <textarea id="pd-paste" rows="4" maxlength="20000" placeholder="여기에 붙여 넣기 (예: 방문자 리뷰 859 블로그 리뷰 123)" aria-label="네이버 플레이스 화면 붙여넣기"></textarea>
+      <button type="button" class="btn-line" id="pd-paste-go">숫자 찾아서 채우기</button>
+      <p class="ph-msg" id="pd-paste-msg" role="status" hidden></p>
+    </details>
     <div class="pd-grid">
       <label>업체명 <input name="name" required maxlength="40"></label>
       <label>업종 <select name="cat"><option>음식점</option><option>카페·디저트</option><option>미용·뷰티</option><option>병원·의원</option><option>숙박</option><option>학원·교육</option><option>기타</option></select></label>
