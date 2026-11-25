@@ -119,7 +119,7 @@ const f = (name, buf, mimeType = 'image/jpeg') => ({ name, mimeType, buffer: buf
   const L = ROOT + 'landing.html';
   let ins = await landing(L + '?pb=11111111-1111-4111-8111-111111111111');
   ok('landing: valid pb stored as photo_batch', ins.length === 1 && ins[0].photo_batch === '11111111-1111-4111-8111-111111111111');
-  for (const bad of ['?pb=not-a-uuid', '?pb=../../x', '?pb=11111111-1111-9111-8111-111111111111', '']) { ins = await landing(L + bad); ok('landing: invalid pb "' + bad + '" -> null', ins.length === 1 && ins[0].photo_batch === null); }
+  for (const bad of ['?pb=not-a-uuid', '?pb=../../x', '?pb=11111111-1111-9111-8111-111111111111', '']) { ins = await landing(L + bad); ok('landing: invalid pb "' + bad + '" -> null', ins.length === 1 && !('photo_batch' in ins[0])); }
 
   // ---- 관리자: 사진 보기 ----
   async function admin(photos, urlMode) {

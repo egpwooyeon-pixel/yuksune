@@ -82,10 +82,14 @@
 
     busy = true; btn.disabled = true; say("접수 중입니다…", "");
     const v = id => $(id).value.trim();
-    const { error } = await sb.from("inquiries").insert({
+    const row = {
       company: v("f-company"), name: v("f-name"), phone: v("f-phone"), topic: v("f-topic"),
-      website: v("f-web") || null, message: v("f-msg"), agreed: true, order_info: orderInfo, photo_batch: photoBatch,
-    });
+      website: v("f-web") || null, message: v("f-msg"), agreed: true,
+    };
+    // 새 열(order_info, photo_batch)은 값이 있을 때만 보내요. 그래야 021 SQL 을 예전 버전으로만 실행한 DB 에서도 일반 상담 신청이 계속 저장돼요.
+    if (orderInfo) row.order_info = orderInfo;
+    if (photoBatch) row.photo_batch = photoBatch;
+    const { error } = await sb.from("inquiries").insert(row);
     busy = false; btn.disabled = false;
     if (error) {
       const noTable = /relation|schema cache|does not exist|column/i.test(error.message || "");

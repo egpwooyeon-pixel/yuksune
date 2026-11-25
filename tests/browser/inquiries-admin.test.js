@@ -46,13 +46,14 @@ const OUT = OUTDIR;
   p = await landing(L, { INQUIRY_LIVE: true });
   await fillSubmit(p);
   ins = await p.evaluate(() => window.__ins);
-  ok('plain inquiry (no order params): order_info null', ins.length === 1 && ins[0].row.order_info === null);
+  ok('plain inquiry (no order params): order_info null', ins.length === 1 && !('order_info' in ins[0].row));
+  ok('plain inquiry sends ONLY the original columns (still saves on a DB that has only the old 021 schema)', JSON.stringify(Object.keys(ins[0].row).sort()) === JSON.stringify(['agreed', 'company', 'message', 'name', 'phone', 'topic', 'website']));
 
   for (const bad of ['?prod=A&per=0&days=7', '?prod=A&per=3&days=999', '?prod=A&per=abc&days=7', '?per=3&days=7', '?prod=A&per=3.5&days=7']) {
     p = await landing(L + bad, { INQUIRY_LIVE: true });
     await fillSubmit(p);
     ins = await p.evaluate(() => window.__ins);
-    ok('invalid params ' + bad + ' -> order_info null', ins.length === 1 && ins[0].row.order_info === null);
+    ok('invalid params ' + bad + ' -> order_info null', ins.length === 1 && !('order_info' in ins[0].row));
   }
 
   p = await landing(L + '?prod=B&per=2&days=5', { INQUIRY_LIVE: true });
