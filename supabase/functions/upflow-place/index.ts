@@ -81,7 +81,7 @@ export async function callUpflow(method, path, params, body, apiKey, fetchImpl =
     finally { clearTimeout(to); }
     const text = await r.text(); let data = null; try { data = text ? JSON.parse(text) : null; } catch (_) { /* 본문이 JSON 이 아님 */ }
     if (r.ok) return data;
-    const ra = Number(r.headers && r.headers.get && r.headers.get("retry-after"));
+    const raw = r.headers && r.headers.get ? r.headers.get("retry-after") : null, ra = raw == null || raw === "" ? NaN : Number(raw);   // 헤더가 있을 때만 반영
     const retryAfter = Number.isFinite(ra) && ra >= 0 ? ra : null;
     if (opts.retry && r.status === 429 && retryAfter != null && retryAfter <= 10 && attempt < 2) { await (opts.sleep || sleepMs)(retryAfter * 1000); continue; }
     const err = data && (data.error && typeof data.error === "object" ? data.error : data) || {};
@@ -118,6 +118,99 @@ export async function readAll(path, params, apiKey, fetchImpl, sleep) {
     p = { ...params, ...(nx.cursor ? { cursor: nx.cursor } : { page: nx.page }) };
   }
   return { items: all, pages: guard, truncated: guard >= 30 && !!nextPage(last, 1) };
+}
+
+const cool = new Map();                                               // 같은 쓰기·검색 요청의 반복을 막는 메모 (인스턴스별, 가능한 범위의 보호)
+const COOL_MS = 30000;
+function coolDown(key, now = Date.now()) {
+  for (const [k, t] of cool) if (now - t > COOL_MS) cool.delete(k);
+  if (cool.has(key)) return true; cool.set(key, now); return false;
+}
+let permCache = { t: 0, v: null };                                    // 키 권한 확인 결과 (60초)
+export const resetPerm = () => { permCache = { t: 0, v: null }; };
+async function getPerm(apiKey, F, now = Date.now()) {
+  if (permCache.v && now - permCache.t < 60000) return permCache.v;
+  const v = summarizeVerify(await callUpflow("GET", "/auth/verify", null, null, apiKey, F, { retry: true }));
+  permCache = { t: now, v }; return v;
+}
+const MODES = new Set(["standard", "location"]);
+const modeOf = m => m === "location" ? "business_location" : "standard";
+// 입력 항목 검사 (최대 50건)
+export function cleanItems(arr) {
+  if (!Array.isArray(arr) || arr.length < 1 || arr.length > 50) return null;
+  const out = [];
+  for (const it of arr) {
+    const keyword = String(it && it.keyword || "").trim(), pid = String(it && it.place_id || "");
+    if (keyword.length < 1 || keyword.length > 40 || !/^\d{5,15}$/.test(pid) || !MODES.has(it.mode || "standard")) return null;
+    const gid = it.group_id == null || it.group_id === "" ? null : String(it.group_id);
+    if (gid && !ID_RE.test(gid)) return null;
+    out.push({ keyword, place_id: pid, search_mode: modeOf(it.mode || "standard"), ...(gid ? { group_id: gid } : {}) });
+  }
+  return out;
+}
+
+export async function handle(req, deps) {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization, x-client-info, apikey, content-type", "access-control-allow-methods": "POST, OPTIONS" } });
+  if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+  const adm = await deps.isAdmin(req);
+  if (!adm.ok) return json({ error: "unauthorized", why: adm.why }, 401);
+  const b = await req.json().catch(() => ({}));
+  const apiKey = deps.apiKey();
+  if (!apiKey) return json({ error: "not_configured" }, 503);       // 키가 없으면 외부 호출을 하지 않음
+  const F = deps.fetch || fetch, S = deps.sleep, act = String(b.action || "");
+  try {
+    if (act === "status") {                                          // 연결 상태: 승인 · 권한 · 슬롯 · 오늘 검색 사용량만 돌려줌 (키·회원 정보·헤더는 제외)
+      resetPerm(); const v = await getPerm(apiKey, F);
+      return json({ ok: true, verified: true, ...v });
+    }
+    if (act === "keywords") {                                        // 읽기: 등록된 추적 키워드 (페이지를 이어 읽음)
+      return json({ ok: true, ...(await readAll("/keywords", { service: "place", include: KEYWORD_INCLUDE }, apiKey, F, S)) });
+    }
+    if (act === "groups") return json({ ok: true, ...(await readAll("/groups", { service: "place" }, apiKey, F, S)) });
+    if (act === "ranks" || act === "ranks_batch") {                  // 읽기: 날짜별 이력. id = 업플로우 '추적 키워드 ID' (네이버 플레이스 ID 아님)
+      const ids = act === "ranks" ? [b.id] : (Array.isArray(b.ids) ? b.ids.slice(0, 15) : []);
+      if (!ids.length || ids.some(i => !ID_RE.test(String(i)))) return json({ error: "bad_request" }, 400);
+      const out = {}, errs = {}; let i = 0;
+      const worker = async () => { while (i < ids.length) { const id = String(ids[i++]); try { out[id] = (await readAll(`/keywords/place/${encodeURIComponent(id)}/ranks`, { include: RANK_INCLUDE }, apiKey, F, S)).items; } catch (e) { errs[id] = e.code || "api_error"; } } };
+      await Promise.all([worker(), worker(), worker()]);
+      return json({ ok: true, ranks: out, errors: errs });
+    }
+    if (act === "summary") {                                         // 읽기: 여러 키워드의 최신·직전·최초 순위만 한 번에 (최대 200개 ID, 새 검색 아님)
+      const ids = Array.isArray(b.ids) ? b.ids.map(String) : [];
+      if (!ids.length || ids.length > 200 || ids.some(i => !ID_RE.test(i))) return json({ error: "bad_request" }, 400);
+      return json({ ok: true, result: await callUpflow("POST", "/keywords/place/ranks-summary", null, { ids }, apiKey, F, { retry: true, sleep: S }) });
+    }
+    if (act === "lookup") {                                          // 읽기: 등록 전 중복 확인 (키워드 + 플레이스 코드 + 검색 모드)
+      const items = cleanItems(b.items); if (!items) return json({ error: "bad_request" }, 400);
+      return json({ ok: true, result: await callUpflow("POST", "/keywords/place/lookup", null, { items }, apiKey, F, { retry: true, sleep: S }) });
+    }
+    if (act === "search") {                                          // 읽기 권한으로 가능한 1회 검색: 버튼을 눌렀을 때만, 자동 반복 없음
+      const items = cleanItems([{ keyword: b.keyword, place_id: b.place_id, mode: b.mode }]); if (!items) return json({ error: "bad_request" }, 400);
+      if (coolDown(`search:${items[0].keyword}|${items[0].place_id}|${items[0].search_mode}`)) return json({ error: "cooling_down" }, 429);
+      return json({ ok: true, result: await callUpflow("POST", "/search/place", null, { keyword: items[0].keyword, place_id: items[0].place_id, ...(b.place_url ? { place_url: String(b.place_url).slice(0, 300) } : {}), search_mode: items[0].search_mode }, apiKey, F) });
+    }
+    if (act === "register" || act === "refresh" || act === "move_group") {   // 쓰기 권한(write)에서만: 서버에서도 권한을 확인
+      const perm = await getPerm(apiKey, F);
+      if (perm.write !== true) return json({ error: "forbidden", why: perm.write === false ? "read_only" : "permission_unknown" }, 403);
+      if (act === "register") {
+        const items = cleanItems(b.items); if (!items) return json({ error: "bad_request" }, 400);
+        if (coolDown("register:" + JSON.stringify(items))) return json({ error: "cooling_down" }, 429);
+        return json({ ok: true, result: await callUpflow("POST", "/keywords/place", null, { items }, apiKey, F) });   // HTTP 200 이어도 항목별 결과를 확인해야 함 (화면에서 처리)
+      }
+      if (!ID_RE.test(String(b.id || ""))) return json({ error: "bad_request" }, 400);
+      if (act === "refresh") {
+        if (coolDown("refresh:" + b.id)) return json({ error: "cooling_down" }, 429);
+        return json({ ok: true, accepted_at: new Date().toISOString(), result: await callUpflow("POST", `/keywords/place/${encodeURIComponent(String(b.id))}/refresh`, null, null, apiKey, F) });
+      }
+      const gid = b.group_id == null || b.group_id === "" ? null : String(b.group_id);
+      if (gid && !ID_RE.test(gid)) return json({ error: "bad_request" }, 400);
+      return json({ ok: true, result: await callUpflow("PATCH", `/keywords/place/${encodeURIComponent(String(b.id))}`, null, { group_id: gid }, apiKey, F) });
+    }
+    return json({ error: "bad_request" }, 400);
+  } catch (e) {
+    const code = e && e.code ? e.code : "api_error";
+    return json({ error: code, status: e && e.status || null, detail: e && e.detail || null, retry_after: e && e.retry_after != null ? e.retry_after : null, existing_id: e && e.existing_id != null ? String(e.existing_id) : null }, ["rate_limited", "daily_limit", "slot_limit"].includes(code) ? 429 : code === "duplicate" ? 409 : 502);
+  }
 }
 
 function realDeps() {

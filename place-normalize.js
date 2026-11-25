@@ -88,6 +88,9 @@
       metrics: metricsOf(k),
       summary: entries,
       best,
+      groupId: k.group_id != null ? String(k.group_id) : (isObj(k.group) && k.group.id != null ? String(k.group.id) : ""),
+      groupName: isObj(k.group) ? (firstStr(k.group, ["name", "title"]) || "") : (firstStr(k, ["group_name"]) || ""),
+      mode: firstStr(k, ["search_mode", "search_type", "mode"]) || "",
       active: k.active == null ? (k.status == null || !/stop|pause|inactive|off/i.test(String(k.status))) : !!k.active,
     };
   }
@@ -135,6 +138,76 @@
   const csvCell = v => { let s = String(v == null ? "" : v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   const toCsv = rows => "﻿" + rows.map(r => r.map(csvCell).join(",")).join("\r\n");
 
-  const api = { isObj, toNum, listOf, metricsOf, normRank, normHistory, normKeyword, condKey, comparable, stats, todayItems, TODAY_RULES, rankText, rangeText, csvCell, toCsv, dayAdd, kstDay };
+
+  // ---- 운영 기능: 그룹 · 중복 확인 · 대량 등록 결과 · 직전 대비 표시 · 검색 조건 구간 ----
+  const normGroup = g => isObj(g) && (g.id != null) ? { id: String(g.id), name: firstStr(g, ["name", "title"]) || ("그룹 " + g.id), count: toNum(g.keyword_count ?? g.count) } : null;
+
+  // 플레이스 주소/ID 에서 숫자 ID 뽑기 (화면 입력 · 대량 입력 공용)
+  function placeIdFrom(v) {
+    v = String(v == null ? "" : v).trim(); if (!v) return { err: "플레이스 주소 또는 ID가 비었어요." };
+    if (/^\d{5,15}$/.test(v)) return { id: v };
+    if (/naver\.me\//i.test(v)) return { err: "단축 주소(naver.me)는 쓸 수 없어요." };
+    if (/\/search\//.test(v) && !/\/place\/\d/.test(v)) return { err: "검색 결과 목록 주소예요." };
+    const m = v.match(/\/(\d{5,15})(?:[\/?#]|$)/); return m ? { id: m[1] } : { err: "플레이스 ID를 찾지 못했어요." };
+  }
+  // 대량 입력: 한 줄에 "키워드, 플레이스 주소 또는 ID" (최대 50줄)
+  function parseRegLines(text, max = 50) {
+    const rows = []; const seen = new Set();
+    String(text || "").split(/\r?\n/).forEach((raw, i) => {
+      const line = raw.trim(); if (!line) return;
+      const cut = line.search(/[,\t|]/); const keyword = (cut < 0 ? line : line.slice(0, cut)).trim(), rest = cut < 0 ? "" : line.slice(cut + 1).trim();
+      const pid = placeIdFrom(rest); let error = null;
+      if (!keyword || keyword.length > 40) error = "키워드는 1~40자로 입력해 주세요."; else if (pid.err) error = pid.err;
+      const key = keyword.toLowerCase() + "|" + (pid.id || "");
+      if (!error && seen.has(key)) error = "같은 줄이 두 번 있어요."; seen.add(key);
+      rows.push({ n: i + 1, line, keyword, placeId: pid.id || "", error });
+    });
+    return { rows: rows.slice(0, max), over: rows.length > max };
+  }
+  // 대량 등록 응답의 항목 1건: HTTP 200 이어도 항목마다 결과를 확인
+  function classifyBulkItem(it) {
+    const o = isObj(it) ? it : {};
+    const parts = [o.status, o.result, o.code, o.state, o.message, o.reason, isObj(o.error) ? (o.error.code + " " + (o.error.message || "")) : o.error].filter(x => x != null && typeof x !== "object");
+    const t = parts.join(" ").toLowerCase();
+    const id = o.id ?? o.keyword_id ?? o.tracking_keyword_id ?? (isObj(o.keyword) ? o.keyword.id : null) ?? null;
+    const existing = o.existing_id ?? (isObj(o.error) ? o.error.existing_id : null) ?? null;
+    let state;
+    if (/restor|복원|reactivat/.test(t)) state = "restored";
+    else if (/slot|슬롯|capacity/.test(t)) state = "slot";
+    else if (/duplicate|exist|중복|conflict/.test(t) || existing != null) state = "duplicate";
+    else if (/invalid|validation|bad_request|입력|error|fail|reject|denied|422|400/.test(t)) state = "invalid";
+    else if (/creat|success|ok|new|added|등록|queued|accept/.test(t) || id != null) state = "created";
+    else state = "invalid";
+    return { state, id: id != null ? String(id) : null, existingId: existing != null ? String(existing) : null, message: String(o.message || (isObj(o.error) ? o.error.message : "") || "").slice(0, 120) };
+  }
+  // 보낸 항목과 응답을 순서대로 맞춤 (응답 개수가 모자라면 남는 항목은 '응답 없음' 처리)
+  function bulkResults(result, sent) {
+    const arr = listOf(isObj(result) && !listOf(result).length && isObj(result.result) ? result.result : result);
+    return sent.map((input, i) => { const r = arr[i] !== undefined ? classifyBulkItem(arr[i]) : { state: "invalid", id: null, existingId: null, message: "응답에 이 항목의 결과가 없어요." }; return { input, ...r }; });
+  }
+  // 중복 확인 응답: 항목마다 기존 추적 ID 가 있는지
+  function lookupResults(result, sent) {
+    const arr = listOf(isObj(result) && !listOf(result).length && isObj(result.result) ? result.result : result);
+    return sent.map((input, i) => {
+      const o = isObj(arr[i]) ? arr[i] : {}, hit = isObj(o.keyword) ? o.keyword : o;
+      const id = hit.id ?? hit.keyword_id ?? hit.existing_id ?? o.existing_id ?? null;
+      const found = o.exists === true || o.found === true || o.duplicate === true || id != null;
+      return { input, found, id: id != null ? String(id) : null, trashed: !!(o.trashed || o.deleted || hit.deleted_at), };
+    });
+  }
+  // '전일 대비'는 두 기록이 실제로 연속된 날짜일 때만. 아니면 '직전 수집 대비'와 두 날짜를 보여 줌
+  function deltaInfo(st) {
+    if (st.delta == null || !st.latest || !st.prev) return null;
+    const consecutive = dayAdd(st.prev.day, 1) === st.latest.day;
+    return { delta: st.delta, daily: consecutive, from: st.prev.day, to: st.latest.day, label: consecutive ? "전일 대비" : `직전 수집 대비 (${st.prev.day.slice(5)}→${st.latest.day.slice(5)})` };
+  }
+  // 검색 조건이 바뀐 전후 기록은 이어서 계산하지 않음: 가장 최근 기록과 같은 조건이 이어진 구간만 사용
+  function currentSegment(recsDesc) {
+    if (!recsDesc.length) return { recs: [], excluded: 0, condKnown: true };
+    const key = condKey(recsDesc[0]); let n = 0; while (n < recsDesc.length && condKey(recsDesc[n]) === key) n++;
+    return { recs: recsDesc.slice(0, n), excluded: recsDesc.length - n, condKnown: key !== "||" };
+  }
+
+  const api = { normGroup, placeIdFrom, parseRegLines, classifyBulkItem, bulkResults, lookupResults, deltaInfo, currentSegment, isObj, toNum, listOf, metricsOf, normRank, normHistory, normKeyword, condKey, comparable, stats, todayItems, TODAY_RULES, rankText, rangeText, csvCell, toCsv, dayAdd, kstDay };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.PlaceNorm = api;
 })(typeof window !== "undefined" ? window : globalThis);
