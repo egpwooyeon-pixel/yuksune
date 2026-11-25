@@ -60,14 +60,60 @@ async function showTracker(t) {
 }
 $("rk-tabs").onclick = e => { const id = e.target.dataset.id; if (!id) return; const t = trackers.find(x => x.id === id); if (t) showTracker(t); };
 
+// ---- 내 플레이스 등록 (승인된 사업자만 · 아이디당 플레이스 1곳 · 키워드 최대 3개) ----
+const MAX_KW = 3;
+function parsePlaceId(v) {
+  v = (v || "").trim(); if (!v) return { err: "플레이스 주소 또는 ID를 입력해 주세요." };
+  if (/^\d{5,15}$/.test(v)) return { id: v };
+  if (/naver\.me\//i.test(v)) return { err: "단축 주소(naver.me)로는 플레이스 ID를 알 수 없어요. 네이버 지도에서 가게를 열었을 때의 전체 주소나 ID 숫자를 넣어 주세요." };
+  if (/\/search\//.test(v) && !/\/place\/\d/.test(v)) return { err: "검색 결과 목록 주소예요. 가게를 눌러 상세 화면을 연 뒤 주소를 복사해 주세요." };
+  const m = v.match(/\/(\d{5,15})(?:[\/?#]|$)/); return m ? { id: m[1] } : { err: "주소에서 플레이스 ID를 찾지 못했어요. 주소 전체나 ID 숫자를 확인해 주세요." };
+}
+const regMsg = (t, ok) => { const el = $("rg-msg"); el.hidden = !t; el.textContent = t || ""; el.style.color = ok ? "#0c8f66" : ""; };
+const ERR = { one_place_only: "아이디 하나당 플레이스는 1곳만 등록할 수 있어요.", keyword_limit_per_owner: "키워드는 최대 3개까지 등록할 수 있어요." };
+async function loadAll(me, approved) {
+  const { data: all, error } = await sb.from("rank_trackers").select("*").eq("owner_id", me.id).order("created_at");
+  if (error) return msg("불러오지 못했어요. (025 SQL 실행 여부를 확인해 주세요)");
+  const rows = all || [], active = rows.filter(t => t.active), pending = rows.filter(t => !t.active && t.self_registered);
+  const placeRow = rows.find(t => t.place_id), left = MAX_KW - rows.length;
+  $("rk-req").hidden = !pending.length;
+  $("rk-req-list").innerHTML = pending.map(t => `<li><b>${esc(t.keyword)}</b> <span class="muted">· ${esc(t.place_name || "")} · 운영자 확인 대기</span> <button type="button" class="btn-line" data-cancel="${esc(t.id)}">신청 취소</button></li>`).join("");
+  $("rk-reg").hidden = !approved || left <= 0;
+  if (placeRow) { $("rg-place").value = placeRow.place_id; $("rg-place").readOnly = true; $("rg-name").value = placeRow.place_name || ""; $("rg-name").readOnly = true; $("rg-go").textContent = "키워드 추가하기"; }
+  trackers = active; $("rk").hidden = !active.length; if (active.length) await showTracker(active[0]);
+  if (!rows.length) msg(approved ? "" : "");
+  else if (!active.length && pending.length) msg("신청이 접수됐어요. 운영자가 확인한 뒤 순위 확인을 시작해요.");
+  else msg("");
+}
+$("rk-req-list").onclick = async e => {
+  const id = e.target.dataset.cancel; if (!id || !confirm("이 신청을 취소할까요?")) return;
+  const { error } = await sb.from("rank_trackers").delete().eq("id", id);
+  if (error) return alert("취소하지 못했어요. 이미 운영자가 시작한 항목은 취소할 수 없어요.");
+  location.reload();
+};
+$("rk-form").onsubmit = async e => {
+  e.preventDefault(); if ($("rg-go").disabled) return; regMsg("");
+  const pid = parsePlaceId($("rg-place").value); if (pid.err) return regMsg(pid.err);
+  const name = $("rg-name").value.trim(); if (!name) return regMsg("매장명을 입력해 주세요.");
+  const kws = [...new Set($("rg-kw").value.split(/[\n,]/).map(x => x.trim()).filter(Boolean))];
+  if (!kws.length) return regMsg("키워드를 1개 이상 입력해 주세요."); if (kws.some(k => k.length > 40)) return regMsg("키워드는 40자 이내로 입력해 주세요.");
+  const used = (window.__rkCount || 0); if (kws.length + used > MAX_KW) return regMsg(`키워드는 최대 ${MAX_KW}개까지예요. (지금 ${used}개 등록됨)`);
+  const me = (await sb.auth.getSession()).data.session.user, url = /^https?:\/\//i.test($("rg-place").value.trim()) && $("rg-place").value.trim().length <= 300 ? $("rg-place").value.trim() : null;
+  $("rg-go").disabled = true; $("rg-go").textContent = "등록 중…";
+  const { error } = await sb.from("rank_trackers").insert(kws.map(k => ({ owner_id: me.id, keyword: k, place_name: name.slice(0, 60), place_id: pid.id, place_url: url, active: false, self_registered: true, auto_collect: false })));
+  $("rg-go").disabled = false; $("rg-go").textContent = "등록하기";
+  if (error) { const m = (error.message || ""); return regMsg(ERR[Object.keys(ERR).find(k => m.includes(k))] || (/duplicate|unique/i.test(m) ? "이미 등록한 키워드예요." : "등록하지 못했어요. (025 SQL 실행 여부와 사업자 승인 여부를 확인해 주세요)")); }
+  regMsg("등록했어요. 운영자가 확인하면 순위 확인이 시작돼요.", true); $("rg-kw").value = ""; setTimeout(() => location.reload(), 800);
+};
+
 (async () => {
   if (!sbReady) return msg("서버 연결 키가 설정되지 않았습니다.");
   const { data } = await sb.auth.getSession();
   const me = data.session && data.session.user;
   if (!me) return location.replace("login.html?next=rank.html");
-  const { data: ts, error } = await sb.from("rank_trackers").select("*").eq("owner_id", me.id).eq("active", true).order("created_at");
-  if (error) return msg("불러오지 못했어요. (017 SQL 실행 여부를 확인해 주세요)");
-  trackers = ts || [];
-  if (!trackers.length) return msg("아직 설정된 순위 추적이 없어요. 광고주 한 분당 키워드를 운영자가 설정해 드려요. 공지사항을 확인해 주세요.");
-  $("rk").hidden = false; await showTracker(trackers[0]);
+  const { data: p } = await sb.from("profiles").select("role,business_status").eq("id", me.id).maybeSingle();
+  const approved = !!p && p.business_status === "approved";
+  if (!approved && !(p && p.role === "admin")) { msg("사업자 인증이 승인된 회원만 내 플레이스 순위를 확인할 수 있어요. 광고주 인증(사업자등록증 제출) 후 이용해 주세요."); const a = document.createElement("a"); a.href = "biz.html"; a.className = "btn-primary"; a.textContent = "광고주 인증하러 가기"; $("rk-msg").append(" ", a); return; }
+  await loadAll(me, approved);
+  window.__rkCount = (await sb.from("rank_trackers").select("id", { count: "exact", head: true }).eq("owner_id", me.id)).count || 0;
 })();

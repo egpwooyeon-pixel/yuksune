@@ -644,3 +644,10 @@ a.write-btn:hover{background:var(--primary-dark);text-decoration:none}
 .pd-paste{margin:10px 0 16px;border:1px dashed #b9c4e4;border-radius:10px;background:#f6f8ff;padding:10px 14px}
 .pd-paste summary{cursor:pointer;font-weight:700;font-size:14px;color:var(--primary)}
 .pd-paste textarea{width:100%;margin:8px 0;border:1px solid #cfd3e3;border-radius:8px;padding:10px;font:inherit;font-size:13px;resize:vertical;background:#fff}
+
+/* 내 플레이스 순위확인하기: 사업자 등록 폼 */
+.rk-reg form{display:grid;gap:12px;max-width:560px;margin-top:10px}
+.rk-reg label{display:grid;gap:6px;font-size:14px;font-weight:600}
+.rk-reg input,.rk-reg textarea{border:1px solid #cfd3e3;border-radius:8px;padding:11px 12px;font:inherit;font-size:14px;background:#fff;font-weight:400}
+.rk-reg input[readonly]{background:#f3f4f7;color:#666}
+.rk-req ul{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:8px}.rk-req li{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}

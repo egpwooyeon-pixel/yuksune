@@ -162,3 +162,41 @@ button,input,select{font-family:inherit}
 .rk-toast.ok{background:#e6f8f0;color:#0b7d57}.rk-toast.warn{background:#fff3e0;color:#a35f00}
 .rk-bh{display:flex;align-items:center;gap:10px;font-size:12px}
 .rk-act{white-space:normal!important;min-width:170px}.rk-act .btn{margin-bottom:4px}
+
+/* ===== 네이버 플레이스 (업플로우) ===== */
+.np-tabs{flex-wrap:wrap;margin-bottom:14px}
+.np-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.np-bar select,.np-bar input,.np-form input{border:1px solid var(--line);border-radius:8px;padding:9px 10px;font:inherit;font-size:13px;background:#fff;min-width:0}
+.np-bar input[type=search]{flex:1;min-width:140px}
+.np-inl{font-size:12px;color:var(--mut);display:flex;align-items:center;gap:4px}
+.np-form{display:grid;gap:10px;max-width:520px}
+.np-acts{display:flex;gap:8px;flex-wrap:wrap}
+.np-result{margin-top:16px;padding:16px;background:#f7f8fb;border-radius:12px}.np-big{font-size:26px;font-weight:800}
+.np-today ul{margin:8px 0 0;padding-left:18px;font-size:13px;line-height:1.9}
+.np-r{font-weight:700}.np-r.ok{color:#2f5bff}.np-r.out{color:#8a6a00}.np-r.failed{color:#d63a3a}.np-r.none{color:var(--mut);font-weight:500}
+.np-row{cursor:pointer}.np-row:hover td{background:#fafbff}.np-row.open td{background:#f4f6ff}.np-store td{font-weight:500}
+.np-child td:first-child{padding-left:26px}
+.np-row td small{display:block;font-size:11px}.np-memo{max-width:160px;font-size:12px;word-break:break-all}
+.np-act{white-space:nowrap}.np-act .btn{margin:0 4px 4px 0}
+.np-7{display:inline-flex;gap:2px}
+.np-d{font-style:normal;display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;border-radius:5px;font-size:11px;font-weight:700;background:#eef2ff;color:#2742b8}
+.np-d.none{background:#f1f2f4;color:#aab}.np-d.out{background:#fff3dc;color:#b87400}.np-d.failed{background:#ffe9e9;color:#d63a3a}
+.np-detail>td{background:#f8f9fc;padding:14px 18px!important;cursor:default}
+.np-dh{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;margin-bottom:8px;color:#3b4150}
+.np-det-t{font-size:12px}
+.np-pager{display:flex;gap:12px;align-items:center;justify-content:center;margin-top:12px}
+.np-info h3,.np-comp h3{margin:0 0 4px;font-size:17px}.np-comp{margin-bottom:18px}
+.np-chip{display:inline-block;background:#eef2ff;border-radius:99px;padding:2px 9px;font-size:12px;margin:2px 2px 2px 0}
+.np-spark{display:block}
+@media (max-width:980px){
+  .np-table thead{display:none}
+  .np-table,.np-table tbody{display:block}
+  .np-row,.np-card{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;background:#fff}
+  .np-row td,.np-card td{display:block;border:0!important;padding:2px 0!important;background:transparent!important}
+  .np-row td::before,.np-card td::before{content:attr(data-l);display:block;font-size:11px;color:var(--mut)}
+  .np-row td:first-child,.np-row .np-act,.np-card td:first-child,.np-card td[colspan]{grid-column:1/-1}.np-row td:first-child::before,.np-row .np-act::before,.np-card td:first-child::before,.np-card td[colspan]::before{display:none}
+  .np-child td:first-child{padding-left:0}
+  .np-detail,.np-detail>td{display:block}.np-detail>td{border-radius:12px;margin-bottom:10px}
+  .np-memo{max-width:none}
+  .np-bar select,.np-bar input{flex:1 1 140px}
+}
