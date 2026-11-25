@@ -37,7 +37,7 @@ await t('runPool limits concurrency & keeps order', async ()=>{ let cur=0,max=0;
 
 const input = m.parseInput({name:'샘플 웨딩홀',region:'강남',industry:'웨딩홀',url:'https://sample-hall.co.kr'});
 await t('diagnose end-to-end (mock Gemini)', async ()=>{
-  const log=[]; const r = await m.diagnose(input,{apiKey:'KEY123',model:'gemini-2.5-flash',fetch:mockFetch(log)});
+  const log=[]; const r = await m.diagnose(input,{apiKey:'KEY123',model:'gemini-2.5-flash',fetch:mockFetch(log),questions:10});
   assert.equal(log.length,13);                                   // 질문 생성 1 + 답변 10 + 경쟁업체 1 + 발행 제안 1
   assert.ok(r.plan && r.plan.topics.length===4 && r.plan.disclaimer.includes('보장하지 않고') && r.plan.medical===false);
   assert.ok(log.every(l=>l.key==='KEY123' && l.url.includes('gemini-2.5-flash:generateContent')));
@@ -47,6 +47,10 @@ await t('diagnose end-to-end (mock Gemini)', async ()=>{
   assert.ok(r.sources.find(s=>s.d==='sample-hall.co.kr').own);
   assert.deepEqual(r.rivals.map(x=>x.name),['예시홀A']);        // 지어낸 업체·자기 자신은 제외
   assert.equal(r.questionList.length,10); assert.equal(r.live,true); assert.equal(r.citeAvailable,true);
+});
+await t('default is simple diagnosis: 5 questions, 8 calls', async ()=>{
+  const log=[]; const r = await m.diagnose(input,{apiKey:'K',model:'x',fetch:mockFetch(log)});
+  assert.equal(log.length,8); assert.equal(log.filter(l=>l.tools).length,5); assert.equal(r.questionList.length,5);
 });
 await t('too few answers -> too_few', async ()=>{
   const f = async (url,init)=>{ const b=JSON.parse(init.body); if(b.generationConfig?.responseSchema?.items?.type==='STRING') return okRes(gem(JSON.stringify(QS))); return okRes({candidates:[]}); };
@@ -69,7 +73,7 @@ const mkDeps=(o={})=>{ const calls={finish:[],reserve:0}; return { calls, d:{
 }}};
 const post=b=>new Request('http://x',{method:'POST',body:JSON.stringify(b)});
 const body={name:'샘플 웨딩홀',region:'강남',industry:'웨딩홀',url:'https://sample-hall.co.kr'};
-await t('handle: success finishes ok', async ()=>{ const {d,calls}=mkDeps(); const r=await m.handle(post(body),d); assert.equal(r.status,200); const j=await r.json(); assert.equal(j.cached,false); assert.equal(j.result.engines[0].answers,10); assert.deepEqual(calls.finish,[[7,'ok',true]]); });
+await t('handle: success finishes ok', async ()=>{ const {d,calls}=mkDeps(); const r=await m.handle(post(body),d); assert.equal(r.status,200); const j=await r.json(); assert.equal(j.cached,false); assert.equal(j.result.engines[0].answers,5); assert.deepEqual(calls.finish,[[7,'ok',true]]); });
 await t('handle: cache hit skips reserve/Gemini', async ()=>{ const {d,calls}=mkDeps({cached:{brand:'c'}}); const r=await m.handle(post(body),d); const j=await r.json(); assert.equal(j.cached,true); assert.equal(calls.reserve,0); });
 await t('handle: limit -> 429 and no Gemini call', async ()=>{ let ran=false; const {d}=mkDeps({rsv:{ok:false,reason:'ip_limit'},run:async()=>{ran=true}}); const r=await m.handle(post(body),d); assert.equal(r.status,429); assert.equal((await r.json()).error,'ip_limit'); assert.equal(ran,false); });
 await t('handle: no key -> 503, nothing else', async ()=>{ const {d,calls}=mkDeps({noKey:true}); const r=await m.handle(post(body),d); assert.equal(r.status,503); assert.equal(calls.reserve,0); });
@@ -103,7 +107,7 @@ await t('parseModels', ()=>{ assert.deepEqual(m.parseModels(' a , b,,'),['a','b'
 await t('fallback: first model 503 -> second model used for all 12 calls', ()=>fast(async ()=>{
   const urls=[]; const base=mockFetch([]);
   const f=async(url,init)=>{ urls.push(url); if(url.includes('/modelA:')) return {ok:false,status:503,text:async()=>'{"error":{"message":"high demand"}}'}; return base(url,init); };
-  const r=await m.diagnose(input,{apiKey:'k',model:'modelA,modelB',fetch:f});
+  const r=await m.diagnose(input,{apiKey:'k',model:'modelA,modelB',fetch:f,questions:10});
   assert.equal(r.engines[0].answers,10);
   assert.ok(urls.some(u=>u.includes('/modelB:')));
   assert.equal(urls.filter(u=>u.includes('/modelA:')).length>=12,true);      // 각 호출이 먼저 A 를 한 번(+재시도 1) 시도
@@ -111,14 +115,14 @@ await t('fallback: first model 503 -> second model used for all 12 calls', ()=>f
 await t('fallback: 404 on first model moves on; auth_failed does not', ()=>fast(async ()=>{
   const base=mockFetch([]);
   const f404=async(url,init)=> url.includes('/modelA:') ? {ok:false,status:404,text:async()=>'{"error":{"message":"gone"}}'} : base(url,init);
-  const r=await m.diagnose(input,{apiKey:'k',model:'modelA,modelB',fetch:f404}); assert.equal(r.engines[0].answers,10);
+  const r=await m.diagnose(input,{apiKey:'k',model:'modelA,modelB',fetch:f404,questions:10}); assert.equal(r.engines[0].answers,10);
   let calls=[]; const f401=async(url)=>{calls.push(url); return {ok:false,status:403,text:async()=>'{"error":{"message":"denied"}}'}};
   await assert.rejects(()=>m.diagnose(input,{apiKey:'k',model:'modelA,modelB',fetch:f401}),/auth_failed/);
   assert.equal(calls.length,1);
 }));
 await t('all models overloaded -> error lists attempts for both models', ()=>fast(async ()=>{
   const f=async()=>({ok:false,status:503,text:async()=>'{"error":{"message":"high demand"}}'});
-  await assert.rejects(()=>m.diagnose(input,{apiKey:'k',model:'modelA,modelB',fetch:f}), e=>{ assert.equal(e.status,503); assert.ok(e.detail.includes('[modelB]')); return true; });
+  await assert.rejects(()=>m.diagnose(input,{apiKey:'k',model:'modelA,modelB',fetch:f,questions:10}), e=>{ assert.equal(e.status,503); assert.ok(e.detail.includes('[modelB]')); return true; });
 }));
 
 // ---------- 콘텐츠 발행 제안 ----------
@@ -171,7 +175,7 @@ await t('plan prompt: medical rules only for medical; never asks for article tex
 await t('diagnose: plan failure (model error) does NOT fail the diagnosis -> plan null, rest intact', async () => {
   const base = mockFetch([]);
   const f = async (url, init) => { const b = JSON.parse(init.body); if (b.contents[0].parts[0].text.includes('발행 계획을 제안하세요')) return { ok:false, status:400, text: async () => '{"error":{"message":"bad request"}}' }; return base(url, init); };
-  const r = await m.diagnose(m.parseInput({ name:'샘플 웨딩홀', region:'강남', industry:'웨딩홀', url:'https://sample-hall.co.kr' }), { apiKey:'k', model:'x', fetch:f });
+  const r = await m.diagnose(m.parseInput({ name:'샘플 웨딩홀', region:'강남', industry:'웨딩홀', url:'https://sample-hall.co.kr' }), { apiKey:'k', model:'x', fetch:f, questions:10 });
   assert.equal(r.plan, null); assert.equal(r.engines[0].answers, 10);
 });
 await t('diagnose (medical input): plan is filtered end to end, no procedure names in titles', async () => {

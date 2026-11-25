@@ -213,7 +213,7 @@ const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&am
 const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
 const MSG = {
   bad_name: "업체명을 2자 이상 입력해 주세요.", need_region_industry: "지역과 업종을 입력해 주세요.", bad_url: "https:// 로 시작하는 주소를 입력해 주세요.",
-  ip_limit: "오늘 이용할 수 있는 횟수를 모두 사용했어요. 내일 다시 시도해 주세요.",
+  ip_limit: "무료 진단은 하루에 한 번만 할 수 있어요. 오늘의 진단은 이미 사용했어요. 추가 진단이 필요하면 상담을 신청해 주세요.",
   global_limit: "오늘 진단 가능한 전체 횟수가 모두 소진됐어요. 내일 다시 시도해 주세요.",
   rate_limited: "AI 서비스가 잠시 바빠요. 1분 뒤에 다시 시도해 주세요.",
   not_configured: "진단 서버가 아직 준비되지 않았어요.",
@@ -308,7 +308,7 @@ async function runLive(input) {
     if (error) {
       let code = "";
       try { code = (await error.context.json()).error; } catch (_) {}
-      $("out").innerHTML = `<p class="banner" role="alert">${esc(MSG[code] || FAIL)}</p>`;
+      $("out").innerHTML = `<p class="banner" role="alert">${esc(MSG[code] || FAIL)}${code === "ip_limit" ? ` <a href="landing.html#contact"><b>상담 신청하기 →</b></a>` : ""}</p>`;
       return;
     }
     if (!data || !data.result) { $("out").innerHTML = `<p class="banner" role="alert">${FAIL}</p>`; return; }

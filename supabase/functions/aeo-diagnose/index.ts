@@ -1,13 +1,14 @@
 // Supabase Edge Function: AI 노출 진단 (Gemini API + 구글 검색 연동)
 //
 // 업체명·지역·업종(·홈페이지)을 받아
-//   1) Gemini 로 "이 업종·지역을 찾는 고객이 AI에게 물어볼 질문" 10개를 만들고
+//   1) Gemini 로 "이 업종·지역을 찾는 고객이 AI에게 물어볼 질문" 5개(기본)를 만들고
 //   2) 질문마다 Gemini(google_search 연동)에 물어 답변과 출처를 받은 뒤
 //   3) 답변에 업체명이 나왔는지(멘션), 출처에 자사 홈페이지가 있었는지(인용), 어떤 출처·경쟁 업체가 나왔는지 집계합니다.
 //   결과는 diagnose.html 의 리포트 데이터 형식으로 돌려줍니다.
 //
 // 비밀값(Supabase > Edge Functions > Secrets): GEMINI_API_KEY (필수)
-//   선택: GEMINI_MODEL(기본 gemini-3.8-flash), IP_HASH_SALT, DIAGNOSE_IP_LIMIT(기본 3), DIAGNOSE_DAILY_LIMIT(기본 100)
+//   선택: GEMINI_MODEL(기본 gemini-3.8-flash), IP_HASH_SALT, DIAGNOSE_IP_LIMIT(기본 1), DIAGNOSE_DAILY_LIMIT(기본 100),
+//   DIAGNOSE_QUESTIONS(기본 5, 최대 10), DIAGNOSE_CONCURRENCY(기본 2)
 //   키는 x-goog-api-key 헤더로만 보내며, 브라우저·응답·로그로 나가지 않습니다.
 //
 // 측정의 한계 (리포트 화면에도 표시됩니다)
@@ -20,8 +21,8 @@
 // 공식 문서 형식을 기준으로 가정했으니, 첫 실호출 때 확인이 필요합니다.
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models/";
-const QUESTION_COUNT = 10;
-const CONCURRENCY = 3;
+const QUESTION_COUNT = 5;   // 기본값: 무료 한도 보호용 "간이 진단". Secrets 의 DIAGNOSE_QUESTIONS 로 늘릴 수 있음(최대 10)
+const CONCURRENCY = 2;
 const CORS = { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization, x-client-info, apikey, content-type", "access-control-allow-methods": "POST, OPTIONS" };
 const json = (o, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { "content-type": "application/json", ...CORS } });
 
@@ -143,18 +144,19 @@ function parseJsonArray(text) {
 }
 
 export async function makeQuestions(input, ctx) {
-  const prompt = `당신은 한국의 일반 소비자입니다. "${input.region}" 지역에서 "${input.industry}" 업체를 찾는 사람이 AI 검색(챗봇)에 실제로 입력할 만한 질문을 ${QUESTION_COUNT}개 만드세요.${input.service ? `\n- 이 업체의 대표 서비스는 "${input.service}"입니다. 질문 일부는 이 서비스를 찾는 사람의 관점에서 쓰세요.` : ""}
+  const COUNT = Math.min(10, Math.max(3, (ctx && ctx.questions) || QUESTION_COUNT));
+  const prompt = `당신은 한국의 일반 소비자입니다. "${input.region}" 지역에서 "${input.industry}" 업체를 찾는 사람이 AI 검색(챗봇)에 실제로 입력할 만한 질문을 ${COUNT}개 만드세요.${input.service ? `\n- 이 업체의 대표 서비스는 "${input.service}"입니다. 질문 일부는 이 서비스를 찾는 사람의 관점에서 쓰세요.` : ""}
 - 특정 업체 이름을 넣지 마세요. (예: "강남에서 ~ 찾아줘" 같은 탐색 질문)
 - 서로 다른 조건(가격대, 분위기, 규모, 접근성, 후기, 예약 등)을 섞고, 자연스러운 한국어 한 문장으로 쓰세요.
-- 결과는 문자열 ${QUESTION_COUNT}개로 이뤄진 JSON 배열만 출력하세요.`;
+- 결과는 문자열 ${COUNT}개로 이뤄진 JSON 배열만 출력하세요.`;
   const j = await callModels({
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     generationConfig: { temperature: 0.7, responseMimeType: "application/json", responseSchema: { type: "ARRAY", items: { type: "STRING" } } },
   }, ctx, "질문 생성");
   const arr = parseJsonArray(jsonText(j));
   const qs = (arr || []).map(q => clean(q, 120)).filter(q => q.length >= 6);
-  const uniq = [...new Set(qs)].slice(0, QUESTION_COUNT);
-  if (uniq.length < 5) throw new UpErr("api_error", 200, "질문 생성 결과를 해석하지 못함(" + uniq.length + "개)");
+  const uniq = [...new Set(qs)].slice(0, COUNT);
+  if (uniq.length < Math.min(3, COUNT)) throw new UpErr("api_error", 200, "질문 생성 결과를 해석하지 못함(" + uniq.length + "개)");
   return uniq;
 }
 
@@ -286,8 +288,8 @@ export async function makePlan(input, questions, ctx) {
 
 export async function diagnose(input, ctx) {
   const qs = await makeQuestions(input, ctx);
-  const qa = await runPool(qs, q => askOne(q, input, ctx));
-  { const n = qa.filter(x => x.ok).length; if (n < 5) throw new UpErr("too_few", 200, "답변을 받은 질문이 " + n + "개뿐" + (ctx.lastErr ? " · 마지막 오류: " + ctx.lastErr : "")); }
+  const qa = await runPool(qs, q => askOne(q, input, ctx), (ctx && ctx.concurrency) || CONCURRENCY);
+  { const n = qa.filter(x => x.ok).length; if (n < Math.min(3, qs.length)) throw new UpErr("too_few", 200, "답변을 받은 질문이 " + n + "개뿐" + (ctx.lastErr ? " · 마지막 오류: " + ctx.lastErr : "")); }
   const rivals = await findRivals(input, qa, ctx);
   const plan = await makePlan(input, qs, ctx);                       // 콘텐츠 발행 제안(없을 수 있음)
   return { ...aggregate(input, qa, rivals), plan };
@@ -311,7 +313,7 @@ export async function handle(req, deps) {
   const rsv = await deps.reserve(ipHash, key, input);                    // 한도 확인 + 자리 예약 (Gemini 호출 전)
   if (!rsv || !rsv.ok) return json({ error: (rsv && rsv.reason) || "limit" }, 429);
   try {
-    const result = await deps.run(input, { apiKey, model, fetch: deps.fetch });
+    const result = await deps.run(input, { apiKey, model, fetch: deps.fetch, questions: deps.questions && deps.questions(), concurrency: deps.concurrency && deps.concurrency() });
     await deps.finish(rsv.id, "ok", result);
     return json({ result, cached: false });
   } catch (e) {
@@ -339,12 +341,14 @@ function realDeps() {
     config: () => ({ apiKey: env("GEMINI_API_KEY"), model: env("GEMINI_MODEL") || "gemini-3.8-flash" }),
     fetch,
     run: diagnose,
+    questions: () => num("DIAGNOSE_QUESTIONS", QUESTION_COUNT),
+    concurrency: () => num("DIAGNOSE_CONCURRENCY", CONCURRENCY),
     cached: key => rpc("get_cached_diagnose", { p_key: key }),
     async ipHash(req) {
       const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "unknown";
       return sha256Hex(ip + "|" + (env("IP_HASH_SALT") || KEY));
     },
-    reserve: (ip, key, i) => rpc("reserve_diagnose", { p_ip: ip, p_key: key, p_brand: i.name, p_region: i.region, p_industry: i.industry, p_ip_limit: num("DIAGNOSE_IP_LIMIT", 3), p_global_limit: num("DIAGNOSE_DAILY_LIMIT", 100) }),
+    reserve: (ip, key, i) => rpc("reserve_diagnose", { p_ip: ip, p_key: key, p_brand: i.name, p_region: i.region, p_industry: i.industry, p_ip_limit: num("DIAGNOSE_IP_LIMIT", 1), p_global_limit: num("DIAGNOSE_DAILY_LIMIT", 100) }),
     finish: (id, status, result) => rpc("finish_diagnose", { p_id: id, p_status: status, p_result: result }),
   };
 }
