@@ -236,7 +236,7 @@ function realDeps() {
       const u = await fetch(`${URL_}/auth/v1/user`, { headers: { apikey: KEY, authorization: authHeader } });
       if (!u.ok) { console.error("review-draft actor: /auth/v1/user rejected the token", u.status, await u.text().catch(() => "")); return null; }
       const { id } = await u.json();
-      const p = await fetch(`${URL_}/rest/v1/profiles?id=eq.${encodeURIComponent(id)}&select=role,business_status`, { headers: { apikey: KEY, authorization: `Bearer ${KEY}` } });
+      const p = await fetch(`${URL_}/rest/v1/profiles?id=eq.${encodeURIComponent(id)}&select=role,business_status`, { headers: { apikey: KEY, authorization: authHeader } });
       const rows = p.ok ? await p.json() : [];
       const row = rows[0];
       if (!row) { console.error("review-draft actor: no profiles row for authenticated user", id, "rest status", p.status); return null; }
