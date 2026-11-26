@@ -735,3 +735,5 @@ a.ws-ad:focus-visible{outline:3px solid #7fb0ff;outline-offset:2px}
 @keyframes wsPin{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 @media (prefers-reduced-motion:reduce){.ws-pin{animation:none}}
 @media (max-width:800px){.ws-flow .ws-ill svg{width:170px}}
+
+.ws-benefit{margin:14px 0 0;padding:12px 16px;border-radius:12px;background:#eef4ff;color:#26324d;font-size:14px;line-height:1.6;text-align:center}.ws-benefit b{color:#0066ff}
