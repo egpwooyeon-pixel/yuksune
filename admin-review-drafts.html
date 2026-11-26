@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>AI 리뷰 원고 - 관리자</title>
+  <link rel="stylesheet" href="admin.css">
+  <style>
+    .ad-brand small,#me-mail,.muted,.tb th,.kick,.ad-back{color:#555d6b}
+    .rv-grid{display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:start}
+    .rv-list{max-height:75vh;overflow:auto}
+    .rv-item{display:block;width:100%;text-align:left;border:1px solid #e5e8ee;background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;font:inherit}
+    .rv-item.on{border-color:#1f4dff;background:#f4f7ff}.rv-item b{display:block;font-size:14px}.rv-item small{color:#6b7280}
+    .chip{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:700;margin-right:4px}
+    .chip.draft{background:#eef2ff;color:#1f4dff}.chip.approved{background:#e6f6ec;color:#1a7f37}.chip.rejected{background:#f1f2f4;color:#6b7280}
+    .rv-f{display:grid;gap:4px;margin-bottom:12px}.rv-f label{font-size:12px;font-weight:700;color:#4b5563}
+    .rv-f input,.rv-f textarea{border:1px solid #dcdfe6;border-radius:8px;padding:8px 10px;font:inherit;width:100%;background:#fff}
+    .rv-sec{border:1px solid #e5e8ee;border-radius:12px;padding:12px;margin-bottom:12px;background:#fafbfd}
+    .rv-sec img{width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid #e5e8ee;display:block;margin-bottom:8px}
+    .rv-act{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+    .rv-ro{background:#f7f8fa;border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:12px;overflow-wrap:anywhere}
+    .rv-msg{font-size:13px;min-height:1.4em}.rv-msg.err{color:#c92a2a}.rv-msg.ok{color:#1a7f37}
+    @media(max-width:900px){.rv-grid{grid-template-columns:1fr}.rv-list{max-height:none}}
+  </style>
+</head>
+<body>
+<div class="ad-gate" id="gate">관리자 확인 중…</div>
+<div class="ad" id="app" hidden>
+  <aside class="ad-side">
+    <a class="ad-brand" href="admin.html"><b>우리들 체험단</b><small>ADMIN · 관리자</small></a>
+    <nav id="nav"><a href="admin.html">← 관리자 홈</a><a href="admin-review-drafts.html" class="on">AI 리뷰 원고</a></nav>
+    <div class="ad-me"><div><b id="me-name"></b> <em>관리자</em><small id="me-mail"></small></div></div>
+    <a class="ad-back" href="campaigns.html">← 사이트로 돌아가기</a>
+  </aside>
+  <main class="ad-main">
+    <div class="ad-top"><div><small class="kick">REVIEW DRAFTS</small><h1>AI 리뷰 원고 (블로그)</h1></div><button class="btn" type="button" id="new-btn">+ 새 원고 만들기</button></div>
+    <p class="note">매장 리뷰를 바탕으로 AI(Gemini)가 블로그 원고 초안을 써요. 리뷰·사진은 크롬 확장프로그램(네이버/구글 리뷰 수집 도구)으로 모은 CSV에서 옮겨 붙이세요 — 이 화면은 리뷰를 직접 수집하지 않아요. <b>"검수 완료"는 발행이 아니에요</b> — 이 서비스는 자동 발행 파이프라인이 없고, 원고를 복사해서 네이버 블로그 등에 직접 올리는 걸 전제로 합니다. AI가 리뷰에 없는 내용을 지어낼 수 있으니 올리기 전에 꼭 직접 확인하세요.</p>
+    <div class="rv-grid">
+      <div class="box rv-list"><div class="box-h"><b>원고 목록</b><select id="st" aria-label="상태"><option value="">전체</option><option value="draft">초안</option><option value="approved">검수완료</option><option value="rejected">반려</option></select></div><div id="list"></div><p class="empty" id="list-empty" hidden>원고가 아직 없어요.</p></div>
+      <div class="box" id="panel"><p class="empty">왼쪽에서 원고를 고르거나 새 원고를 만드세요.</p></div>
+    </div>
+  </main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="admin-review-drafts.js"></script>
+</body>
+</html>

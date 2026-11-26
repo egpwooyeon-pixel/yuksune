@@ -18,6 +18,9 @@
 - 선정 안내 이메일: 코드는 준비되어 있으나 **보류** (config.js 의 `EMAIL_NOTIFY` 가 false). 켜려면 `supabase/EMAIL_SETUP.md` 순서대로 설정 후 true 로 변경
 - 관리자 페이지: `admin-login.html`(관리자 로그인) → `admin.html`. 운영자 지정은 `profiles.role = 'admin'`, 집계/권한은 `supabase/008_admin.sql`. 사이트 메뉴에는 링크를 두지 않음 (주소로만 접속)
 
+### AI 리뷰 원고 (블로그)
+매장 리뷰를 바탕으로 AI(Gemini)가 블로그 홍보 원고 초안을 쓰고 운영자가 검수하는 기능. 화면: 관리자 > **AI 리뷰 원고 (체험단)** (`admin-review-drafts.html`). 리뷰·사진 **수집은 포함되지 않음** — 별도의 크롬 확장프로그램(네이버 플레이스/스마트스토어/구글 리뷰 수집 도구)으로 모은 CSV에서 옮겨 붙이는 방식. 설정 순서는 [`supabase/REVIEW_DRAFT_SETUP.md`](supabase/REVIEW_DRAFT_SETUP.md). "검수완료"는 발행이 아님(이 기능엔 발행 파이프라인이 없음) — 원고를 복사해서 네이버 블로그 등에 직접 올리는 걸 전제로 함. 쓰레드(Threads) 등 다른 종류의 원고, 리뷰 수집 자체의 사이트 내 연동은 다음 단계로 남아있음.
+
 ---
 
 ## EGP AI 스튜디오 (랜딩 · AI 노출 진단 · 정보 가이드)
