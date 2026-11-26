@@ -4,7 +4,30 @@
 const $ = id => document.getElementById(id);
 const cfg = window.WOORI || {};
 const sb = cfg.SUPABASE_ANON_KEY && window.supabase ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY) : null;
-let cur = null, dirty = false;
+let cur = null, dirty = false, ME = null;
+
+// 사진 직접 업로드: 공개 버킷 review-draft-photos 의 "<내 uid>/<랜덤>.<확장자>" 에만 올릴 수 있어요(029 SQL).
+// 파일 이름·확장자는 믿지 않고 파일 앞부분으로 실제 형식을 확인해요(진단 화면의 업체 사진 카드와 같은 방식).
+const BUCKET = "review-draft-photos", MAX_PHOTOS = 15, MAX_BYTES = 8 * 1024 * 1024;
+const EXT = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+const uuid4 = () => { const b = crypto.getRandomValues(new Uint8Array(16)); b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80; const h = [...b].map(x => x.toString(16).padStart(2, "0")).join(""); return h.slice(0, 8) + "-" + h.slice(8, 12) + "-" + h.slice(12, 16) + "-" + h.slice(16, 20) + "-" + h.slice(20); };
+const sniffImage = async f => {
+  const b = new Uint8Array(await f.slice(0, 12).arrayBuffer()), asc = (i, n) => String.fromCharCode(...b.slice(i, i + n));
+  if (b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) return "image/jpeg";
+  if (b[0] === 0x89 && asc(1, 3) === "PNG") return "image/png";
+  if (asc(0, 4) === "RIFF" && asc(8, 4) === "WEBP") return "image/webp";
+  return null;
+};
+async function uploadPhotos(ownerId, items) {
+  const urls = [];
+  for (const x of items) {
+    const path = `${ownerId}/${uuid4()}.${EXT[x.type]}`;
+    const { error } = await sb.storage.from(BUCKET).upload(path, x.file, { contentType: x.type });
+    if (error) throw new Error("photo_upload_failed");
+    urls.push(sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl);
+  }
+  return urls;
+}
 
 const el = (tag, props, ...kids) => {
   const e = document.createElement(tag);
@@ -49,21 +72,51 @@ function newForm() {
   const p = $("panel"); p.replaceChildren();
   const inp = (id, ph) => el("input", { id, placeholder: ph || "", maxlength: "120" });
   const reviews = el("textarea", { id: "n-reviews", rows: "8", placeholder: "한 줄에 리뷰 하나씩(10~30개 권장)\n예: 분위기도 좋고 친절하시고 메뉴 설명도 잘해주셨어요\n예: 갈비탕이 진하고 양도 많아서 만족했습니다" });
-  const photos = el("textarea", { id: "n-photos", rows: "4", placeholder: "사진 URL 한 줄에 하나씩 (선택, 최대 15장)\n크롬 확장프로그램 CSV의 '사진URL' 칸(' | '로 구분된 값)을 줄바꿈으로 바꿔 붙여넣으세요" });
   const instr = el("textarea", { id: "n-instr", rows: "2", placeholder: "원고 요청사항 (선택) 예: 흰색 제품 사진만 강조해줘 / 가격 얘기는 빼줘" });
   const msg = el("p", { class: "rv-msg", id: "n-msg", role: "status" });
+  let picked = [];
+  const photoFile = el("input", { id: "n-photo-file", type: "file", accept: "image/jpeg,image/png,image/webp", multiple: "multiple" });
+  const photoList = el("ul", { class: "rv-photo-list", id: "n-photo-list" });
+  function drawPhotos() {
+    photoList.replaceChildren();
+    picked.forEach((x, i) => photoList.append(el("li", {},
+      el("img", { src: x.url, alt: "" }),
+      el("button", { type: "button", text: "×", "aria-label": x.file.name + " 빼기", onclick: () => { URL.revokeObjectURL(x.url); picked.splice(i, 1); drawPhotos(); } }))));
+  }
+  photoFile.addEventListener("change", async e => {
+    const notes = [];
+    for (const f of [...e.target.files]) {
+      if (picked.length >= MAX_PHOTOS) { notes.push("사진은 최대 " + MAX_PHOTOS + "장까지예요."); break; }
+      if (f.size > MAX_BYTES) { notes.push(f.name + ": 8MB를 넘어요."); continue; }
+      const type = await sniffImage(f);
+      if (!type) { notes.push(f.name + ": JPG·PNG·WebP 사진이 아니에요."); continue; }
+      picked.push({ file: f, type, url: URL.createObjectURL(f) });
+    }
+    e.target.value = ""; drawPhotos();
+    if (notes.length) { msg.className = "rv-msg err"; msg.textContent = notes.join(" "); }
+  });
   const go = el("button", { class: "btn", type: "button", id: "n-go", text: "원고 만들기", onclick: async () => {
     msg.className = "rv-msg"; const lines = s => s.split("\n").map(x => x.trim()).filter(Boolean);
-    const body = { business: { name: $("n-name").value, area: $("n-area").value, category: $("n-cat").value, signatureMenu: $("n-sig").value }, reviews: lines(reviews.value), photoUrls: lines(photos.value), customInstructions: instr.value };
-    go.disabled = true; msg.textContent = "AI가 원고를 쓰는 중이에요. 사진이 있으면 최대 1~2분쯤 걸려요…";
+    go.disabled = true;
+    let photoUrls = [];
+    if (picked.length) {
+      msg.textContent = "사진을 올리는 중이에요…";
+      try { photoUrls = await uploadPhotos(ME.id, picked); }
+      catch (_) { go.disabled = false; msg.className = "rv-msg err"; msg.textContent = "사진을 올리지 못했어요. 잠시 후 다시 시도해 주세요."; return; }
+    }
+    const body = { business: { name: $("n-name").value, area: $("n-area").value, category: $("n-cat").value, signatureMenu: $("n-sig").value }, reviews: lines(reviews.value), photoUrls, customInstructions: instr.value };
+    msg.textContent = "AI가 원고를 쓰는 중이에요. 사진이 있으면 최대 1~2분쯤 걸려요…";
     const { data, error } = await sb.functions.invoke("review-draft", { body });
     go.disabled = false;
     if (error) { msg.className = "rv-msg err"; msg.textContent = errText(await fnError(error)); return; }
-    msg.className = "rv-msg ok"; msg.textContent = "원고를 만들었어요. 검수해 주세요."; await loadList(data && data.id);
+    msg.className = "rv-msg ok"; msg.textContent = "원고를 만들었어요. 검수해 주세요.";
+    picked.forEach(x => URL.revokeObjectURL(x.url)); picked = []; drawPhotos(); await loadList(data && data.id);
   } });
   p.append(el("h2", { text: "새 원고 만들기" }), el("p", { class: "note", text: "입력한 리뷰와 업체 정보만으로 원고를 쓰게 해요. 리뷰에 없는 내용(가격·순위 등)은 지어내지 않도록 지시했지만, 완벽히 보장되진 않으니 꼭 검수하세요." }),
     field("상호명 *", inp("n-name")), field("지역/동네", inp("n-area")), field("업종/카테고리", inp("n-cat")), field("시그니처 메뉴 (쉼표로 구분)", inp("n-sig")),
-    field("원고 요청사항", instr), field("리뷰 * (1건 이상, 여러 건 권장)", reviews), field("사진 URL", photos), el("div", { class: "rv-act" }, go), msg);
+    field("원고 요청사항", instr), field("리뷰 * (1건 이상, 여러 건 권장)", reviews),
+    el("div", { class: "rv-photo-f" }, el("label", { for: "n-photo-file", text: "사진 (선택, 최대 15장, 장당 8MB, JPG·PNG·WebP)" }), photoFile, photoList),
+    el("div", { class: "rv-act" }, go), msg);
 }
 
 // ---------- 검수 ----------
@@ -138,6 +191,7 @@ async function init() {
   if (!sb) return gate("서버 연결 키가 설정되지 않았습니다.");
   const { data } = await sb.auth.getSession(), u = data.session && data.session.user;
   if (!u) return location.replace("admin-login.html");
+  ME = u;
   const { data: p } = await sb.from("profiles").select("nickname,role").eq("id", u.id).maybeSingle();
   if (!p || p.role !== "admin") return gate("관리자만 볼 수 있는 페이지예요.", true);
   $("gate").hidden = true; $("app").hidden = false;

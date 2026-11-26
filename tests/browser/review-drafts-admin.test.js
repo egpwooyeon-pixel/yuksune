@@ -14,6 +14,7 @@ const ROWS = [
   { id: 2, status: 'draft', created_at: '2026-11-23T05:00:00Z', model: 'gemini-x', business: { name: '두번째식당', area: '서울', category: '한식' }, reviews: ['리뷰 하나입니다'], photo_urls: [], draft: draft({ titles: ['두번째 제목입니다'] }) },
   { id: 3, status: 'approved', created_at: '2026-11-22T05:00:00Z', reviewed_at: '2026-11-22T06:00:00Z', review_note: '리뷰 내용과 대조 완료', model: 'gemini-x', business: { name: '승인된식당', area: '서울', category: '한식' }, reviews: ['리뷰 하나입니다'], photo_urls: [], draft: draft({ titles: ['승인된 제목입니다'] }) },
 ];
+const JPEG_BYTES = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0, 0, 0, 0, 0]);
 
 (async () => {
   const b = await chromium.launch();
@@ -27,6 +28,10 @@ const ROWS = [
         auth: { getSession: async () => ({ data: { session: o.loggedOut ? null : { user: { id: 'u', email: 'a@e.com' } } } }), signOut: async () => {} },
         rpc: async (name, args) => { window.__rpc.push({ name, args }); return o.rpcError ? { error: { message: o.rpcError } } : { error: null }; },
         functions: { invoke: async (fn, { body }) => { window.__fn.push({ fn, body }); await new Promise(r => setTimeout(r, 100)); if (o.fnError) return { data: null, error: { context: { json: async () => ({ error: o.fnError }) } } }; return { data: { id: 1, draft: NEW_DRAFT }, error: null }; } },
+        storage: { from: () => ({
+          upload: async (path, file, opts) => { window.__uploads = window.__uploads || []; window.__uploads.push({ path, type: opts && opts.contentType }); return { data: { path }, error: null }; },
+          getPublicUrl: path => ({ data: { publicUrl: 'https://cdn.example.com/' + path } }),
+        }) },
         from: t => t === 'review_drafts'
           ? { select: cols => ({ order: () => ({ limit: async () => (o.noTable ? { data: null, error: { message: 'x' } } : { data: rows.map(r => ({ id: r.id, status: r.status, business: r.business, created_at: r.created_at })), error: null }) }), eq: (c, id) => ({ maybeSingle: async () => ({ data: rows.find(r => r.id === id) || null, error: null }) }) }) }
           : { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { nickname: '관리자', role: o.role || 'admin' }, error: null }) }) }) },
@@ -81,10 +86,13 @@ const ROWS = [
   // ---------- 새 원고 ----------
   p = await open(); await p.click('#new-btn');
   await p.fill('#n-name', '샘플식당'); await p.fill('#n-area', '서울 강남구'); await p.fill('#n-cat', '한식'); await p.fill('#n-sig', '갈비탕, 육회비빔밥'); await p.fill('#n-instr', '캐주얼하게 써줘');
-  await p.fill('#n-reviews', '분위기도 좋고 친절했어요\n\n갈비탕이 진하고 양도 많았습니다\n'); await p.fill('#n-photos', 'https://example.com/a.jpg\nhttps://example.com/b.jpg');
+  await p.fill('#n-reviews', '분위기도 좋고 친절했어요\n\n갈비탕이 진하고 양도 많았습니다\n');
+  await p.setInputFiles('#n-photo-file', [{ name: 'a.jpg', mimeType: 'image/jpeg', buffer: JPEG_BYTES }, { name: 'b.jpg', mimeType: 'image/jpeg', buffer: JPEG_BYTES }]);
+  await p.waitForTimeout(100);
+  ok('picked photos previewed before submit', (await p.$$('#n-photo-list li')).length === 2);
   await p.click('#n-go'); await p.waitForTimeout(500);
   const body = (await p.evaluate(() => window.__fn))[0].body;
-  ok('new draft request: business, reviews (blank lines dropped), photoUrls parsed, instructions carried', body.business.name === '샘플식당' && body.reviews.length === 2 && body.photoUrls.length === 2 && body.customInstructions === '캐주얼하게 써줘');
+  ok('new draft request: business, reviews (blank lines dropped), photos uploaded as photoUrls, instructions carried', body.business.name === '샘플식당' && body.reviews.length === 2 && body.photoUrls.length === 2 && body.photoUrls[0].startsWith('https://cdn.example.com/u/') && body.customInstructions === '캐주얼하게 써줘');
   ok('success opens the created draft (#1)', (await p.textContent('#panel')).includes('원고 #1'));
   p = await open({ fnError: 'need_reviews' }); await p.click('#new-btn'); await p.fill('#n-name', '샘플'); await p.click('#n-go'); await p.waitForTimeout(400);
   ok('server error need_reviews -> readable message', (await p.textContent('#n-msg')).includes('리뷰를 1건 이상'));

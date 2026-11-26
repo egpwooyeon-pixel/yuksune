@@ -12,6 +12,9 @@ const NEW_DRAFT = draft();
 const ROWS = [
   { id: 1, status: 'draft', created_at: new Date().toISOString(), model: 'gemini-x', business: { name: '내식당' }, reviews: ['리뷰 하나입니다', '리뷰 둘입니다'], photo_urls: ['https://example.com/a.jpg'], draft: draft() },
 ];
+const JPEG_BYTES = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0, 0, 0, 0, 0]);
+const PNG_BYTES = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
+const BAD_BYTES = Buffer.from('this is not an image file at all');
 
 (async () => {
   const b = await chromium.launch();
@@ -27,6 +30,10 @@ const ROWS = [
         window.supabase = { createClient: () => ({
           auth: { getSession: async () => ({ data: { session: o.loggedOut ? null : { user: { id: 'u1', email: 'a@e.com' } } } }), signOut: async () => {} },
           functions: { invoke: async (fn, { body }) => { window.__fn.push({ fn, body }); await new Promise(r => setTimeout(r, 80)); if (o.fnError) return { data: null, error: { context: { json: async () => ({ error: o.fnError }) } } }; return { data: { id: 2, draft: NEW_DRAFT }, error: null }; } },
+          storage: { from: () => ({
+            upload: async (path, file, opts) => { window.__uploads = window.__uploads || []; window.__uploads.push({ path, type: opts && opts.contentType }); return { data: { path }, error: null }; },
+            getPublicUrl: path => ({ data: { publicUrl: 'https://cdn.example.com/' + path } }),
+          }) },
           from: t => t === 'review_drafts'
             ? { select: () => ({ eq: (c, id) => ({ order: () => ({ limit: async () => ({ data: rows.filter(r => r.created_by === undefined || true), error: null }) }) }) }) }
             : { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { role: o.role || 'member', business_status: o.businessStatus || 'none' }, error: null }) }) }) },
@@ -52,12 +59,33 @@ const ROWS = [
   await p.waitForTimeout(100);
   ok('copy button copies draft + hashtags to clipboard', (await p.evaluate(() => window.__clip || '')).includes('분위기도 좋고 친절했어요') && (await p.evaluate(() => window.__clip)).includes('#강남맛집'));
 
-  // ---------- 원고 생성 ----------
+  // ---------- 사진 선택: 미리보기·형식 검사(파일 앞부분)·빼기 ----------
+  await p.setInputFiles('#rv-photo-file', [
+    { name: 'a.jpg', mimeType: 'image/jpeg', buffer: JPEG_BYTES },
+    { name: 'bad.jpg', mimeType: 'image/jpeg', buffer: BAD_BYTES },
+  ]);
+  await p.waitForTimeout(100);
+  ok('valid photo previewed, fake one rejected by content check', (await p.$$('#rv-photo-list li')).length === 1 && (await p.textContent('#rv-form-msg')).includes('JPG'));
+  await p.click('#rv-photo-list button');
+  await p.waitForTimeout(50);
+  ok('remove (×) button clears the preview', (await p.$$('#rv-photo-list li')).length === 0);
+
+  // ---------- 원고 생성 (사진 1장 포함) ----------
   await p.fill('#rv-name', '새가게'); await p.fill('#rv-area', '서울 마포구'); await p.fill('#rv-reviews', '리뷰 하나입니다\n\n리뷰 둘입니다\n');
+  await p.setInputFiles('#rv-photo-file', [{ name: 'c.png', mimeType: 'image/png', buffer: PNG_BYTES }]);
+  await p.waitForTimeout(100);
   await p.click('#rv-go'); await p.waitForTimeout(600);
   const body = (await p.evaluate(() => window.__fn))[0].body;
   ok('generate sends business/reviews (blank lines dropped)', body.business.name === '새가게' && body.reviews.length === 2);
+  ok('photo uploaded to own-uid folder, public url sent as photoUrls', (await p.evaluate(() => (window.__uploads || []).length)) === 1 && body.photoUrls.length === 1 && body.photoUrls[0].startsWith('https://cdn.example.com/u1/') && body.photoUrls[0].endsWith('.png'));
   ok('success message shown', (await p.textContent('#rv-form-msg')).includes('만들었어요'));
+  ok('photo preview cleared after successful submit', (await p.$$('#rv-photo-list li')).length === 0);
+
+  // ---------- 사진 최대 개수(15장) ----------
+  p = await open({ role: 'member', businessStatus: 'approved' });
+  await p.setInputFiles('#rv-photo-file', Array.from({ length: 16 }, (_, i) => ({ name: `p${i}.jpg`, mimeType: 'image/jpeg', buffer: JPEG_BYTES })));
+  await p.waitForTimeout(100);
+  ok('max 15 photos enforced with a note', (await p.$$('#rv-photo-list li')).length === 15 && (await p.textContent('#rv-form-msg')).includes('최대 15장'));
 
   // ---------- 입력 검증 ----------
   p = await open({ role: 'member', businessStatus: 'approved' });
