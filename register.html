@@ -61,7 +61,7 @@
       <label>안내 문구 <small>(상세 페이지 위쪽에 눈에 띄게 표시)</small> <textarea name="notice" rows="3" maxlength="600"></textarea></label>
       <label>키워드 <small>(쉼표로 구분)</small> <input name="keywords" maxlength="100" placeholder="맛집, 서울맛집, 체험단"></label>
       <label>배송 안내 <small>(배송형일 때)</small> <textarea name="shipping_info" rows="3" maxlength="800"></textarea></label>
-      <label>상품정보 주소 <small>(선택)</small> <input name="product_url" type="url" placeholder="https://..."></label>
+      <label>상품정보 주소 <small>(선택)</small> <input name="product_url" type="text" inputmode="url" placeholder="예) smartstore.naver.com/... (https:// 없이 써도 돼요)"></label>
       <label>후기 작성 마감일 <input name="review_deadline" type="date"></label>
       <div class="row two">
         <label>사진 최소 장수 <input name="mission_photos" type="number" min="0" max="100" placeholder="예) 15"></label>
@@ -75,7 +75,7 @@
     </details>
 
     <label>네이버 플레이스 주소 <small>(선택)</small>
-      <input name="place" type="url" placeholder="https://naver.me/... 또는 https://map.naver.com/..."></label>
+      <input name="place" type="text" inputmode="url" placeholder="예) naver.me/... 또는 map.naver.com/... (https:// 없이 써도 돼요)"></label>
 
     <label>대표 사진
       <input id="photo" type="file" accept="image/*"></label>

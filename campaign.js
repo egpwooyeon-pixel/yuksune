@@ -1,3 +1,5 @@
+// 주소 칸: "blog.naver.com/abc" 처럼 https:// 없이 써도 받아요. 주소처럼 보이면 https:// 를 붙이고, 아니면 입력한 그대로 둡니다. (거절하지 않음)
+const fixUrl = v => { v = String(v || "").trim(); if (!v || /^https?:\/\//i.test(v)) return v; if (/^[a-z][a-z0-9+.-]*:/i.test(v) && !/^[a-z0-9.-]+\.[a-z]{2,}(:\d+)?(\/|$)/i.test(v)) return v; return /\s/.test(v) || !/\./.test(v) ? v : "https://" + v.replace(/^\/\//, ""); };
 const $ = id => document.getElementById(id);
 const EMAIL_ON = !!(window.WOORI && window.WOORI.EMAIL_NOTIFY);   // 메일 기능이 켜졌을 때만 이메일 칸을 받음
 const id = new URLSearchParams(location.search).get("id") || "";
@@ -197,7 +199,7 @@ $("apply-form").onsubmit = async e => {
   btn.disabled = true;
   const { error } = await sb.from("applications").insert({
     campaign_id: id, applicant_name: f.name.value.trim(), contact, ...(EMAIL_ON ? { email: f.email.value.trim().toLowerCase() } : {}), kakao_id: f.kakao.value.trim(),
-    channel_url: f.channel.value.trim(), message: f.message.value.trim() || null,
+    channel_url: fixUrl(f.channel.value), message: f.message.value.trim() || null,
     visit_date: visit ? f.vdate.value : null, visit_time: visit ? f.vtime.value : null,
     party_size: visit ? +f.party.value : null,
     is_naver_influencer: blog ? f.influencer.value === "O" : null, clip_ok: blog ? f.clip.value === "O" : null,

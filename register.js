@@ -1,3 +1,5 @@
+// 주소 칸: "blog.naver.com/abc" 처럼 https:// 없이 써도 받아요. 주소처럼 보이면 https:// 를 붙이고, 아니면 입력한 그대로 둡니다. (거절하지 않음)
+const fixUrl = v => { v = String(v || "").trim(); if (!v || /^https?:\/\//i.test(v)) return v; if (/^[a-z][a-z0-9+.-]*:/i.test(v) && !/^[a-z0-9.-]+\.[a-z]{2,}(:\d+)?(\/|$)/i.test(v)) return v; return /\s/.test(v) || !/\./.test(v) ? v : "https://" + v.replace(/^\/\//, ""); };
 // 체험단 등록 (로그인 + 운영자 승인된 광고주만). 서버(Supabase)에 저장.
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const $ = id => document.getElementById(id), form = $("reg-form"), gate = $("gate");
@@ -78,7 +80,7 @@ form.addEventListener("submit", async e => {
     const row = {
       owner_id: user.id, type: d.type, mode: d.mode, region: d.region, cat: d.cat,
       biz: d.biz.trim(), title: d.title.trim(), reward: d.reward.trim(), slots: +d.slots, deadline: d.deadline,
-      place_url: d.place || null, description: d.desc || null, photo_url,
+      place_url: fixUrl(d.place) || null, description: d.desc || null, photo_url,
       mission: d.mission.trim() || null, visit_start: visit && d.visit_start ? d.visit_start : null,
       visit_end: visit && d.visit_end ? d.visit_end : null, max_party: visit ? +d.max_party || 4 : 4,
     };
@@ -86,7 +88,7 @@ form.addEventListener("submit", async e => {
     const wd = [...form.querySelectorAll('input[name="wd"]:checked')].map(x => x.value).join(",");
     const times = (d.visit_times || "").split(",").map(t => t.trim()).filter(t => /^\d{1,2}:\d{2}$/.test(t)).join(",");
     const extra = {
-      keywords: d.keywords, shipping_info: d.shipping_info, product_url: d.product_url, notice: d.notice,
+      keywords: d.keywords, shipping_info: d.shipping_info, product_url: fixUrl(d.product_url), notice: d.notice,
       review_deadline: d.review_deadline, mission_photos: d.mission_photos, mission_chars: d.mission_chars,
       address: visit ? d.address : "", visit_notes: visit ? d.visit_notes : "", visit_weekdays: visit ? wd : "",
       visit_times: visit ? times : "", detail_photo_url,
