@@ -87,9 +87,36 @@ async function showApps(id) {
       <td class="ap-msg">${esc(a.message || "")}</td><td><span class="tag ${k}">${t}</span>${EMAIL_ON && a.status === "selected" ? `<br><small class="muted">${a.notified_at ? "메일 발송됨" : "메일 미발송"}</small>` : ""}</td>
       <td class="ap-btns"><button type="button" data-st="selected" ${a.status === "selected" ? "disabled" : ""}>선정</button><button type="button" data-st="rejected" ${a.status === "rejected" ? "disabled" : ""}>탈락</button>${EMAIL_ON && a.status === "selected" ? '<button type="button" data-mail="1">메일 보내기</button>' : ""}</td></tr>`;
   }).join("") + "</tbody>" : "";
+  loadReviews(id);
   $("apps-wrap").scrollIntoView({ behavior: "smooth" });
 }
-function closeApps() { openId = null; $("apps-wrap").hidden = true; }
+// ---- 후기 제출 현황 (선정된 참여자가 로그인 없이 낸 후기 링크) ----
+const RV = { submitted: ["제출됨", "mid"], confirmed: ["확인 완료", "ok"], revision: ["수정 요청", "bad"] };
+async function loadReviews(cid) {
+  const w = $("rv-wrap"); w.hidden = false; $("rv-link").textContent = location.origin.replace(/^file:.*/, "") + "/review.html?c=" + cid;
+  const { data, error } = await sb.rpc("owner_reviews", { cid });
+  if (error) { w.hidden = true; return; }                                  // 032 SQL 이 없으면 숨김
+  const rows = data || [], done = rows.filter(r => r.url).length, ok = rows.filter(r => r.review_status === "confirmed").length;
+  $("rv-empty").hidden = rows.length > 0;
+  $("rv-sum").textContent = rows.length ? `선정 ${rows.length}명 · 제출 ${done}명 · 확인 완료 ${ok}명${rows[0].deadline ? " · 후기 작성 마감 " + rows[0].deadline : ""}` : "";
+  const late = rows[0] && rows[0].deadline && rows[0].deadline < todayStr();
+  $("rv-table").innerHTML = rows.length ? `<thead><tr><th>이름</th><th>상태</th><th>후기 링크</th><th>제출·수정</th><th>처리</th></tr></thead><tbody>` + rows.map(r => {
+    const [t, k] = r.url ? RV[r.review_status] || RV.submitted : [late ? "마감 지남 · 미제출" : "미제출", late ? "bad" : "mid"];
+    const link = /^https?:\/\//.test(r.url || "") ? `<a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">열기 ↗</a>` : "-";
+    return `<tr data-app="${esc(r.application_id)}"><td><b>${esc(r.applicant_name || "-")}</b></td><td><span class="tag ${k}">${t}</span>${r.review_status === "revision" && r.revision_note ? `<br><small class="muted">사유: ${esc(r.revision_note)}</small>` : ""}</td><td>${link}</td><td>${r.updated_at ? fmt(r.updated_at) : "-"}</td>
+      <td class="ap-btns">${r.url ? `<button type="button" data-rv="confirmed" ${r.review_status === "confirmed" ? "disabled" : ""}>확인 완료</button><button type="button" data-rv="revision" ${r.review_status === "confirmed" ? "disabled" : ""}>수정 요청</button>` : '<span class="muted small">제출 전</span>'}</td></tr>`;
+  }).join("") + "</tbody>" : "";
+}
+$("rv-table").onclick = async e => {
+  const st = e.target.dataset.rv; if (!st) return; const tr = e.target.closest("tr"), app = tr.dataset.app;
+  let note = null;
+  if (st === "revision") { note = prompt("수정 요청 사유를 적어 주세요. (참여자에게 보여요, 200자 이내)"); if (note == null) return; note = note.trim(); if (!note) return alert("사유를 입력해 주세요."); if (note.length > 200) return alert("사유는 200자 이내로 적어 주세요."); }
+  else if (!confirm("이 후기를 확인 완료로 표시할까요? 확인 완료하면 참여자가 주소를 바꿀 수 없어요.")) return;
+  e.target.disabled = true; const { data, error } = await sb.rpc("review_mark", { p_app: app, p_status: st, p_note: note });
+  if (error || !data || data.error) { e.target.disabled = false; return alert(data && data.error === "no_submission" ? "아직 제출한 후기가 없어요." : "처리하지 못했어요."); }
+  loadReviews(openId);
+};
+function closeApps() { openId = null; $("apps-wrap").hidden = true; $("rv-wrap").hidden = true; }
 $("apps-close").onclick = closeApps;
 
 const MAILERR = { no_email: "이 신청자는 이메일이 없어서 보낼 수 없어요.", too_soon: "방금 보낸 메일이 있어요. 잠시 후 다시 시도해 주세요.", not_selected: "선정된 신청자에게만 보낼 수 있어요.", forbidden: "권한이 없어요.", send_failed: "메일 서비스에 연결하지 못했어요. (메일 발송이 아직 설정되지 않았을 수 있어요)" };

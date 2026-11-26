@@ -753,3 +753,12 @@ a.ws-ad:focus-visible{outline:3px solid #7fb0ff;outline-offset:2px}
   .gnb{overflow-x:auto;overflow-y:hidden;scrollbar-width:none}.gnb::-webkit-scrollbar{display:none}
   .gnb>a,.gnb-dd>a,.gnb-dd{flex:none;white-space:nowrap}.gnb-dd .dd{display:none!important}
 }
+
+/* 후기 링크 제출 */
+.rv-box{max-width:640px;margin:0 auto;padding:26px}.rv-box h1{margin:0 0 8px;font-size:22px}
+.rv-form{display:grid;gap:14px;margin-top:16px}.rv-form label{display:grid;gap:6px;font-size:13px;font-weight:600}.rv-form small{font-weight:400;color:var(--muted)}
+.rv-form input,.rv-form select{border:1px solid #d5d8de;border-radius:6px;padding:11px;font:inherit;font-size:14px;background:#fff;width:100%}
+.rv-msg{min-height:20px;margin:0;font-size:13px;color:#d63a3a}.rv-acts{display:flex;gap:8px;flex-wrap:wrap}.rv-acts button{flex:1 1 140px;border:1px solid transparent;cursor:pointer;padding:11px;border-radius:6px;font:inherit;font-weight:700}
+.rv-acts .btn-line{background:#fff;border-color:#d5d8de}
+.rv-state{margin-top:16px;padding:14px 16px;border-radius:10px;background:#f6f8fc;font-size:14px;display:grid;gap:6px}.rv-state p{margin:0;word-break:break-all}.rv-note{background:#fff0f0;border-radius:8px;padding:8px 10px;color:#a32121}
+.rv-tips{margin:16px 0 0;padding-left:18px;line-height:1.8}.dv-review{margin:10px 0 0;text-align:center;font-size:13px}.dv-review a{color:var(--primary);font-weight:600}

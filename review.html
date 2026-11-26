@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="robots" content="noindex">
+  <title>후기 링크 제출 - 우리들 체험단</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="campaigns">
+<div id="header-slot"></div>
+
+<main class="wrap camp rv-page">
+  <section class="panel rv-box">
+    <h1>후기 링크 제출</h1>
+    <p class="muted">체험단에 <b>선정된 분</b>이 쓴 후기 글(블로그·인스타그램·유튜브 등)의 주소를 제출해 주세요. 로그인은 필요 없어요. 신청할 때 쓴 <b>이름과 연락처</b>로 본인 확인을 해요.</p>
+    <form id="rv-form" class="rv-form" novalidate>
+      <label>체험단 <select id="rv-camp" required><option value="">체험단을 선택해 주세요</option></select></label>
+      <label>이름 <small>(신청할 때 쓴 이름)</small> <input id="rv-name" maxlength="50" autocomplete="name" required></label>
+      <label>연락처 <small>(신청할 때 쓴 핸드폰 번호)</small> <input id="rv-phone" type="tel" inputmode="tel" maxlength="20" placeholder="010-0000-0000" autocomplete="tel" required></label>
+      <label>후기 글 주소 <small>(https:// 없이 써도 돼요)</small> <input id="rv-url" maxlength="500" inputmode="url" placeholder="예) blog.naver.com/내아이디/123456789" autocomplete="off" required></label>
+      <p class="rv-msg" id="rv-msg" role="alert"></p>
+      <div class="rv-acts"><button class="btn-primary" id="rv-go" type="submit">제출하기</button><button class="btn-line" id="rv-check" type="button">내 제출 확인하기</button></div>
+    </form>
+    <div class="rv-state" id="rv-state" hidden></div>
+    <ul class="muted small rv-tips">
+      <li>마감일(후기 작성 마감일)까지는 <b>다시 제출해서 주소를 바꿀 수 있어요.</b></li>
+      <li>광고주가 <b>수정 요청</b>을 하면 사유가 보여요. 고친 뒤 다시 제출해 주세요.</li>
+      <li>광고주가 <b>확인 완료</b>한 후기는 바꿀 수 없어요.</li>
+    </ul>
+  </section>
+</main>
+
+<div id="footer-slot"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="auth.js"></script>
+<script src="review.js"></script>
+</body>
+</html>

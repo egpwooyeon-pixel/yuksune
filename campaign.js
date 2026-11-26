@@ -162,9 +162,10 @@ if (EMAIL_ON) {
     ? `작성한 후기를 광고주가 후기 게시일로부터 ${months}개월까지 2차 활용(자사 블로그·SNS·홈페이지 등 홍보 게시)하는 것에 동의합니다.`
     : "작성한 후기의 2차 활용은 없습니다. (확인했습니다)";
 
-  { const f = $("apply-form"), L = { 블로그: ["블로그(활동 채널) 주소", "https://blog.naver.com/..."], 인스타: ["인스타그램 계정 주소", "https://instagram.com/..."], 유튜브: ["유튜브 채널 주소", "https://youtube.com/@..."], 구매평: ["활동 채널 주소 (블로그·SNS 등)", "https://..."] }[c.type];
+  { const f = $("apply-form"), L = { 블로그: ["블로그(활동 채널) 주소", "예) blog.naver.com/내아이디 (https:// 없이 써도 돼요)"], 인스타: ["인스타그램 계정 주소", "예) instagram.com/내아이디 (https:// 없이 써도 돼요)"], 유튜브: ["유튜브 채널 주소", "예) youtube.com/@내채널 (https:// 없이 써도 돼요)"], 구매평: ["활동 채널 주소 (블로그·SNS 등)", "예) blog.naver.com/내아이디 (https:// 없이 써도 돼요)"] }[c.type];
     if (L) { const lab = f.channel.closest("label"); if (lab && lab.firstChild && lab.firstChild.nodeType === 3) lab.firstChild.textContent = L[0] + " "; f.channel.placeholder = L[1]; } }
   canApply = window.sbReady && c.open;
+  $("review-link").href = "review.html?c=" + encodeURIComponent(id);   // 선정된 참여자가 후기 링크를 내는 페이지
   const btn = $("apply-open");
   if (!canApply) {
     btn.disabled = true;
