@@ -727,3 +727,11 @@ a.ws-ad:focus-visible{outline:3px solid #7fb0ff;outline-offset:2px}
   .ws-hero{padding:26px 18px}.ws-hero h1{font-size:23px}.ws-sub{font-size:14px}.ws-sub br{display:none}
   .ws-flow{grid-template-columns:1fr}.ws-arrow{transform:rotate(90deg);justify-self:center;line-height:1}
 }
+
+/* 결제기반 AI 마케팅: 단계 그림 */
+.ws-flow .ws-ill{background:linear-gradient(160deg,#eef4ff,#f8fbff);border-radius:10px;padding:8px 0;margin-bottom:4px;display:flex;justify-content:center}
+.ws-flow .ws-ill svg{width:150px;max-width:100%;height:auto;display:block}
+.ws-pin{transform-origin:60px 57px;animation:wsPin 2.4s ease-in-out infinite}
+@keyframes wsPin{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@media (prefers-reduced-motion:reduce){.ws-pin{animation:none}}
+@media (max-width:800px){.ws-flow .ws-ill svg{width:170px}}
