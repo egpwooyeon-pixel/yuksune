@@ -79,5 +79,5 @@ drawChips(); render(); load();
   const el = document.getElementById("ws-ad"), url = window.WOORI && window.WOORI.AD_WHATSSUB_URL;
   if (!el || !/^https:\/\//i.test(url || "")) return;
   const a = document.createElement("a"); a.id = "ws-ad"; a.className = el.className; a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer sponsored";
-  a.setAttribute("aria-label", "광고: 왓섭 바로가기 (새 창)"); a.innerHTML = el.innerHTML; el.replaceWith(a);
+  a.setAttribute("aria-label", "왓섭 바로가기 (새 창)"); a.innerHTML = el.innerHTML; el.replaceWith(a);
 })();
