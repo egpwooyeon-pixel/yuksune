@@ -251,13 +251,16 @@ function realDeps() {
     },
     async insert(row) {
       const r = await fetch(`${URL_}/rest/v1/review_drafts`, { method: "POST", headers: { ...h, prefer: "return=representation" }, body: JSON.stringify(row) });
-      if (!r.ok) throw new Error("db_error");
+      if (!r.ok) { console.error("review-draft insert: review_drafts POST failed", r.status, await r.text().catch(() => "")); throw new Error("db_error"); }
       return (await r.json())[0];
     },
     async get(id) { const r = await fetch(`${URL_}/rest/v1/review_drafts?id=eq.${id}&select=*`, { headers: h }); const rows = r.ok ? await r.json() : []; return rows[0] || null; },
-    async update(id, patch) { const r = await fetch(`${URL_}/rest/v1/review_drafts?id=eq.${id}&status=eq.draft`, { method: "PATCH", headers: h, body: JSON.stringify(patch) }); if (!r.ok) throw new Error("db_error"); },
+    async update(id, patch) {
+      const r = await fetch(`${URL_}/rest/v1/review_drafts?id=eq.${id}&status=eq.draft`, { method: "PATCH", headers: h, body: JSON.stringify(patch) });
+      if (!r.ok) { console.error("review-draft update: review_drafts PATCH failed", r.status, await r.text().catch(() => "")); throw new Error("db_error"); }
+    },
   };
 }
 if (typeof Deno !== "undefined" && Deno.serve) {
-  Deno.serve(async req => { try { return await handle(req, realDeps()); } catch (_) { return json({ error: "server_error" }, 500); } });
+  Deno.serve(async req => { try { return await handle(req, realDeps()); } catch (e) { console.error("review-draft: unhandled error", e && e.message, e && e.stack); return json({ error: "server_error" }, 500); } });
 }
