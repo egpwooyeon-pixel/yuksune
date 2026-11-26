@@ -34,18 +34,39 @@ async function communityState() {
   return { logged: true, id: u.id, role: p && p.role, community: p && p.community, req: p && p.community_req };
 }
 const canEnter = (B, st) => !B.only || st.role === "admin" || st.community === B.only;
-// 들어갈 수 없을 때 보여 줄 안내 상자 (신청 버튼 포함). host 앞에 끼워 넣어요.
+// 들어갈 수 없을 때 보여 줄 안내 상자 (신청 버튼 포함). host 앞에 끼워 넣어요. 대행사는 사업자등록증 첨부가 필수예요.
+const DOC_TYPES = { "image/jpeg": "jpg", "image/png": "png", "application/pdf": "pdf" }, DOC_MAX = 5 * 1024 * 1024;
 function lockBox(B, st, host) {
   const kind = KIND[B.only], box = document.createElement("div"); box.className = "panel lock-box";
   const h = document.createElement("b"); h.textContent = `${kind} 회원만 이용할 수 있는 공간이에요.`; box.append(h);
   const p = document.createElement("p"); p.className = "muted"; box.append(p);
   if (!st.logged) { p.textContent = "로그인한 뒤 가입을 신청해 주세요."; const a = document.createElement("a"); a.className = "btn-primary"; a.href = "login.html?next=" + encodeURIComponent(location.pathname.split("/").pop() + location.search); a.textContent = "로그인"; box.append(a); }
-  else if (st.req === B.only) p.textContent = `${kind} 가입 신청이 접수됐어요. 운영자가 확인하면 이용할 수 있어요.`;
+  else if (st.req === B.only) p.textContent = B.only === "agency" ? "대행사 가입 신청과 사업자등록증이 접수됐어요. 운영자가 서류를 확인하면 이용할 수 있어요." : `${kind} 가입 신청이 접수됐어요. 운영자가 확인하면 이용할 수 있어요.`;
   else {
-    p.textContent = `${kind} 커뮤니티는 운영자 승인이 필요해요. 신청하면 운영자가 확인한 뒤 열어 드려요.` + (st.req ? ` (지금은 '${KIND[st.req]}' 신청이 접수되어 있어요. 새로 신청하면 바뀌어요.)` : "");
+    const agency = B.only === "agency";
+    p.textContent = agency ? "대행사 커뮤니티는 사업자등록증을 확인한 뒤 열어 드려요. 서류는 운영자만 볼 수 있고, 확인이 끝나면 삭제돼요." : `${kind} 커뮤니티는 운영자 승인이 필요해요. 신청하면 운영자가 확인한 뒤 열어 드려요.`;
+    if (st.req) p.textContent += ` (지금은 '${KIND[st.req]}' 신청이 접수되어 있어요. 새로 신청하면 바뀌어요.)`;
+    let file = null, err = document.createElement("p"); err.className = "form-err"; err.setAttribute("role", "alert");
+    if (agency) { file = document.createElement("input"); file.type = "file"; file.accept = ".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"; file.setAttribute("aria-label", "사업자등록증 파일 (JPG·PNG·PDF, 5MB 이하)"); box.append(file); }
     const b = document.createElement("button"); b.type = "button"; b.className = "btn-primary"; b.textContent = `${kind} 가입 신청하기`;
-    b.onclick = async () => { b.disabled = true; const { error } = await sb.from("profiles").update({ community_req: B.only }).eq("id", st.id); if (error) { b.disabled = false; return alert("신청하지 못했어요. (028 SQL 실행 여부를 확인해 주세요)"); } p.textContent = `${kind} 가입 신청이 접수됐어요. 운영자가 확인하면 이용할 수 있어요.`; b.remove(); };
-    box.append(b);
+    b.onclick = async () => {
+      err.textContent = ""; const patch = { community_req: B.only };
+      if (agency) {
+        const f = file.files[0];
+        if (!f) return err.textContent = "사업자등록증 파일을 선택해 주세요. (대행사 승인에 필요해요)";
+        if (!DOC_TYPES[f.type]) return err.textContent = "JPG, PNG, PDF 파일만 올릴 수 있어요.";
+        if (f.size > DOC_MAX) return err.textContent = "파일이 너무 커요. 5MB 이하로 올려 주세요.";
+        b.disabled = true; const path = `${st.id}/agency-${Date.now()}.${DOC_TYPES[f.type]}`;
+        const up = await sb.storage.from("business-docs").upload(path, f, { contentType: f.type });
+        if (up.error) { b.disabled = false; return err.textContent = "파일을 올리지 못했어요. 잠시 후 다시 시도해 주세요."; }
+        patch.community_doc_path = path;
+      }
+      b.disabled = true; const { error } = await sb.from("profiles").update(patch).eq("id", st.id);
+      if (error) { b.disabled = false; return err.textContent = /agency_doc_required/.test(error.message) ? "사업자등록증이 필요해요." : "신청하지 못했어요. (031 SQL 실행 여부를 확인해 주세요)"; }
+      p.textContent = agency ? "대행사 가입 신청과 사업자등록증이 접수됐어요. 운영자가 서류를 확인하면 이용할 수 있어요." : `${kind} 가입 신청이 접수됐어요. 운영자가 확인하면 이용할 수 있어요.`;
+      b.remove(); if (file) file.remove(); err.remove();
+    };
+    box.append(b, err);
   }
   host.before(box); return box;
 }

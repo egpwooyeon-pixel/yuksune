@@ -173,7 +173,7 @@ $("members").onclick = async e => {
     if (why === null) return; if (!why.trim()) return alert("반려 사유를 입력해 주세요.");
     patch.business_note = why.trim().slice(0, 200);
   } else {
-    if (!confirm(`${name} 님의 광고주 상태를 '${BS[st][0]}'(으)로 바꿀까요?`)) return;
+    if (!confirm(`${name} 님의 광고주 상태를 '${BS[st][0]}'로 바꿀까요?`)) return;
     patch.business_note = null;
   }
   e.target.disabled = true;
@@ -474,21 +474,53 @@ $("posts").onclick = async e => {
   const { error } = await sb.from("posts").delete().eq("id", tr.dataset.id);
   if (error) return alert("삭제하지 못했어요."); loadPosts();
 };
-/* ---------- 커뮤니티 가입 신청 (인플루언서 · 대행사) ---------- */
+/* ---------- 커뮤니티 가입 신청 · 승인된 회원 관리 (인플루언서 · 대행사) ---------- */
 const CM_KIND = { influencer: "인플루언서", agency: "대행사" };
-async function loadCommunity() {
-  const { data, error } = await sb.from("profiles").select("id,nickname,community,community_req,created_at").not("community_req", "is", null).order("created_at", { ascending: false }).limit(100);
-  const rows = (data || []).filter(p => p.community !== p.community_req);
-  $("cm-box").hidden = error ? true : false;                                       // 028 SQL 이 없으면 숨김
-  if (error) return;
-  $("cm-list").innerHTML = rows.length ? rows.map(p => `<li data-id="${esc(p.id)}"><b>${esc(p.nickname)}</b> <span class="tag blue">${esc(CM_KIND[p.community_req] || p.community_req)} 신청</span>${p.community ? ` <small class="muted">(현재 ${esc(CM_KIND[p.community] || p.community)} 승인됨)</small>` : ""} <button type="button" class="btn ok" data-cm="ok">승인</button> <button type="button" class="btn bad" data-cm="no">반려</button></li>`).join("") : '<li class="muted">대기 중인 신청이 없어요.</li>';
+let cmAgencyDoc = true;                                                    // 031 SQL(서류 칸) 유무
+async function cmSelect(filter) {
+  let r = await filter(sb.from("profiles").select("id,nickname,community,community_req,community_doc_path,created_at"));
+  if (r.error) { cmAgencyDoc = false; r = await filter(sb.from("profiles").select("id,nickname,community,community_req,created_at")); } else cmAgencyDoc = true;
+  return r;
 }
-$("cm-list").onclick = async e => {
-  const act = e.target.dataset.cm; if (!act) return; const li = e.target.closest("li"), id = li.dataset.id;
-  const { data: p } = await sb.from("profiles").select("community_req").eq("id", id).maybeSingle(); if (!p || !p.community_req) return loadCommunity();
-  const label = CM_KIND[p.community_req];
-  if (act === "ok") { if (!confirm(`${li.querySelector("b").textContent} 님을 ${label} 회원으로 승인할까요?\n${label} 커뮤니티를 볼 수 있고 글·댓글을 쓸 수 있어요.`)) return; const { error } = await sb.from("profiles").update({ community: p.community_req }).eq("id", id); if (error) return alert("승인하지 못했어요."); }
-  else { if (!confirm("이 신청을 반려할까요?")) return; const { error } = await sb.from("profiles").update({ community_req: null }).eq("id", id); if (error) return alert("반려하지 못했어요."); }
+const cmDocBtns = p => p.community_doc_path ? `<button type="button" class="btn" data-cm="doc" data-path="${esc(p.community_doc_path)}">서류 보기</button> <button type="button" class="btn" data-cm="deldoc" data-path="${esc(p.community_doc_path)}">서류 삭제</button>` : "";
+async function loadCommunity() {
+  const [rq, ok] = await Promise.all([cmSelect(q => q.not("community_req", "is", null).order("created_at", { ascending: false }).limit(100)), cmSelect(q => q.not("community", "is", null).order("created_at", { ascending: false }).limit(200))]);
+  $("cm-box").hidden = !!(rq.error && ok.error);                           // 028 SQL 이 없으면 숨김
+  if (rq.error && ok.error) return;
+  const rows = (rq.data || []).filter(p => p.community !== p.community_req);
+  $("cm-list").innerHTML = rows.length ? rows.map(p => `<li data-id="${esc(p.id)}"><b>${esc(p.nickname)}</b> <span class="tag blue">${esc(CM_KIND[p.community_req] || p.community_req)} 신청</span>${p.community_req === "agency" ? (p.community_doc_path ? ' <span class="tag ok">사업자등록증 첨부됨</span>' : ' <span class="tag bad">서류 없음</span>') : ""}${p.community ? ` <small class="muted">(현재 ${esc(CM_KIND[p.community] || p.community)} 승인됨)</small>` : ""} ${p.community_req === "agency" ? cmDocBtns(p) : ""} <button type="button" class="btn ok" data-cm="ok">승인</button> <button type="button" class="btn bad" data-cm="no">반려</button></li>`).join("") : '<li class="muted">대기 중인 신청이 없어요.</li>';
+  const mem = ok.data || [];
+  $("cm-members").innerHTML = mem.length ? mem.map(p => { const other = p.community === "agency" ? "influencer" : "agency"; return `<li data-id="${esc(p.id)}"><b>${esc(p.nickname)}</b> <span class="tag ${p.community === "agency" ? "mid" : "blue"}">${esc(CM_KIND[p.community] || p.community)}</span> ${cmDocBtns(p)} <button type="button" class="btn" data-cm="switch" data-to="${other}">${esc(CM_KIND[other])}로 변경</button> <button type="button" class="btn bad" data-cm="revoke">해제</button></li>`; }).join("") : '<li class="muted">승인된 회원이 아직 없어요.</li>';
+}
+$("cm-box").onclick = async e => {
+  const act = e.target.dataset.cm; if (!act) return; const li = e.target.closest("li"), id = li.dataset.id, name = li.querySelector("b").textContent;
+  if (act === "doc") {                                                     // 사업자등록증: 60초짜리 임시 주소로 열기 (운영자만 가능)
+    const { data, error } = await sb.storage.from("business-docs").createSignedUrl(e.target.dataset.path, 60);
+    if (error || !data) return alert("서류를 열지 못했어요."); window.open(data.signedUrl, "_blank", "noopener"); return;
+  }
+  if (act === "deldoc") {
+    if (!confirm(`${name} 님의 사업자등록증 파일을 삭제할까요?\n삭제하면 되돌릴 수 없어요. (승인 상태는 그대로예요)`)) return;
+    const rm = await sb.storage.from("business-docs").remove([e.target.dataset.path]); if (rm.error) return alert("서류를 삭제하지 못했어요.");
+    await sb.from("profiles").update({ community_doc_path: null }).eq("id", id); return loadCommunity();
+  }
+  const { data: p } = await cmSelect(q => q.eq("id", id).maybeSingle()); if (!p) return loadCommunity();
+  if (act === "ok") {
+    if (!p.community_req) return loadCommunity();
+    if (p.community_req === "agency" && !p.community_doc_path) return alert("사업자등록증이 첨부되지 않아 승인할 수 없어요. (대행사는 서류가 필요해요)");
+    if (!confirm(`${name} 님을 ${CM_KIND[p.community_req]} 회원으로 승인할까요?\n${CM_KIND[p.community_req]} 커뮤니티를 볼 수 있고 글·댓글을 쓸 수 있어요.`)) return;
+    const { error } = await sb.from("profiles").update({ community: p.community_req }).eq("id", id); if (error) return alert("승인하지 못했어요.");
+  } else if (act === "no") {
+    if (!confirm("이 신청을 반려할까요?")) return;
+    const { error } = await sb.from("profiles").update({ community_req: null }).eq("id", id); if (error) return alert("반려하지 못했어요.");
+  } else if (act === "revoke") {
+    if (!confirm(`${name} 님의 ${CM_KIND[p.community]} 승인을 해제할까요?\n해제하면 ${CM_KIND[p.community]} 커뮤니티의 글·댓글이 보이지 않고 글을 쓸 수 없어요.`)) return;
+    const { error } = await sb.from("profiles").update({ community: null, community_req: null }).eq("id", id); if (error) return alert("해제하지 못했어요.");
+  } else if (act === "switch") {
+    const to = e.target.dataset.to;
+    if (to === "agency" && !p.community_doc_path) return alert("대행사로 바꾸려면 사업자등록증이 필요해요. 회원이 대행사 커뮤니티에서 서류와 함께 신청하면 승인할 수 있어요.");
+    if (!confirm(`${name} 님을 ${CM_KIND[p.community]}에서 ${CM_KIND[to]}로 바꿀까요?`)) return;
+    const { error } = await sb.from("profiles").update({ community: to, community_req: to }).eq("id", id); if (error) return alert("바꾸지 못했어요.");
+  }
   loadCommunity();
 };
 
