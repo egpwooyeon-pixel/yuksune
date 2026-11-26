@@ -5,12 +5,30 @@ function setMode(m) {
   mode = m;
   $("tab-login").classList.toggle("on", m === "login");
   $("tab-signup").classList.toggle("on", m === "signup");
-  $("nick-row").hidden = m !== "signup";
+  $("nick-row").hidden = m !== "signup"; $("kind-row").hidden = m !== "signup";
   $("agree-row").hidden = m !== "signup"; form.agree.required = m === "signup";
   form.nickname.required = m === "signup";
   form.password.autocomplete = m === "signup" ? "new-password" : "current-password";
   $("submit").textContent = m === "signup" ? "가입하기" : "로그인";
   msg.textContent = "";
+}
+const KIND_HINT = {
+  business: "체험단을 등록하려면 가입 후 사업자등록증을 제출해 운영자 승인을 받아야 해요.",
+  influencer: "가입 후 인플루언서 커뮤니티 가입을 신청하면 운영자가 확인해 열어 드려요.",
+  agency: "가입 후 사업자등록증을 제출해 운영자 승인을 받아야 대행사 커뮤니티를 쓸 수 있어요.",
+};
+document.querySelectorAll('input[name="kind"]').forEach(r => r.onchange = () => { $("kind-hint").textContent = KIND_HINT[r.value]; });
+// 가입 유형에 맞는 다음 단계 안내 (이미 마친 단계는 건너뜀). 가입 유형은 화면 안내용이고, 실제 권한은 운영자 승인이 정해요.
+async function kindTarget() {
+  const { data } = await sb.auth.getSession(); const u = data.session && data.session.user, kind = u && u.user_metadata && u.user_metadata.kind;
+  if (!kind) return null;
+  let { data: p, error } = await sb.from("profiles").select("role,business_status,community,community_req").eq("id", u.id).maybeSingle();
+  if (error) ({ data: p } = await sb.from("profiles").select("role,business_status").eq("id", u.id).maybeSingle());
+  if (!p || p.role === "admin") return null;
+  if (kind === "business" && p.business_status === "none") return "biz.html";
+  if (kind === "influencer" && !p.community && p.community_req !== "influencer") return "board.html?b=influencer";
+  if (kind === "agency" && !p.community && p.community_req !== "agency") return "board.html?b=agency";
+  return null;
 }
 $("tab-login").onclick = () => setMode("login");
 $("tab-signup").onclick = () => setMode("signup");
@@ -37,7 +55,9 @@ form.onsubmit = async e => {
     if (mode === "signup") {
       const nickname = form.nickname.value.trim();
       if (nickname.length < 2) throw new Error("닉네임은 2자 이상 입력해 주세요.");
-      const options = { data: { nickname } };
+      const kind = form.kind.value;
+      if (!["business", "influencer", "agency"].includes(kind)) throw new Error("가입 유형(개인사업자·인플루언서·대행사)을 선택해 주세요.");
+      const options = { data: { nickname, kind } };
       // 인증 후 돌아올 주소 (인터넷 주소로 접속 중일 때만. Supabase 'Redirect URLs'에 등록된 주소여야 적용됨)
       if (location.protocol.startsWith("http")) options.emailRedirectTo = location.origin + location.pathname;
       const { data, error } = await sb.auth.signUp({ email, password, options });
@@ -48,7 +68,7 @@ form.onsubmit = async e => {
       if (error) throw error;
     }
     const next = new URLSearchParams(location.search).get("next") || "";
-    location.href = /^[a-z]+\.html(\?[\w=&%.-]*)?$/.test(next) ? next : "index.html";
+    location.href = /^[a-z]+\.html(\?[\w=&%.-]*)?$/.test(next) ? next : ((await kindTarget()) || "index.html");
   } catch (err) {
     msg.style.color = ""; msg.textContent = ko(err); btn.disabled = false;
   }

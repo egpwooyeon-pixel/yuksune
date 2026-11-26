@@ -20,6 +20,13 @@
     <p class="notice-box" id="no-key" hidden>⚠ 서버 연결 키가 아직 설정되지 않았습니다. (<code>config.js</code>)</p>
 
     <form id="form" class="reg">
+      <fieldset class="kind-row" id="kind-row" hidden>
+        <legend>가입 유형</legend>
+        <label class="kind"><input type="radio" name="kind" value="business"><span>개인사업자</span></label>
+        <label class="kind"><input type="radio" name="kind" value="influencer"><span>인플루언서</span></label>
+        <label class="kind"><input type="radio" name="kind" value="agency"><span>대행사</span></label>
+        <p class="muted small" id="kind-hint">가입 유형을 선택해 주세요.</p>
+      </fieldset>
       <label id="nick-row" hidden>닉네임 <input name="nickname" maxlength="12" placeholder="2~12자"></label>
       <label>이메일 <input name="email" type="email" required autocomplete="email"></label>
       <label>비밀번호 <input name="password" type="password" required minlength="8" autocomplete="current-password" placeholder="8자 이상"></label>
@@ -40,7 +47,7 @@
       <button class="link-btn" id="resend" type="button">인증 메일 다시 보내기</button>
       <p class="msg" id="resend-msg" role="status"></p>
     </div>
-    <p class="muted small" id="foot-note" style="text-align:center;margin-top:14px">광고주로 체험단을 등록하려면 가입 후 사업자등록증을 제출해 운영자 승인을 받아야 합니다.</p>
+    <p class="muted small" id="foot-note" style="text-align:center;margin-top:14px">가입 유형에 따라 가입 후 운영자 승인이 필요해요. 개인사업자와 대행사는 사업자등록증을 제출해야 해요.</p>
   </div>
 </main>
 

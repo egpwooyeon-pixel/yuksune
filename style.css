@@ -679,3 +679,11 @@ a.write-btn:hover{background:var(--primary-dark);text-decoration:none}
 
 /* 인플루언서·대행사 전용 게시판 안내 */
 .lock-box{display:grid;gap:10px;justify-items:start;padding:22px}.lock-box p{margin:0}
+
+/* 회원가입: 가입 유형 */
+.kind-row{border:0;margin:0 0 14px;padding:0;display:flex;gap:8px;flex-wrap:wrap}.kind-row legend{font-weight:700;font-size:14px;margin-bottom:8px;padding:0;width:100%}
+.kind-row .kind{flex:1 1 90px;margin:0;cursor:pointer}.kind-row .kind input{position:absolute;opacity:0;pointer-events:none}
+.kind-row .kind span{display:block;text-align:center;padding:11px 8px;border:1px solid #cfd3e3;border-radius:8px;font-size:14px;background:#fff}
+.kind-row .kind input:checked+span{border-color:var(--primary);color:var(--primary);background:#eef2ff;font-weight:700}
+.kind-row .kind input:focus-visible+span{outline:3px solid #a9bbff;outline-offset:2px}
+.kind-row p{width:100%;margin:4px 0 0}
