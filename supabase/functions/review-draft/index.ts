@@ -232,14 +232,14 @@ function realDeps() {
     gemini: (body, models, key) => callGemini(body, models, key),
     fetchPhoto: url => fetchPhoto(url),
     async actor(authHeader) {                                          // 로그인한 사람의 role·사업자 인증 상태 확인 (읽기만 함)
-      if (!authHeader) return null;
+      if (!authHeader) { console.error("review-draft actor: no authorization header on request"); return null; }
       const u = await fetch(`${URL_}/auth/v1/user`, { headers: { apikey: KEY, authorization: authHeader } });
-      if (!u.ok) return null;
+      if (!u.ok) { console.error("review-draft actor: /auth/v1/user rejected the token", u.status, await u.text().catch(() => "")); return null; }
       const { id } = await u.json();
       const p = await fetch(`${URL_}/rest/v1/profiles?id=eq.${encodeURIComponent(id)}&select=role,business_status`, { headers: { apikey: KEY, authorization: `Bearer ${KEY}` } });
       const rows = p.ok ? await p.json() : [];
       const row = rows[0];
-      if (!row) return null;
+      if (!row) { console.error("review-draft actor: no profiles row for authenticated user", id, "rest status", p.status); return null; }
       return { id, isAdmin: row.role === "admin", approved: row.business_status === "approved" };
     },
     async countToday(ownerId) {                                        // 오늘(UTC 자정 기준) 그 회원이 만든 원고 수
