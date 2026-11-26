@@ -30,6 +30,9 @@ async function kindTarget() {
   if (kind === "agency" && !p.community && p.community_req !== "agency") return "board.html?b=agency";
   return null;
 }
+document.querySelectorAll(".sns-btn").forEach(b => b.onclick = () => {      // SNS 연동 전: 안내만 (가입·로그인은 하지 않음)
+  const m = $("sns-msg"); m.hidden = false; m.textContent = `${b.dataset.sns} 간편 가입은 준비 중이에요. 아래에서 이메일로 가입하거나 로그인해 주세요.`;
+});
 $("tab-login").onclick = () => setMode("login");
 $("tab-signup").onclick = () => setMode("signup");
 setMode(mode);

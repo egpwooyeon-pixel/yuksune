@@ -737,3 +737,21 @@ a.ws-ad:focus-visible{outline:3px solid #7fb0ff;outline-offset:2px}
 @media (max-width:800px){.ws-flow .ws-ill svg{width:170px}}
 
 .ws-benefit{margin:14px 0 0;padding:12px 16px;border-radius:12px;background:#eef4ff;color:#26324d;font-size:14px;line-height:1.6;text-align:center}.ws-benefit b{color:#0066ff}
+
+/* SNS 간편 로그인/가입 (연동 전 화면) */
+.sns{display:grid;gap:8px;margin:0 0 14px}
+.sns-btn{position:relative;display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:13px 14px;border-radius:6px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;border:1px solid transparent}
+.sns-btn.kakao{background:#fee500;color:#191919}.sns-btn.kakao:hover{background:#f5dc00}
+.sns-btn.naver{background:#fff;border-color:#d9dce3;color:#222}.sns-btn.naver:hover{background:#f7f8fa}
+.sns-btn:focus-visible{outline:3px solid #a9bbff;outline-offset:2px}
+.sns-soon{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-style:normal;font-size:10px;font-weight:700;color:#7a6a00;background:rgba(255,255,255,.75);border-radius:99px;padding:1px 7px}
+.sns-btn.naver .sns-soon{color:#8a93a6;background:#f1f3f7}
+.sns-msg{margin:2px 0 0;font-size:12px;color:#a35f00;background:#fff3e0;border-radius:6px;padding:8px 10px;line-height:1.5}
+.sns-or{display:flex;align-items:center;gap:10px;margin-top:8px;color:#8a93a6;font-size:12px}.sns-or::before,.sns-or::after{content:"";flex:1;height:1px;background:#e3e6ec}
+
+/* 메뉴가 늘어난 중간 폭(태블릿·좁은 노트북)에서 가로로 넘치지 않게 */
+@media (min-width:801px) and (max-width:1040px){.gnb{gap:14px;font-size:14px}.gnb .sep{padding-left:8px;margin-left:-4px}}
+@media (min-width:801px) and (max-width:920px){
+  .gnb{overflow-x:auto;overflow-y:hidden;scrollbar-width:none}.gnb::-webkit-scrollbar{display:none}
+  .gnb>a,.gnb-dd>a,.gnb-dd{flex:none;white-space:nowrap}.gnb-dd .dd{display:none!important}
+}

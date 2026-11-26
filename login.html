@@ -19,6 +19,20 @@
 
     <p class="notice-box" id="no-key" hidden>⚠ 서버 연결 키가 아직 설정되지 않았습니다. (<code>config.js</code>)</p>
 
+    <!-- SNS 간편 로그인/가입: 아직 연동 전이라 화면만 있어요 (누르면 준비 중 안내) -->
+    <div class="sns" id="sns">
+      <button type="button" class="sns-btn kakao" data-sns="카카오톡">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="#191919" d="M12 3C6.48 3 2 6.58 2 11c0 2.86 1.87 5.37 4.68 6.78l-1.2 4.4a.4.4 0 0 0 .6.44L10.4 19.6c.53.07 1.07.1 1.6.1 5.52 0 10-3.58 10-8.7S17.52 3 12 3z"/></svg>
+        <span>카카오톡 간편 로그인/가입</span><em class="sns-soon">준비중</em>
+      </button>
+      <button type="button" class="sns-btn naver" data-sns="네이버">
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="#03c75a" d="M16.27 12.85 7.38 0H0v24h7.73V11.15L16.62 24H24V0h-7.73z"/></svg>
+        <span>네이버로 로그인/가입</span><em class="sns-soon">준비중</em>
+      </button>
+      <p class="sns-msg" id="sns-msg" role="status" hidden></p>
+      <div class="sns-or"><span>또는 이메일로</span></div>
+    </div>
+
     <form id="form" class="reg">
       <fieldset class="kind-row" id="kind-row" hidden>
         <legend>가입 유형</legend>
