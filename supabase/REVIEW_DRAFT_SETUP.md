@@ -34,13 +34,14 @@
 | `supabase/027_review_drafts.sql` | 원고 표(`review_drafts`) 생성. `review_review_draft`: 운영자만·메모 필수·초안 상태에서만 |
 | `supabase/028_review_drafts_member.sql` | 조회 RLS를 "운영자는 전체, 회원은 본인 것만"으로 확장 |
 | `supabase/029_review_draft_photos.sql` | 사진 업로드용 공개 버킷(`review-draft-photos`)과 "본인 폴더에만 올리기/지우기" 저장소 정책 |
+| `supabase/030_review_drafts_service_role.sql` | 서버 함수(service_role)에게 `review_drafts` 쓰기 권한을 명시적으로 부여 (이 프로젝트는 service_role 기본 권한이 자동으로 안 걸려 있어서 꼭 필요함) |
 | `supabase/functions/review-draft` | 원고 만들기(`generate`, 운영자+승인회원)와 수정 저장(`save`, 운영자만). 호출자의 role·business_status 확인, 회원 일일 한도 확인, 사진 다운로드+Gemini 호출 (사진은 URL만 받음 — 업로드 자체는 화면이 Storage에 직접 함) |
 | `review-draft.html/.js` | **회원용**: 폼(사진은 파일 선택) + 내가 만든 원고 목록 + 복사 버튼. 사업자 인증 미승인 회원에겐 안내+"광고주 인증하러 가기" 링크 |
 | `admin-review-drafts.html/.js` | **운영자용**: 전체 목록, 새 원고(사진은 파일 선택), 제목·해시태그·본문·사진 설명 수정, 검수 메모·검수완료·반려 |
 | `common.js` | 사이트 메뉴에 "AI 리뷰 원고" 링크 추가 (데스크톱: 플레이스 순위확인 옆, 모바일: 전체메뉴의 별도 칸) |
 
 ## 켜는 순서
-1. Supabase SQL Editor 에서 `supabase/027_review_drafts.sql` → `supabase/028_review_drafts_member.sql` → `supabase/029_review_draft_photos.sql` 순서로 실행 (008 이후). 여러 번 실행해도 안전해요.
+1. Supabase SQL Editor 에서 `supabase/027_review_drafts.sql` → `028` → `029` → `supabase/030_review_drafts_service_role.sql` 순서로 실행 (008 이후). 여러 번 실행해도 안전해요.
 2. `review-draft` 함수 배포(또는 재배포). 비밀값 `GEMINI_API_KEY` 가 필요해요(글초안·AI 진단 기능과 **같은 키**를 그대로 씁니다). 선택: `GEMINI_MODEL`(기본 `gemini-3.8-flash`), `REVIEW_DRAFT_DAILY_LIMIT`(회원 1인당 하루 생성 한도, 기본 5).
    - JWT 확인은 **켜진 기본값** 그대로 두세요. 함수 안에서 한 번 더 로그인·등급을 확인해요.
 3. Supabase > Storage 에서 버킷 `review-draft-photos` 가 **Public** 인지, 용량 제한 8MB·허용 형식(JPG/PNG/WebP)이 맞는지 눈으로 확인.
