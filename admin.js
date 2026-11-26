@@ -38,7 +38,7 @@ function route() {
   const name = ["dashboard", "members", "campaigns", "apps", "rank", "posts", "inq", "place"].includes(s) ? s : "dashboard";
   document.querySelectorAll("main section").forEach(x => x.hidden = x.id !== "s-" + name);
   document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("on", a.dataset.s === name));
-  ({ dashboard: loadDash, members: () => loadMembers(true), campaigns: loadCamps, apps: loadApps, rank: loadRank, posts: loadPosts, inq: loadInq, place: loadPlace })[name]();
+  ({ dashboard: loadDash, members: () => { loadMembers(true); loadCommunity(); }, campaigns: loadCamps, apps: loadApps, rank: loadRank, posts: loadPosts, inq: loadInq, place: loadPlace })[name]();
 }
 
 /* ---------- 대시보드 ---------- */
@@ -474,6 +474,24 @@ $("posts").onclick = async e => {
   const { error } = await sb.from("posts").delete().eq("id", tr.dataset.id);
   if (error) return alert("삭제하지 못했어요."); loadPosts();
 };
+/* ---------- 커뮤니티 가입 신청 (인플루언서 · 대행사) ---------- */
+const CM_KIND = { influencer: "인플루언서", agency: "대행사" };
+async function loadCommunity() {
+  const { data, error } = await sb.from("profiles").select("id,nickname,community,community_req,created_at").not("community_req", "is", null).order("created_at", { ascending: false }).limit(100);
+  const rows = (data || []).filter(p => p.community !== p.community_req);
+  $("cm-box").hidden = error ? true : false;                                       // 028 SQL 이 없으면 숨김
+  if (error) return;
+  $("cm-list").innerHTML = rows.length ? rows.map(p => `<li data-id="${esc(p.id)}"><b>${esc(p.nickname)}</b> <span class="tag blue">${esc(CM_KIND[p.community_req] || p.community_req)} 신청</span>${p.community ? ` <small class="muted">(현재 ${esc(CM_KIND[p.community] || p.community)} 승인됨)</small>` : ""} <button type="button" class="btn ok" data-cm="ok">승인</button> <button type="button" class="btn bad" data-cm="no">반려</button></li>`).join("") : '<li class="muted">대기 중인 신청이 없어요.</li>';
+}
+$("cm-list").onclick = async e => {
+  const act = e.target.dataset.cm; if (!act) return; const li = e.target.closest("li"), id = li.dataset.id;
+  const { data: p } = await sb.from("profiles").select("community_req").eq("id", id).maybeSingle(); if (!p || !p.community_req) return loadCommunity();
+  const label = CM_KIND[p.community_req];
+  if (act === "ok") { if (!confirm(`${li.querySelector("b").textContent} 님을 ${label} 회원으로 승인할까요?\n${label} 커뮤니티를 볼 수 있고 글·댓글을 쓸 수 있어요.`)) return; const { error } = await sb.from("profiles").update({ community: p.community_req }).eq("id", id); if (error) return alert("승인하지 못했어요."); }
+  else { if (!confirm("이 신청을 반려할까요?")) return; const { error } = await sb.from("profiles").update({ community_req: null }).eq("id", id); if (error) return alert("반려하지 못했어요."); }
+  loadCommunity();
+};
+
 /* ---------- 상담 문의 (landing.html 상담 폼) ---------- */
 async function loadInq() {
   const { data, error } = await sb.from("inquiries").select("id,company,name,phone,topic,website,message,status,created_at").order("created_at", { ascending: false }).limit(200);

@@ -11,6 +11,8 @@ async function init() {
   me = s.session && s.session.user;
   if (me) { const { data: pr } = await sb.from("profiles").select("role").eq("id", me.id).maybeSingle(); isAdmin = !!pr && pr.role === "admin"; }
 
+  const want = BOARDS[boardKey()];
+  if (want && want.only) { const st = await communityState(); if (!canEnter(want, st)) { showEmpty(`${KIND[want.only]} 회원만 볼 수 있는 글이에요.`); lockBox(want, st, $("p-empty")); return; } }   // 승인된 회원이 아니면 안내
   const { data: p, error } = await sb.from("posts").select("*, profiles(nickname)").eq("id", id).maybeSingle();
   if (error || !p) return showEmpty("글을 찾을 수 없어요.");
   post = p; key = boardKey(p.board);

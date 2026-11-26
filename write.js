@@ -11,8 +11,14 @@ let me = null, isAdmin = false;
   const { data } = await sb.auth.getSession();
   me = data.session && data.session.user;
   if (!me) return location.replace("login.html?next=" + encodeURIComponent("write.html?b=" + key));
-  const { data: pr } = await sb.from("profiles").select("role").eq("id", me.id).maybeSingle();
+  let { data: pr, error: prErr } = await sb.from("profiles").select("role,community").eq("id", me.id).maybeSingle();
+  if (prErr) ({ data: pr } = await sb.from("profiles").select("role").eq("id", me.id).maybeSingle());   // 028 SQL 이 아직 없어도 운영자 확인은 되도록
   isAdmin = !!pr && pr.role === "admin";
+  for (const [k, B] of Object.entries(BOARDS)) {                    // 인플루언서·대행사 전용: 승인된 유형이 아니면 선택칸에서 빼고, 주소로 들어와도 막음
+    if (!B.only || isAdmin || (pr && pr.community === B.only)) continue;
+    const o = document.querySelector(`#w-board option[value="${k}"]`); if (o) o.remove();
+    if (key === k) { $("w-board").value = "place"; $("w-gate").hidden = false; $("w-gate").textContent = `${KIND[B.only]} 커뮤니티는 승인된 ${KIND[B.only]} 회원만 글을 쓸 수 있어요. 게시판에서 가입을 신청해 주세요.`; $("w-btn").disabled = true; }
+  }
   $("w-notice-row").hidden = !isAdmin;
   if (!isAdmin) {                                  // 공지사항은 운영자만: 선택칸에서 빼고, 주소로 들어와도 막음
     $("opt-notice").remove();

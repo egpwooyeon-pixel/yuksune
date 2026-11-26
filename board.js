@@ -15,6 +15,12 @@ if (B.adminOnly) {                                  // 공지사항: 인기글 �
   });
 }
 
+if (B.only && window.sbReady) communityState().then(st => {      // 인플루언서·대행사 전용: 승인된 회원이 아니면 목록 대신 안내
+  if (canEnter(B, st)) return;
+  document.querySelectorAll(".board > .pop, .board > .panel").forEach(el => el.hidden = true);
+  lockBox(B, st, document.querySelector(".board > .pop"));
+});
+
 const link = id => `post.html?b=${key}&id=${id}`;
 const rowHtml = (p, num) => `<tr><td class="num">${num}</td>
   <td class="title"><a href="${link(p.id)}">${esc(p.title)}</a>${cntOf(p) ? ` <span class="cmt">${cntOf(p)}</span>` : ""}</td>
