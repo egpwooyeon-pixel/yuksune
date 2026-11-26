@@ -740,12 +740,10 @@ a.ws-ad:focus-visible{outline:3px solid #7fb0ff;outline-offset:2px}
 
 /* SNS 간편 로그인/가입 (연동 전 화면) */
 .sns{display:grid;gap:8px;margin:0 0 14px}
-.sns-btn{position:relative;display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:13px 14px;border-radius:6px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;border:1px solid transparent}
+.sns-btn{position:relative;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:9px 14px;border-radius:6px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;border:1px solid transparent}
 .sns-btn.kakao{background:#fee500;color:#191919}.sns-btn.kakao:hover{background:#f5dc00}
-.sns-btn.naver{background:#fff;border-color:#d9dce3;color:#222}.sns-btn.naver:hover{background:#f7f8fa}
 .sns-btn:focus-visible{outline:3px solid #a9bbff;outline-offset:2px}
 .sns-soon{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-style:normal;font-size:10px;font-weight:700;color:#7a6a00;background:rgba(255,255,255,.75);border-radius:99px;padding:1px 7px}
-.sns-btn.naver .sns-soon{color:#8a93a6;background:#f1f3f7}
 .sns-msg{margin:2px 0 0;font-size:12px;color:#a35f00;background:#fff3e0;border-radius:6px;padding:8px 10px;line-height:1.5}
 .sns-or{display:flex;align-items:center;gap:10px;margin-top:8px;color:#8a93a6;font-size:12px}.sns-or::before,.sns-or::after{content:"";flex:1;height:1px;background:#e3e6ec}
 
