@@ -702,14 +702,28 @@ a.ws-ad:focus-visible{outline:3px solid #7fb0ff;outline-offset:2px}
 
 /* 결제기반 AI 마케팅 페이지 */
 .ad-chip{font-style:normal;display:inline-block;margin-left:5px;padding:0 5px;border:1px solid #cfd6e6;border-radius:4px;background:#fff;color:#8a93a6;font-size:10px;line-height:1.6;vertical-align:middle}
-.ws-hero{position:relative;padding:28px 24px;margin-bottom:16px}
-.ws-hero h1{font-size:26px;line-height:1.35;margin:0 0 8px;color:#14213d;letter-spacing:-.5px}
 .ws-adlabel{position:absolute;top:12px;right:14px;font-size:11px;color:#8a93a6;border:1px solid #d5dbe8;border-radius:4px;padding:0 6px}
-.ws-points{list-style:none;margin:18px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.ws-points li{background:#f3f8ff;border-radius:10px;padding:14px;display:grid;gap:4px;font-size:13px}.ws-points b{color:#0066ff;font-size:14px}.ws-points span{color:#4b5873;line-height:1.5}
 .ws-form-box{max-width:none}.ws-form-box h2{margin:0 0 6px;font-size:20px}
 .ws-hp{position:absolute!important;left:-9999px;width:1px;height:1px;opacity:0}
 .ws-form-box .check{display:flex;gap:8px;align-items:flex-start;font-weight:400}.ws-form-box .check input{width:auto;margin-top:3px}
 .ws-form-box .msg{min-height:20px;margin:6px 0;font-size:13px;color:#d63a3a}
 .ws-foot{text-align:center;margin:10px 0 0}
-@media (max-width:800px){.ws-points{grid-template-columns:1fr}.ws-hero h1{font-size:22px}}
+
+
+/* 결제기반 AI 마케팅: 소개 */
+.ws-hero{padding:34px 28px;margin-bottom:16px;text-align:center;background:linear-gradient(180deg,#f4f8ff 0,#fff 70%)}
+.ws-kick{display:inline-block;margin:0 0 12px;padding:4px 12px;border-radius:99px;background:#e6efff;color:#0066ff;font-size:12px;font-weight:700}
+.ws-hero h1{font-size:30px;line-height:1.35;margin:0 0 12px;color:#14213d;letter-spacing:-.8px}
+.ws-sub{margin:0 auto;color:#4b5873;font-size:15px;line-height:1.7}
+.ws-flow-wrap{max-width:760px;margin:26px auto 0;text-align:left}
+.ws-eg{display:inline-block;margin:0 0 8px;font-size:11px;font-weight:700;color:#0066ff;letter-spacing:.5px}
+.ws-flow{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:10px;align-items:stretch}
+.ws-flow li:not(.ws-arrow){background:#fff;border:1px solid #dbe7ff;border-radius:12px;padding:16px 14px;display:grid;gap:6px;align-content:start;box-shadow:0 2px 8px rgba(0,102,255,.05)}
+.ws-flow i{font-style:normal;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#0066ff;color:#fff;font-size:12px;font-weight:700}
+.ws-flow b{font-size:15px;color:#14213d}.ws-flow span{font-size:13px;line-height:1.6;color:#4b5873}
+.ws-arrow{align-self:center;color:#8fb2ff;font-size:20px;font-weight:700}
+.ws-note{margin:10px 0 0;font-size:12px;color:#8a93a6;text-align:center}
+@media (max-width:800px){
+  .ws-hero{padding:26px 18px}.ws-hero h1{font-size:23px}.ws-sub{font-size:14px}.ws-sub br{display:none}
+  .ws-flow{grid-template-columns:1fr}.ws-arrow{transform:rotate(90deg);justify-self:center;line-height:1}
+}
