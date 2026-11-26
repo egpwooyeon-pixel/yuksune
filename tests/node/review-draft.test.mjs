@@ -16,15 +16,18 @@ const MODEL_OK = {
   draft: '강남에서 찾은 한식당 후기입니다. 분위기도 좋고 친절했어요. 갈비탕이 특히 진하고 양도 많았습니다.',
 };
 
+// actor: 'admin' (기본) | 'approved' (사업자 인증 승인 회원) | 'member' (미인증 회원) | 'none' (비로그인)
+const ACTORS = { admin: { id: 'admin-1', isAdmin: true, approved: false }, approved: { id: 'member-1', isAdmin: false, approved: true }, member: { id: 'member-2', isAdmin: false, approved: false } };
 const mkDeps = (o = {}) => {
-  const rec = { gemini: [], fetchPhoto: [], insert: [], update: [], get: [] };
+  const rec = { gemini: [], fetchPhoto: [], insert: [], update: [], get: [], countToday: [] };
   return {
     rec,
     d: {
-      adminId: async () => (o.noAdmin ? null : 'admin-1'),
-      config: () => ({ apiKey: o.noKey ? undefined : 'KEY', models: ['modelA'] }),
+      actor: async () => (o.actor === 'none' ? null : ACTORS[o.actor || 'admin']),
+      config: () => ({ apiKey: o.noKey ? undefined : 'KEY', models: ['modelA'], dailyLimit: o.dailyLimit || 5 }),
       gemini: async (body, models, key) => { rec.gemini.push({ body, models, key }); if (o.geminiErr) throw new Error(o.geminiErr); return o.text !== undefined ? o.text : JSON.stringify(o.model || MODEL_OK); },
       fetchPhoto: async url => { rec.fetchPhoto.push(url); if (o.photoFail) return null; return { mimeType: 'image/jpeg', data: 'BASE64' }; },
+      countToday: async id => { rec.countToday.push(id); return o.usedToday || 0; },
       insert: async row => { rec.insert.push(row); return { id: 42 }; },
       get: async id => (o.row === undefined ? null : o.row),
       update: async (id, patch) => { rec.update.push({ id, patch }); },
@@ -85,17 +88,31 @@ await t('assemble: caps title/draft lengths', () => {
 });
 
 // ---------- 생성 ----------
-await t('generate: non-admin -> 403, Gemini never called', async () => { const { d, rec } = mkDeps({ noAdmin: true }); const r = await m.handle(post(good()), d); assert.equal(r.status, 403); assert.equal(rec.gemini.length, 0); assert.equal(rec.insert.length, 0); });
+await t('generate: logged-out -> 403 forbidden; unapproved member -> 403 not_approved; Gemini never called', async () => {
+  let x = mkDeps({ actor: 'none' }); let r = await m.handle(post(good()), x.d); assert.equal(r.status, 403); assert.equal((await r.json()).error, 'forbidden'); assert.equal(x.rec.gemini.length, 0);
+  x = mkDeps({ actor: 'member' }); r = await m.handle(post(good()), x.d); assert.equal(r.status, 403); assert.equal((await r.json()).error, 'not_approved'); assert.equal(x.rec.gemini.length, 0);
+});
 await t('generate: bad input -> 400 before Gemini; no key -> 503', async () => {
   let x = mkDeps(); assert.equal((await m.handle(post(good({ reviews: [] })), x.d)).status, 400); assert.equal(x.rec.gemini.length, 0);
   x = mkDeps({ noKey: true }); assert.equal((await m.handle(post(good()), x.d)).status, 503); assert.equal(x.rec.gemini.length, 0);
 });
-await t('generate: success stores draft with admin id/model; reviews reach prompt, customInstructions too', async () => {
+await t('generate: admin success stores draft with admin id/model; reviews reach prompt, customInstructions too', async () => {
   const { d, rec } = mkDeps(); const r = await m.handle(post(good({ customInstructions: '캐주얼하게' })), d); const j = await r.json();
   assert.equal(r.status, 200); assert.equal(j.id, 42); assert.equal(j.draft.draft, MODEL_OK.draft);
   const row = rec.insert[0]; assert.equal(row.created_by, 'admin-1'); assert.equal(row.model, 'modelA'); assert.equal(row.kind, 'blog');
   const prompt = rec.gemini[0].body.contents[0].parts.map(p => p.text || '').join('\n');
   assert.ok(prompt.includes('지어내지 마세요') && prompt.includes('갈비탕이 진하고') && prompt.includes('캐주얼하게'));
+});
+await t('generate: approved member can generate; stored with their own id', async () => {
+  const { d, rec } = mkDeps({ actor: 'approved' }); const r = await m.handle(post(good()), d);
+  assert.equal(r.status, 200); assert.equal(rec.insert[0].created_by, 'member-1');
+});
+await t('generate: approved member is rate-limited (admin is not)', async () => {
+  let x = mkDeps({ actor: 'approved', usedToday: 5, dailyLimit: 5 }); let r = await m.handle(post(good()), x.d);
+  assert.equal(r.status, 429); assert.equal((await r.json()).error, 'daily_limit'); assert.equal(x.rec.gemini.length, 0); assert.equal(x.rec.countToday[0], 'member-1');
+  x = mkDeps({ actor: 'approved', usedToday: 4, dailyLimit: 5 }); assert.equal((await m.handle(post(good()), x.d)).status, 200);
+  x = mkDeps({ actor: 'admin', usedToday: 999, dailyLimit: 5 }); r = await m.handle(post(good()), x.d);
+  assert.equal(r.status, 200); assert.equal(x.rec.countToday.length, 0, 'admin is never rate-limited / checked');
 });
 await t('generate: fetches every photo URL and sends inline images to Gemini', async () => {
   const { d, rec } = mkDeps(); await m.handle(post(good({ photoUrls: [PHOTO, PHOTO] })), d);
@@ -110,11 +127,11 @@ await t('generate: Gemini failure / garbage output -> 502 and NOTHING stored', a
   for (const o of [{ geminiErr: 'timeout' }, { text: 'not json' }, { text: '{}' }]) { const { d, rec } = mkDeps(o); const r = await m.handle(post(good()), d); assert.equal(r.status, 502); assert.equal(rec.insert.length, 0); }
 });
 
-// ---------- 수정 저장 ----------
+// ---------- 수정 저장 (운영자만) ----------
 const stored = () => { const a = m.assemble(JSON.stringify(MODEL_OK), input); return { id: 5, status: 'draft', business: BIZ, reviews: REVIEWS, photo_urls: [PHOTO], draft: a }; };
 const edit = (over = {}) => ({ action: 'save', id: 5, draft: { ...MODEL_OK, photoCaptions: ['수정한 캡션'], ...over } });
-await t('save: non-admin 403; bad id 400; missing 404; approved/rejected -> 409', async () => {
-  assert.equal((await m.handle(post(edit()), mkDeps({ noAdmin: true }).d)).status, 403);
+await t('save: logged-out/member/approved all 403 (admin only); bad id 400; missing 404; approved/rejected -> 409', async () => {
+  for (const actor of ['none', 'member', 'approved']) assert.equal((await m.handle(post(edit()), mkDeps({ actor }).d)).status, 403);
   assert.equal((await m.handle(post({ action: 'save', id: 'x' }), mkDeps({ row: stored() }).d)).status, 400);
   assert.equal((await m.handle(post(edit()), mkDeps().d)).status, 404);
   for (const status of ['approved', 'rejected']) { const x = mkDeps({ row: { ...stored(), status } }); assert.equal((await m.handle(post(edit()), x.d)).status, 409); assert.equal(x.rec.update.length, 0); }

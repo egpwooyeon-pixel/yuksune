@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="robots" content="noindex">
+  <title>AI 리뷰 원고 - 우리들 체험단</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="review-draft">
+<div id="header-slot"></div>
+
+<main class="wrap camp">
+  <div class="camp-head"><h1>AI 리뷰 원고</h1><a class="muted" href="my.html">← 내 체험단 관리</a></div>
+  <p class="muted small">내 매장 리뷰를 붙여넣으면 AI(Gemini)가 블로그 홍보 원고를 써줘요. 사업자 인증이 승인된 회원만 쓸 수 있고, 하루에 만들 수 있는 개수에 한도가 있어요. <b>리뷰·사진은 직접 모아서 붙여넣어야 해요</b> — 네이버 플레이스·스마트스토어·구글 리뷰를 모으는 별도 도구(크롬 확장프로그램)로 모은 뒤, 그 결과(CSV)에서 옮겨 붙이는 방식이에요.</p>
+  <p class="empty" id="rv-msg" hidden></p>
+
+  <section id="rv-form-box" class="panel" hidden>
+    <h2>새 원고 만들기</h2>
+    <p class="muted small" id="rv-quota"></p>
+    <form id="rv-form" novalidate>
+      <div class="rvp-form">
+        <label>상호명 * <input id="rv-name" maxlength="60" placeholder="예) 동화고옥 선릉점" autocomplete="off"></label>
+        <label>지역/동네 <input id="rv-area" maxlength="40" placeholder="예) 강남 선릉역" autocomplete="off"></label>
+        <label>업종/카테고리 <input id="rv-cat" maxlength="40" placeholder="예) 한정식, 고깃집" autocomplete="off"></label>
+        <label>시그니처 메뉴 <small class="muted">(쉼표로 구분, 선택)</small> <input id="rv-sig" maxlength="120" placeholder="예) 갈비코스, 육회비빔밥" autocomplete="off"></label>
+        <label>원고 요청사항 <small class="muted">(선택)</small> <input id="rv-instr" maxlength="200" placeholder="예: 캐주얼하게 써줘 / 가격 얘기는 빼줘"></label>
+        <label>리뷰 * <small class="muted">(한 줄에 하나씩, 여러 건 권장)</small> <textarea id="rv-reviews" rows="8" placeholder="분위기도 좋고 친절하시고 메뉴 설명도 잘해주셨어요&#10;갈비탕이 진하고 양도 많아서 만족했습니다"></textarea></label>
+        <label>사진 URL <small class="muted">(한 줄에 하나씩, 선택, 최대 15장)</small> <textarea id="rv-photos" rows="4" placeholder="https://...&#10;https://..."></textarea></label>
+        <button class="btn-primary" type="submit" id="rv-go">원고 만들기</button>
+        <p class="ph-msg" id="rv-form-msg" role="alert" hidden></p>
+      </div>
+    </form>
+  </section>
+
+  <section id="rv-list-box" hidden>
+    <h2>내가 만든 원고</h2>
+    <div class="rvp-list" id="rv-list"></div>
+    <p class="empty" id="rv-list-empty" hidden>아직 만든 원고가 없어요.</p>
+  </section>
+</main>
+
+<div id="footer-slot"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="auth.js"></script>
+<script src="review-draft.js"></script>
+</body>
+</html>

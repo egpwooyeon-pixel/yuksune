@@ -651,3 +651,18 @@ a.write-btn:hover{background:var(--primary-dark);text-decoration:none}
 .rk-reg input,.rk-reg textarea{border:1px solid #cfd3e3;border-radius:8px;padding:11px 12px;font:inherit;font-size:14px;background:#fff;font-weight:400}
 .rk-reg input[readonly]{background:#f3f4f7;color:#666}
 .rk-req ul{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:8px}.rk-req li{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}
+
+/* AI 리뷰 원고 (회원용) */
+.rvp-form{display:grid;gap:12px;max-width:640px;margin-top:10px}
+.rvp-form label{display:grid;gap:6px;font-size:14px;font-weight:600}
+.rvp-form input,.rvp-form textarea{border:1px solid #cfd3e3;border-radius:8px;padding:11px 12px;font:inherit;font-size:14px;background:#fff;font-weight:400}
+.rvp-list{display:grid;gap:12px;margin-top:20px}
+.rvp-card{border:1px solid #e6e8ec;border-radius:10px;padding:14px 16px;background:#fff}
+.rvp-card h3{margin:0 0 4px;font-size:16px}
+.rvp-card .muted{font-size:12px}
+.rvp-body{white-space:pre-wrap;font-size:14px;line-height:1.6;margin:10px 0;background:#fafbfc;border-radius:8px;padding:12px}
+.rvp-tags{font-size:13px;color:var(--primary);margin:4px 0}
+.rvp-titles{list-style:none;margin:6px 0;padding:0;font-size:13px}.rvp-titles li{padding:2px 0}
+.rvp-photos{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.rvp-photos img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid #e6e8ec}
+.rvp-chip{display:inline-block;border-radius:999px;padding:1px 9px;font-size:11px;font-weight:700;background:#eef2ff;color:#1f4dff;margin-right:6px}

@@ -1,17 +1,28 @@
-// Supabase Edge Function: 리뷰 기반 AI 블로그 원고 만들기 + 수정 저장 (운영자 전용)
+// Supabase Edge Function: 리뷰 기반 AI 블로그 원고 만들기 + 수정 저장
 //
-// 운영자가 넣은 [업체 정보] + [실제 리뷰 텍스트] + [리뷰 사진 URL]을 바탕으로 Gemini 가 블로그 원고(JSON)를
-// 쓰고 review_drafts 에 저장합니다. 리뷰·사진은 크롬 확장프로그램(네이버/구글 리뷰 수집 도구)으로 모은 뒤
+// [업체 정보] + [실제 리뷰 텍스트] + [리뷰 사진 URL]을 바탕으로 Gemini 가 블로그 원고(JSON)를 쓰고
+// review_drafts 에 저장합니다. 리뷰·사진은 크롬 확장프로그램(네이버/구글 리뷰 수집 도구)으로 모은 뒤
 // CSV 에서 옮겨 붙이는 것을 전제로 합니다 — 이 함수는 리뷰를 직접 수집하지 않습니다.
 //
+// 누가 쓸 수 있나 (rank.html "내 플레이스 순위확인하기" 와 같은 등급 구조)
+//  · 운영자(profiles.role = 'admin'): 전부 가능. 일일 한도 없음. 수정 저장(action:"save")도 운영자만.
+//  · 사업자 인증 승인 회원(profiles.business_status = 'approved'): 원고 생성(action 없음/"generate")만 가능,
+//    하루 REVIEW_DRAFT_DAILY_LIMIT(기본 5)건까지. 수정 저장은 못 함 — 생성된 원고를 그대로 복사해서 쓰는
+//    용도예요.
+//  · 그 외(비로그인·미인증 회원): 403.
+//  · 조회(review_drafts 읽기)는 이 함수가 아니라 DB RLS(028_review_drafts_member.sql)가 처리해요 —
+//    운영자는 전체, 회원은 자기가 만든 것만.
+//
 // 지켜야 할 것
-//  · 운영자만: 호출자의 로그인(JWT)을 확인하고 profiles.role = 'admin' 인지 확인해요. 아니면 403.
+//  · 호출자의 로그인(JWT)을 확인하고 profiles 에서 role·business_status 를 읽어요. 아니면 403.
 //  · 리뷰에 없는 내용(가격·효능·순위 등)은 지어내지 말라고 AI 에게 지시해요. guide_drafts(EGP) 와 달리
 //    과장·금지어 자동 차단은 하지 않아요 — 손님 후기 기반 홍보 원고는 의료광고 같은 규제 대상이 아니라서,
-//    최종 문구 확인은 운영자 눈으로 합니다.
-//  · 비밀값: GEMINI_API_KEY (aeo-draft 와 같은 키를 씁니다). 선택: GEMINI_MODEL(쉼표로 여러 개 가능, 기본 gemini-3.8-flash)
-//  · "승인"은 발행이 아니라 검수 완료 표시예요 — 이 서비스는 발행 파이프라인이 없고, 운영자가 원고를
-//    복사해서 네이버 블로그 등에 직접 올리는 걸 전제로 합니다.
+//    최종 문구 확인은 사람 눈으로 합니다(회원이 직접 쓰는 경우엔 본인이, 운영자 화면에서는 운영자가).
+//  · 비밀값: GEMINI_API_KEY (aeo-draft 와 같은 키를 씁니다). 선택: GEMINI_MODEL(쉼표로 여러 개 가능, 기본
+//    gemini-3.8-flash), REVIEW_DRAFT_DAILY_LIMIT(회원 1인당 하루 생성 한도, 기본 5 — 공유 Gemini 무료
+//    티어 한도를 회원 여러 명이 동시에 쓰면 금방 소진되는 걸 막기 위함)
+//  · "승인"(운영자 화면의 검수 완료)은 발행이 아니라 검수 기록이에요 — 이 서비스는 발행 파이프라인이 없고,
+//    원고를 복사해서 네이버 블로그 등에 직접 올리는 걸 전제로 합니다.
 //
 // 아직 실제 Gemini·실제 Supabase 로는 실행해 보지 않았습니다. 모의 응답으로 시험했습니다.
 
@@ -150,18 +161,25 @@ export function assemble(model, input) {
 export async function handle(req, deps) {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
-  const adminId = await deps.adminId(req.headers.get("authorization") || "");
-  if (!adminId) return json({ error: "forbidden" }, 403);
+  const actor = await deps.actor(req.headers.get("authorization") || "");
+  if (!actor || !(actor.isAdmin || actor.approved)) return json({ error: actor ? "not_approved" : "forbidden" }, 403);
   const body = await req.json().catch(() => ({}));
-  if (body && body.action === "save") return save(body, adminId, deps);
-  return generate(body, adminId, deps);
+  if (body && body.action === "save") {
+    if (!actor.isAdmin) return json({ error: "forbidden" }, 403);        // 수정 저장은 운영자만
+    return save(body, deps);
+  }
+  return generate(body, actor, deps);
 }
 
-async function generate(body, adminId, deps) {
+async function generate(body, actor, deps) {
   const input = parseInput(body);
   if (input.error) return json({ error: input.error }, 400);
-  const { apiKey, models } = deps.config();
+  const { apiKey, models, dailyLimit } = deps.config();
   if (!apiKey) return json({ error: "not_configured" }, 503);
+  if (!actor.isAdmin) {
+    const used = await deps.countToday(actor.id);
+    if (used >= dailyLimit) return json({ error: "daily_limit", limit: dailyLimit }, 429);
+  }
 
   const photoDatas = await Promise.all(input.photoUrls.map(u => deps.fetchPhoto(u).catch(() => null)));
   const { parts, hasPhotos } = buildParts(input);
@@ -173,12 +191,12 @@ async function generate(body, adminId, deps) {
 
   const draft = assemble(text, input);
   if (!draft) return json({ error: "bad_model_output" }, 502);
-  const row = await deps.insert({ kind: "blog", business: input.business, reviews: input.reviews, photo_urls: input.photoUrls, draft, model: models[0] || null, created_by: adminId });
+  const row = await deps.insert({ kind: "blog", business: input.business, reviews: input.reviews, photo_urls: input.photoUrls, draft, model: models[0] || null, created_by: actor.id });
   return json({ id: row.id, draft });
 }
 
 // 운영자가 고친 원고 저장: 초안 상태일 때만. 업체 정보·리뷰·사진 URL 은 저장된 값을 유지(화면에서 바꾸지 못함).
-async function save(body, adminId, deps) {
+async function save(body, deps) {
   const id = Number.isInteger(body.id) && body.id > 0 ? body.id : null;
   if (!id) return json({ error: "bad_id" }, 400);
   const row = await deps.get(id);
@@ -206,17 +224,30 @@ function realDeps() {
   const env = k => Deno.env.get(k), URL_ = env("SUPABASE_URL"), KEY = env("SUPABASE_SERVICE_ROLE_KEY");
   const h = { apikey: KEY, authorization: `Bearer ${KEY}`, "content-type": "application/json" };
   return {
-    config: () => ({ apiKey: env("GEMINI_API_KEY"), models: String(env("GEMINI_MODEL") || "gemini-3.8-flash").split(",").map(x => x.trim()).filter(Boolean) }),
+    config: () => ({
+      apiKey: env("GEMINI_API_KEY"),
+      models: String(env("GEMINI_MODEL") || "gemini-3.8-flash").split(",").map(x => x.trim()).filter(Boolean),
+      dailyLimit: Math.max(1, parseInt(env("REVIEW_DRAFT_DAILY_LIMIT"), 10) || 5),
+    }),
     gemini: (body, models, key) => callGemini(body, models, key),
     fetchPhoto: url => fetchPhoto(url),
-    async adminId(authHeader) {                                        // 로그인한 운영자인지 확인 (읽기만 함)
+    async actor(authHeader) {                                          // 로그인한 사람의 role·사업자 인증 상태 확인 (읽기만 함)
       if (!authHeader) return null;
       const u = await fetch(`${URL_}/auth/v1/user`, { headers: { apikey: KEY, authorization: authHeader } });
       if (!u.ok) return null;
       const { id } = await u.json();
-      const p = await fetch(`${URL_}/rest/v1/profiles?id=eq.${encodeURIComponent(id)}&select=role`, { headers: { apikey: KEY, authorization: `Bearer ${KEY}` } });
+      const p = await fetch(`${URL_}/rest/v1/profiles?id=eq.${encodeURIComponent(id)}&select=role,business_status`, { headers: { apikey: KEY, authorization: `Bearer ${KEY}` } });
       const rows = p.ok ? await p.json() : [];
-      return rows[0] && rows[0].role === "admin" ? id : null;
+      const row = rows[0];
+      if (!row) return null;
+      return { id, isAdmin: row.role === "admin", approved: row.business_status === "approved" };
+    },
+    async countToday(ownerId) {                                        // 오늘(UTC 자정 기준) 그 회원이 만든 원고 수
+      const since = new Date(); since.setUTCHours(0, 0, 0, 0);
+      const r = await fetch(`${URL_}/rest/v1/review_drafts?select=id&created_by=eq.${encodeURIComponent(ownerId)}&created_at=gte.${since.toISOString()}`, { headers: { ...h, prefer: "count=exact", range: "0-0" } });
+      const range = r.headers.get("content-range") || "";             // 형식: "0-0/7"
+      const m = /\/(\d+)$/.exec(range);
+      return m ? parseInt(m[1], 10) : 0;
     },
     async insert(row) {
       const r = await fetch(`${URL_}/rest/v1/review_drafts`, { method: "POST", headers: { ...h, prefer: "return=representation" }, body: JSON.stringify(row) });
