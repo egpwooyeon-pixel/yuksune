@@ -233,5 +233,5 @@ $("cal-toggle").onclick = e => { const b = $("cal-body"); b.hidden = !b.hidden; 
   if (!window.sbReady) return;
   const { data } = await sb.auth.getSession(); const u = data.session && data.session.user; if (!u) return;
   const { data: p } = await sb.from("profiles").select("role").eq("id", u.id).maybeSingle();
-  if (p && p.role === "admin" && id) { const el = $("d-adminlink"); el.hidden = false; el.innerHTML = `<a href="admin.html#rank?c=${encodeURIComponent(id)}">운영자: 이 체험단의 순위 추적 보기 →</a>`; }
+  if (p && p.role === "admin" && id) { const el = $("d-adminlink"); el.hidden = false; el.innerHTML = `<a href="admin.html#rank?c=${encodeURIComponent(id)}">운영자: 이 체험단의 순위 추적 보기 →</a> · <a href="register.html?edit=${encodeURIComponent(id)}">운영자: 이 체험단 수정 →</a>`; }
 })();

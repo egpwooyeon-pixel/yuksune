@@ -38,6 +38,7 @@ async function loadCampaigns() {
       <div class="mi-btns">
         <button type="button" class="btn-line" data-act="apps">신청자 보기</button>
         <a class="btn-line" href="campaign.html?id=${encodeURIComponent(c.id)}">상세</a>
+        <a class="btn-line" href="register.html?edit=${encodeURIComponent(c.id)}">수정</a>
         ${open ? '<button type="button" class="btn-line" data-act="close">모집 마감</button>' : ""}
         <button type="button" class="btn-line danger" data-act="del">삭제</button>
       </div></li>`;

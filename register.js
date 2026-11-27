@@ -40,7 +40,25 @@ $("detail-photo").addEventListener("change", async e => {
 
 function lock(text) { gate.hidden = false; gate.innerHTML = text; [...form.elements].forEach(el => el.disabled = true); }
 
+const EDIT_ID = new URLSearchParams(location.search).get("edit") || "";   // 수정 모드: register.html?edit=<캠페인 id>
 let user = null;
+async function startEdit(role) {   // 작성자 본인(또는 운영자)만 수정. 실제 권한은 DB(RLS)가 다시 확인
+  const { data: c } = await sb.from("campaigns").select("*").eq("id", EDIT_ID).maybeSingle();
+  if (!c || (c.owner_id !== user.id && role !== "admin")) return lock("수정할 수 있는 체험단이 아니에요. <a href=\"my.html\"><b>내 체험단으로 →</b></a>");
+  document.querySelector(".camp-head h1").textContent = "체험단 수정하기";
+  form.querySelector(".submit").textContent = "수정 저장";
+  dl.removeAttribute("min");
+  const set = (n, v) => { const el = form.elements[n]; if (el && v != null) el.value = v; };
+  ["type", "mode", "region", "cat", "biz", "title", "reward", "slots", "deadline", "mission", "visit_start", "visit_end", "max_party", "address", "visit_times", "visit_notes",
+   "notice", "keywords", "shipping_info", "product_url", "review_deadline", "mission_photos", "mission_chars"].forEach(n => set(n, c[n]));
+  set("place", c.place_url); set("desc", c.description);
+  form.elements.type.disabled = true; form.elements.mode.disabled = true;     // 신청자가 있을 수 있어 종류·방식은 못 바꿈
+  const wd = (c.visit_weekdays || "").split(","); form.querySelectorAll('input[name="wd"]').forEach(x => { x.checked = wd.includes(x.value); });
+  form.mission_link.checked = !!c.mission_link; form.mission_video.checked = !!c.mission_video; form.mission_disclosure.checked = c.mission_disclosure !== false;
+  syncVisit();
+  const note = document.createElement("p"); note.className = "notice-box"; note.textContent = "종류(블로그·인스타 등)와 진행 방식(방문·배송)은 바꿀 수 없어요. 사진은 새로 고를 때만 바뀌어요.";
+  form.insertBefore(note, form.children[1]);
+}
 (async () => {
   if (!window.sbReady) return lock("서버 연결 키가 설정되지 않았습니다.");
   const { data } = await sb.auth.getSession();
@@ -48,6 +66,7 @@ let user = null;
   if (!user) return location.replace("login.html?next=register.html");
   const { data: p } = await sb.from("profiles").select("business_status,business_note").eq("id", user.id).maybeSingle();
   const st = p ? p.business_status : "none";
+  if (EDIT_ID) { const { data: r } = await sb.from("profiles").select("role").eq("id", user.id).maybeSingle(); return startEdit(r && r.role); }
   if (st === "approved") {                                   // 페널티로 등록이 정지 중인지 확인
     const { data: pen } = await sb.from("advertiser_events").select("suspended_until").eq("owner_id", user.id).eq("kind", "penalty").not("suspended_until", "is", null);
     const now = new Date(), act = (pen || []).map(x => x.suspended_until).filter(v => v === "infinity" || new Date(v) > now);
@@ -67,6 +86,7 @@ form.addEventListener("submit", async e => {
   e.preventDefault();
   const btn = form.querySelector(".submit"); btn.disabled = true;
   const d = Object.fromEntries(new FormData(form));
+  if (EDIT_ID) { d.type = form.elements.type.value; d.mode = form.elements.mode.value; }   // 잠긴 칸은 FormData 에 안 실려서 직접 읽음
   try {
     const upload = async blob => {
       const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.jpg`;
@@ -94,21 +114,29 @@ form.addEventListener("submit", async e => {
       visit_times: visit ? times : "", detail_photo_url,
     };
     for (const [k, v] of Object.entries(extra)) if (v !== undefined && v !== null && String(v).trim() !== "") row[k] = typeof v === "string" ? v.trim() : v;
-    if (form.mission_link.checked) row.mission_link = true;
-    if (form.mission_video.checked) row.mission_video = true;
-    if (!form.mission_disclosure.checked) row.mission_disclosure = false;
+    if (EDIT_ID) {   // 수정: 비운 칸은 지움. 종류·방식·작성자는 그대로 둠
+      delete row.owner_id; delete row.type; delete row.mode;
+      if (!photo_url) delete row.photo_url;
+      for (const k of Object.keys(extra)) if (!(k in row) && k !== "detail_photo_url") row[k] = null;
+      if (visit === false) { row.visit_start = null; row.visit_end = null; }
+      row.mission_link = form.mission_link.checked; row.mission_video = form.mission_video.checked; row.mission_disclosure = form.mission_disclosure.checked;
+    }
+    if (!EDIT_ID && form.mission_link.checked) row.mission_link = true;
+    if (!EDIT_ID && form.mission_video.checked) row.mission_video = true;
+    if (!EDIT_ID && !form.mission_disclosure.checked) row.mission_disclosure = false;
     // 서버에 상세 항목 칸(003 SQL)이 아직 없으면, 그 항목만 빼고 다시 올림 (상세 항목은 선택 사항이라 등록은 되게 함)
     const LABEL = { keywords: "검색 키워드", shipping_info: "배송·방문 안내", product_url: "상품정보 주소", notice: "상단 안내", review_deadline: "후기 작성 마감일", mission_photos: "사진 수", mission_chars: "글자 수", mission_link: "링크 미션", mission_video: "영상 미션", mission_disclosure: "광고 표기", address: "방문 주소", visit_notes: "방문·예약 안내", visit_weekdays: "방문 가능 요일", visit_times: "방문 가능 시간대", detail_photo_url: "상세 이미지" };
     const dropped = []; let res;
     for (let i = 0; i < 20; i++) {
-      res = await sb.from("campaigns").insert(row);
+      res = EDIT_ID ? await sb.from("campaigns").update(row).eq("id", EDIT_ID).select("id") : await sb.from("campaigns").insert(row);
+      if (EDIT_ID && !res.error && !(res.data || []).length) res = { error: { message: "row-level security" } };
       const col = res.error && (/'([a-z_]+)' column/.exec(res.error.message || "") || [])[1];
       if (!col || !(col in LABEL) || !(col in row)) break;
       dropped.push(LABEL[col]); delete row[col];
     }
     if (res.error) throw res.error;
     if (dropped.length) alert("체험단을 올렸어요. 다만 서버가 아직 준비되지 않아 아래 항목은 저장되지 않았어요.\n- " + dropped.join("\n- ") + "\n(운영자가 준비를 마친 뒤 수정해서 다시 올려 주세요.)");
-    location.href = "campaigns.html?type=" + encodeURIComponent(d.type);
+    location.href = EDIT_ID ? "campaign.html?id=" + encodeURIComponent(EDIT_ID) : "campaigns.html?type=" + encodeURIComponent(d.type);
   } catch (err) {
     const m = err.message || "";
     alert(m.includes("row-level security") ? "등록 권한이 없어요. 운영자 승인을 받은 광고주만 등록할 수 있어요."
