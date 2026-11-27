@@ -10,7 +10,7 @@ alter table public.campaigns
   add column if not exists mission_chars int check (mission_chars is null or mission_chars between 0 and 10000),
   add column if not exists mission_link boolean not null default false,
   add column if not exists mission_video boolean not null default false,
-  add column if not exists mission_disclosure boolean not null default true;  -- 광고·협찬(공정위) 표기,
+  add column if not exists mission_disclosure boolean not null default true,  -- 광고·협찬(공정위) 표기
   -- 방문형 전용
   add column if not exists address text,              -- 방문 주소
   add column if not exists visit_weekdays text,       -- 방문 가능 요일 (0=일 … 6=토, 쉼표로 구분. 비우면 모든 요일)
