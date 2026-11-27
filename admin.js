@@ -143,7 +143,7 @@ async function loadMembers(reset) {
     const [t, k] = BS[m.business_status] || BS.none, admin = m.role === "admin";
     const doc = m.business_doc_path ? `<button class="btn" data-bs="doc" data-path="${esc(m.business_doc_path)}">서류 보기</button>` : "";
     return `<tr data-id="${m.id}"><td>${full(m.created_at)}</td><td><b>${esc(m.nickname)}</b></td><td>${esc(m.email)}</td><td>${admin ? '<span class="tag blue">관리자</span>' : "회원"}</td>
-      <td><span class="tag ${k}">${t}</span>${m.business_no ? `<br><small>${esc(m.business_no.replace(/^(\d{3})(\d{2})(\d{5})$/, "$1-$2-$3"))} · ${esc(m.business_ceo || "")}</small>` : ""}${m.business_note ? `<br><small class="muted">${esc(m.business_note)}</small>` : ""}</td>
+      <td><span class="tag ${k}">${t}</span>${m.business_no ? `<br><small>${esc(m.business_no.replace(/^(\d{3})(\d{2})(\d{5})$/, "$1-$2-$3"))} · ${esc(m.business_ceo || "")}${m.business_phone ? " · " + esc(m.business_phone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, "$1-$2-$3")) : ""}</small>` : ""}${m.business_note ? `<br><small class="muted">${esc(m.business_note)}</small>` : ""}</td>
       <td>${admin ? "" : penBadge(m.id)}</td>
       <td>${admin ? "" : `${doc}<button class="btn ok" data-bs="approved" ${m.business_status === "approved" ? "disabled" : ""}>인증</button><button class="btn bad" data-bs="rejected" ${m.business_status === "rejected" ? "disabled" : ""}>제한</button><button class="btn" data-bs="none" ${m.business_status === "none" ? "disabled" : ""}>해제</button><button class="btn" data-bs="pen">페널티</button>${m.business_doc_path ? '<button class="btn bad" data-bs="deldoc">서류 삭제</button>' : ""}`}</td></tr>`;
   }).join(""));

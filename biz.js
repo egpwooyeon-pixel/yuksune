@@ -11,7 +11,12 @@ function validBizNo(v) {
 }
 const fmtNo = d => /^\d{10}$/.test(d || "") ? `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}` : "";
 const maskNo = d => /^\d{10}$/.test(d || "") ? `${d.slice(0, 3)}-${d.slice(3, 5)}-*****` : "";
+const cleanPhone = v => { const d = String(v || "").replace(/\D/g, ""); return /^01[016789]\d{7,8}$/.test(d) ? d : null; };
+const fmtPhone = d => /^01\d{8,9}$/.test(d || "") ? (d.length === 11 ? `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}` : `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`) : "";
+const maskPhone = d => /^01\d{8,9}$/.test(d || "") ? `${d.slice(0, 3)}-****-${d.slice(-4)}` : "";
 const ERR = {
+  bad_phone: "대표자 핸드폰번호를 확인해 주세요. (예: 010-0000-0000)",
+  not_approved: "광고주 인증을 마친 뒤에 추가할 수 있어요.",
   bad_biz_no: "사업자등록번호를 확인해 주세요. (10자리, 예: 000-00-00000)",
   bad_ceo: "대표자 이름을 확인해 주세요. (한글·영문 2~20자)",
   rejected: "운영자가 인증을 제한한 계정이에요. 운영자에게 문의해 주세요.",
@@ -19,7 +24,7 @@ const ERR = {
 };
 
 async function load() {
-  let { data, error } = await sb.from("profiles").select("business_status,business_note,business_no").eq("id", me.id).maybeSingle();
+  let { data, error } = await sb.from("profiles").select("business_status,business_note,business_no,business_phone").eq("id", me.id).maybeSingle();
   if (error) ({ data } = await sb.from("profiles").select("business_status,business_note").eq("id", me.id).maybeSingle());   // 033 SQL 이 아직 없어도 상태는 보이게
   if (!data) { $("b-msg").hidden = false; $("b-msg").textContent = "정보를 불러오지 못했어요."; return; }
   return data;
@@ -36,19 +41,31 @@ function show(p) {
   }[st] || ["", ""];
   box.innerHTML = `<div class="biz-head">${map[0]}</div><p>${map[1]}</p>${st === "rejected" || st === "pending" ? note : ""}`;
   form.hidden = !(st === "none" || st === "pending");
+  const pf = $("b-phone-form"); pf.hidden = st !== "approved";                   // 인증된 회원: 대표자 핸드폰번호 추가·변경
+  if (st === "approved") { $("b-phone-label").textContent = p.business_phone ? `대표자 핸드폰번호 변경 (현재 ${maskPhone(p.business_phone)})` : "대표자 핸드폰번호 추가 (아직 등록되지 않았어요)"; $("b-phone-btn").textContent = p.business_phone ? "핸드폰번호 변경" : "핸드폰번호 저장"; }
 }
 $("b-form").onsubmit = async e => {
   e.preventDefault();
-  const err = $("b-err"), btn = $("b-btn"), no = $("b-no").value, ceo = $("b-ceo").value.trim(); err.textContent = "";
+  const err = $("b-err"), btn = $("b-btn"), no = $("b-no").value, ceo = $("b-ceo").value.trim(), phone = cleanPhone($("b-phone").value); err.textContent = "";
   if (!validBizNo(no)) return err.textContent = ERR.bad_biz_no;
   if (ceo.length < 2 || ceo.length > 20 || !/^[가-힣a-zA-Z][가-힣a-zA-Z ·.]*$/.test(ceo)) return err.textContent = ERR.bad_ceo;
+  if (!phone) return err.textContent = ERR.bad_phone;
   if (!$("b-consent").checked) return err.textContent = "개인정보 수집·이용에 동의해 주세요.";
   btn.disabled = true;
-  const { data, error } = await sb.rpc("submit_business", { p_no: no, p_ceo: ceo });
+  const { data, error } = await sb.rpc("submit_business", { p_no: no, p_ceo: ceo, p_phone: phone });
   btn.disabled = false;
-  if (error || !data) { err.textContent = /function|schema cache/i.test(error && error.message || "") ? "인증 기능이 아직 준비되지 않았어요. 운영자에게 알려 주세요. (033 SQL)" : "처리하지 못했어요. 잠시 후 다시 시도해 주세요."; return; }
+  if (error || !data) { err.textContent = /function|schema cache/i.test(error && error.message || "") ? "인증 기능이 아직 준비되지 않았어요. 운영자에게 알려 주세요. (033·034 SQL)" : "처리하지 못했어요. 잠시 후 다시 시도해 주세요."; return; }
   if (data.error) { err.textContent = ERR[data.error] || "처리하지 못했어요."; return; }
   const p = await load(); if (p) show(p); $("b-form").reset();
+};
+
+$("b-phone-form").onsubmit = async e => {                                      // 이미 인증된 회원이 핸드폰번호만 추가·변경
+  e.preventDefault(); const err = $("b-phone-err"), btn = $("b-phone-btn"), ph = cleanPhone($("b-phone2").value); err.textContent = "";
+  if (!ph) return err.textContent = ERR.bad_phone;
+  btn.disabled = true; const { data, error } = await sb.rpc("update_business_phone", { p_phone: ph }); btn.disabled = false;
+  if (error || !data) { err.textContent = /function|schema cache/i.test(error && error.message || "") ? "이 기능이 아직 준비되지 않았어요. 운영자에게 알려 주세요. (034 SQL)" : "처리하지 못했어요. 잠시 후 다시 시도해 주세요."; return; }
+  if (data.error) { err.textContent = ERR[data.error] || "처리하지 못했어요."; return; }
+  err.style.color = "#0c8f66"; err.textContent = "대표자 핸드폰번호를 저장했어요."; $("b-phone-form").reset(); const p = await load(); if (p) show(p);
 };
 
 (async () => {

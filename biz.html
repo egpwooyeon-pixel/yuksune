@@ -18,14 +18,23 @@
   <section class="panel biz" id="biz" hidden>
     <div class="biz-state" id="b-state"></div>
 
+    <form class="reg" id="b-phone-form" hidden>
+      <label><span id="b-phone-label">대표자 핸드폰번호</span>
+        <input id="b-phone2" type="tel" inputmode="tel" maxlength="13" placeholder="010-0000-0000" autocomplete="tel" required></label>
+      <p class="msg" id="b-phone-err" role="alert"></p>
+      <button class="btn-primary submit" id="b-phone-btn" type="submit">핸드폰번호 저장</button>
+    </form>
+
     <form class="reg" id="b-form" hidden>
-      <p class="muted small">체험단을 등록하려면 <b>사업자등록번호와 대표자 이름</b>만 입력해 주세요. 사업자등록증은 필요 없고, 입력하면 <b>바로</b> 광고주로 이용할 수 있어요.</p>
+      <p class="muted small">체험단을 등록하려면 <b>사업자등록번호, 대표자 이름, 대표자 핸드폰번호</b>만 입력해 주세요. 사업자등록증은 필요 없고, 입력하면 <b>바로</b> 광고주로 이용할 수 있어요.</p>
       <label>사업자등록번호 <small>(10자리, 하이픈은 있어도 없어도 돼요)</small>
         <input id="b-no" inputmode="numeric" maxlength="12" placeholder="000-00-00000" autocomplete="off" required></label>
       <label>대표자 이름
         <input id="b-ceo" maxlength="20" placeholder="사업자등록증에 적힌 대표자 이름" autocomplete="off" required></label>
+      <label>대표자 핸드폰번호
+        <input id="b-phone" type="tel" inputmode="tel" maxlength="13" placeholder="010-0000-0000" autocomplete="tel" required></label>
       <label class="check"><input type="checkbox" id="b-consent" required>
-        <span><b>개인정보 수집·이용에 동의합니다.</b><br><small>수집 항목: 사업자등록번호, 대표자 이름 / 이용 목적: 광고주 확인, 체험단 등록 권한 부여 / <a href="privacy.html" target="_blank" rel="noopener">처리방침 보기</a></small></span></label>
+        <span><b>개인정보 수집·이용에 동의합니다.</b><br><small>수집 항목: 사업자등록번호, 대표자 이름, 대표자 핸드폰번호 / 이용 목적: 광고주 확인, 체험단 등록 권한 부여 / <a href="privacy.html" target="_blank" rel="noopener">처리방침 보기</a></small></span></label>
       <p class="msg" id="b-err" role="alert"></p>
       <button class="btn-primary submit" id="b-btn" type="submit">광고주 인증하기</button>
     </form>
