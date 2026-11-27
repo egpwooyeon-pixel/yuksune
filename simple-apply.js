@@ -77,10 +77,8 @@
         ${chan === "naver_blog" && camp.type === "블로그" ? `<fieldset class="ox"><legend>네이버 인플루언서 여부</legend><label><input type="radio" name="influencer" value="true"> O</label><label><input type="radio" name="influencer" value="false"> X</label></fieldset>
           <fieldset class="ox"><legend>클립 진행 가능 여부</legend><label><input type="radio" name="clip" value="true"> O</label><label><input type="radio" name="clip" value="false"> X</label></fieldset>` : ""}
         ${chan === "instagram" ? `<label>팔로워 수 <small>(숫자만${row && row.followers != null ? " · 등록된 값이에요" : ""})</small><input name="followers" type="number" min="0" max="1000000000" inputmode="numeric" value="${row && row.followers != null ? row.followers : ""}"></label>` : ""}
-        ${visit ? `<label>방문 희망 날짜 <small>${camp.vstart && camp.vend ? `(${esc(camp.vstart)} ~ ${esc(camp.vend)})` : ""}</small><input name="vdate" type="date"></label>
-          <label>방문 희망 시간 ${times.length ? `<select name="vtime"><option value="">선택</option>${times.map(t => `<option>${esc(t)}</option>`).join("")}</select>` : `<input name="vtime" type="time">`}</label>
-          <label>방문 인원 <small>(최대 ${maxP}명)</small><select name="party">${Array.from({ length: maxP }, (_, i) => `<option value="${i + 1}">${i + 1}명</option>`).join("")}</select></label>` : ""}
         <div class="sa-sec"><b style="font-size:13px">필수 동의</b>
+          <label class="check"><input type="checkbox" id="sa-all"><span><b>전체 동의</b></span></label>
           <label class="check"><input type="checkbox" name="consent"><span><b>개인정보 수집·이용에 동의합니다.</b> <a href="privacy.html" target="_blank" rel="noopener">자세히 보기</a><br><small>수집 항목: 이름(닉네임), 휴대폰번호, SNS 주소 · 선정 안내와 체험단 운영 목적으로 사용해요.</small></span></label>
           <label class="check"><input type="checkbox" name="reuse"><span><b>${months > 0 ? `후기를 광고주가 ${months}개월까지 2차 활용하는 것에 동의합니다.` : "후기 2차 활용은 없다는 점을 확인했습니다."}</b></span></label>
           ${camp.mission ? `<label class="check"><input type="checkbox" name="mission"><span><b>캠페인 미션에 동의합니다.</b><br><small>${esc(camp.mission)}</small></span></label>` : ""}
@@ -108,12 +106,9 @@
       const { data: r } = await sb.from("member_sns").select("platform,url,followers,verified").eq("user_id", user.id); snsRows = {}; (r || []).forEach(x => snsRows[x.platform] = x);
       renderSimple(vals());
     };
-    if (visit) {
-      const today = new Date().toISOString().slice(0, 10);
-      f.vdate.min = camp.vstart && camp.vstart > today ? camp.vstart : today; if (camp.vend) f.vdate.max = camp.vend;
-      const wd = (camp.weekdays || "").split(",").map(s => s.trim()).filter(s => /^[0-6]$/.test(s)).map(Number), WD = ["일", "월", "화", "수", "목", "금", "토"];
-      if (wd.length) f.vdate.addEventListener("change", () => { const ok = !f.vdate.value || wd.includes(new Date(f.vdate.value + "T00:00:00").getDay()); f.vdate.setCustomValidity(ok ? "" : `방문 가능한 요일이 아니에요 (${wd.map(n => WD[n]).join("·")})`); f.vdate.reportValidity(); });
-    }
+    const boxes = ["consent", "reuse", "mission"].filter(n => f[n]).map(n => f[n]);
+    $("sa-all").onchange = e => boxes.forEach(x => { x.checked = e.target.checked; });
+    boxes.forEach(x => x.onchange = () => { $("sa-all").checked = boxes.every(y => y.checked); });
     f.onsubmit = submit;
   }
   async function submit(e) {
@@ -127,7 +122,6 @@
     if (camp.mission) { if (!f.mission.checked) return fail(ERR.mission_required); a.mission = "true"; }
     if (f.influencer) { if (!f.influencer.value || !f.clip.value) return fail(ERR.blog_answers_required); a.influencer = f.influencer.value; a.clip = f.clip.value; }
     if (f.followers) { if (f.followers.value === "") return fail(ERR.followers_required); a.followers = f.followers.value; }
-    if (f.vdate) { if (!f.vdate.value || !f.vtime.value) return fail(ERR.visit_required); if (!f.vdate.checkValidity()) return fail(f.vdate.validationMessage); a.visit_date = f.vdate.value; a.visit_time = f.vtime.value; a.party = f.party.value; }
     busy = true; b.disabled = true; b.textContent = "접수 중…";
     const { data, error } = await sb.rpc("apply_simple", { p_campaign: id, p_channel: chan, p_phone: d, p_answers: a });
     busy = false;

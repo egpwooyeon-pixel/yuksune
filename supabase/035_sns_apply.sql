@@ -141,19 +141,7 @@ begin
     end if;
   end if;
 
-  if c.mode = '방문형' then
-    if coalesce(a->>'visit_date', '') !~ '^\d{4}-\d{2}-\d{2}$' then return jsonb_build_object('error', 'visit_required'); end if;
-    begin vd := (a->>'visit_date')::date; exception when others then return jsonb_build_object('error', 'visit_required'); end;
-    if vd < today or (c.visit_start is not null and vd < c.visit_start) or (c.visit_end is not null and vd > c.visit_end) then
-      return jsonb_build_object('error', 'visit_out_of_range');
-    end if;
-    vt := nullif(btrim(coalesce(a->>'visit_time', '')), '');
-    if vt is null or char_length(vt) > 40 then return jsonb_build_object('error', 'visit_required'); end if;
-    times := nullif(btrim(coalesce(to_jsonb(c)->>'visit_times', '')), '');
-    if times is not null and not (vt = any(string_to_array(replace(times, ' ', ''), ','))) then return jsonb_build_object('error', 'visit_time_invalid'); end if;
-    if coalesce(a->>'party', '') !~ '^\d{1,2}$' then party := 1; else party := (a->>'party')::int; end if;
-    if party < 1 or party > c.max_party then return jsonb_build_object('error', 'party_invalid'); end if;
-  end if;
+  -- 방문 날짜·시간·인원은 간편 신청에서 받지 않음 (방문 일정은 선정 후 광고주와 조율)
 
   select coalesce(nullif(btrim(nickname), ''), '회원') into nick from public.profiles where id = uid;
   if not found then return jsonb_build_object('error', 'no_profile'); end if;
