@@ -16,15 +16,16 @@ const MODEL_OK = {
   draft: '강남에서 찾은 한식당 후기입니다. 분위기도 좋고 친절했어요. 갈비탕이 특히 진하고 양도 많았습니다.',
 };
 
-// actor: 'admin' (기본) | 'approved' (사업자 인증 승인 회원) | 'member' (미인증 회원) | 'none' (비로그인)
-const ACTORS = { admin: { id: 'admin-1', isAdmin: true, approved: false }, approved: { id: 'member-1', isAdmin: false, approved: true }, member: { id: 'member-2', isAdmin: false, approved: false } };
+// actor: 'admin' (기본) | 'approved' (= 승인된 인플루언서, 사진만 방식) | 'member' (미인증 회원) | 'none' (비로그인)
+const ACTORS = { admin: { id: 'admin-1', isAdmin: true, isInfluencer: false }, approved: { id: 'member-1', isAdmin: false, isInfluencer: true }, member: { id: 'member-2', isAdmin: false, isInfluencer: false }, biz: { id: 'member-3', isAdmin: false, isInfluencer: false } };
 const mkDeps = (o = {}) => {
   const rec = { gemini: [], fetchPhoto: [], insert: [], update: [], get: [], countToday: [] };
   return {
     rec,
     d: {
       actor: async () => (o.actor === 'none' ? null : ACTORS[o.actor || 'admin']),
-      config: () => ({ apiKey: o.noKey ? undefined : 'KEY', models: ['modelA'], dailyLimit: o.dailyLimit || 5 }),
+      config: () => ({ apiKey: o.noKey ? undefined : 'KEY', models: ['modelA'], influencerLimit: o.dailyLimit || 1 }),
+      photoPrefix: id => `https://x.supabase.co/storage/v1/object/public/review-draft-photos/${id}/`,
       gemini: async (body, models, key) => { rec.gemini.push({ body, models, key }); if (o.geminiErr) throw new Error(o.geminiErr); return o.text !== undefined ? o.text : JSON.stringify(o.model || MODEL_OK); },
       fetchPhoto: async url => { rec.fetchPhoto.push(url); if (o.photoFail) return null; return { mimeType: 'image/jpeg', data: 'BASE64' }; },
       countToday: async id => { rec.countToday.push(id); return o.usedToday || 0; },
@@ -103,14 +104,30 @@ await t('generate: admin success stores draft with admin id/model; reviews reach
   const prompt = rec.gemini[0].body.contents[0].parts.map(p => p.text || '').join('\n');
   assert.ok(prompt.includes('지어내지 마세요') && prompt.includes('갈비탕이 진하고') && prompt.includes('캐주얼하게'));
 });
-await t('generate: approved member can generate; stored with their own id', async () => {
-  const { d, rec } = mkDeps({ actor: 'approved' }); const r = await m.handle(post(good()), d);
-  assert.equal(r.status, 200); assert.equal(rec.insert[0].created_by, 'member-1');
+const MP = id => `https://x.supabase.co/storage/v1/object/public/review-draft-photos/${id}/`;
+const pgood = (o = {}) => ({ business: { name: '성수루프', area: '', category: '' }, photoUrls: [MP('member-1') + 'a.jpg', MP('member-1') + 'b.jpg'], ...o });
+await t('influencer (photo-only): name + photos is enough; stored with own id; reviews never required', async () => {
+  const { d, rec } = mkDeps({ actor: 'approved' }); const r = await m.handle(post(pgood()), d);
+  assert.equal(r.status, 200); assert.equal(rec.insert[0].created_by, 'member-1'); assert.deepEqual(rec.insert[0].reviews, []);
+  const prompt = rec.gemini[0].body.contents[0].parts.map(p => p.text || '').join('\n');
+  assert.ok(prompt.includes('성수루프') && prompt.includes('지어내지 마세요') && !prompt.includes('[리뷰 목록]'));
 });
-await t('generate: approved member is rate-limited (admin is not)', async () => {
-  let x = mkDeps({ actor: 'approved', usedToday: 5, dailyLimit: 5 }); let r = await m.handle(post(good()), x.d);
+await t('influencer: no photos -> 400 need_photos; name too short -> 400; Gemini never called', async () => {
+  let x = mkDeps({ actor: 'approved' }); let r = await m.handle(post(pgood({ photoUrls: [] })), x.d); assert.equal(r.status, 400); assert.equal((await r.json()).error, 'need_photos');
+  x = mkDeps({ actor: 'approved' }); r = await m.handle(post(pgood({ business: { name: 'a' } })), x.d); assert.equal(r.status, 400); assert.equal(x.rec.gemini.length, 0);
+});
+await t('influencer: cannot use the review-paste mode (reviews ignored, still needs photos); foreign / other-user photo URLs rejected', async () => {
+  let x = mkDeps({ actor: 'approved' }); let r = await m.handle(post(good()), x.d); assert.equal(r.status, 400);   // 기존 리뷰 방식 요청 → 사진 없음
+  x = mkDeps({ actor: 'approved' }); r = await m.handle(post(pgood({ photoUrls: ['https://evil.example/x.jpg'] })), x.d); assert.equal(r.status, 400); assert.equal((await r.json()).error, 'bad_photo_url'); assert.equal(x.rec.fetchPhoto.length, 0);
+  x = mkDeps({ actor: 'approved' }); r = await m.handle(post(pgood({ photoUrls: [MP('someone-else') + 'a.jpg'] })), x.d); assert.equal(r.status, 400); assert.equal(x.rec.fetchPhoto.length, 0);
+});
+await t('business-verified (non-influencer) member can no longer generate -> 403', async () => {
+  const x = mkDeps({ actor: 'biz' }); const r = await m.handle(post(pgood({ photoUrls: [MP('member-3') + 'a.jpg'] })), x.d); assert.equal(r.status, 403); assert.equal(x.rec.gemini.length, 0);
+});
+await t('influencer: 1 per day (limit reached -> 429, admin unlimited)', async () => {
+  let x = mkDeps({ actor: 'approved', usedToday: 1 }); let r = await m.handle(post(pgood()), x.d);
   assert.equal(r.status, 429); assert.equal((await r.json()).error, 'daily_limit'); assert.equal(x.rec.gemini.length, 0); assert.equal(x.rec.countToday[0], 'member-1');
-  x = mkDeps({ actor: 'approved', usedToday: 4, dailyLimit: 5 }); assert.equal((await m.handle(post(good()), x.d)).status, 200);
+  x = mkDeps({ actor: 'approved', usedToday: 0 }); assert.equal((await m.handle(post(pgood()), x.d)).status, 200);
   x = mkDeps({ actor: 'admin', usedToday: 999, dailyLimit: 5 }); r = await m.handle(post(good()), x.d);
   assert.equal(r.status, 200); assert.equal(x.rec.countToday.length, 0, 'admin is never rate-limited / checked');
 });

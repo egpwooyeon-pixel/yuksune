@@ -36,7 +36,7 @@ const BAD_BYTES = Buffer.from('this is not an image file at all');
           }) },
           from: t => t === 'review_drafts'
             ? { select: () => ({ eq: (c, id) => ({ order: () => ({ limit: async () => ({ data: rows.filter(r => r.created_by === undefined || true), error: null }) }) }) }) }
-            : { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { role: o.role || 'member', business_status: o.businessStatus || 'none' }, error: null }) }) }) },
+            : { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { role: o.role || 'member', community: o.community || null }, error: null }) }) }) },
         }) };
       }, { o, ROWS, NEW_DRAFT });
     }
@@ -48,12 +48,13 @@ const BAD_BYTES = Buffer.from('this is not an image file at all');
   ok('no supabase key -> connection message', (await p.textContent('#rv-msg')).includes('서버 연결 키'));
   p = await open({ loggedOut: true });
   ok('logged-out redirects to login with next', p.url().includes('login.html') && p.url().includes('next=review-draft.html'));
-  p = await open({ role: 'member', businessStatus: 'pending' });
-  ok('unapproved member blocked, form hidden, cta to biz.html shown', !(await p.isVisible('#rv-form-box')) && (await p.textContent('#rv-msg')).includes('사업자 인증이 승인된') && (await p.getAttribute('a[href="biz.html"]', 'href')) === 'biz.html');
+  p = await open({ role: 'member' });
+  ok('non-influencer member blocked, form hidden, cta to influencer board shown', !(await p.isVisible('#rv-form-box')) && (await p.textContent('#rv-msg')).includes('인플루언서 승인') && (await p.getAttribute('#rv-msg a', 'href')) === 'board.html?b=influencer');
+  ok('menu link hidden for non-influencer', !(await p.isVisible('#gnb-rd')));
 
   // ---------- 승인 회원: 목록·사진·해시태그 렌더 ----------
-  p = await open({ role: 'member', businessStatus: 'approved' });
-  ok('approved member sees the form and list', await p.isVisible('#rv-form-box') && await p.isVisible('#rv-list-box'));
+  p = await open({ role: 'admin' });
+  ok('admin sees the form and list (review-paste mode)', await p.isVisible('#rv-form-box') && await p.isVisible('#rv-list-box'));
   ok('existing draft rendered with business name, title, hashtags, photo', (await p.textContent('.rvp-card')).includes('내식당') && (await p.textContent('.rvp-card')).includes('강남 한식 맛집') && (await p.textContent('.rvp-card')).includes('#강남맛집') && (await p.$$('.rvp-card img')).length === 1);
   await p.click('.rvp-card button');
   await p.waitForTimeout(100);
@@ -82,33 +83,47 @@ const BAD_BYTES = Buffer.from('this is not an image file at all');
   ok('photo preview cleared after successful submit', (await p.$$('#rv-photo-list li')).length === 0);
 
   // ---------- 사진 최대 개수(15장) ----------
-  p = await open({ role: 'member', businessStatus: 'approved' });
+  p = await open({ role: 'admin' });
   await p.setInputFiles('#rv-photo-file', Array.from({ length: 16 }, (_, i) => ({ name: `p${i}.jpg`, mimeType: 'image/jpeg', buffer: JPEG_BYTES })));
   await p.waitForTimeout(100);
   ok('max 15 photos enforced with a note', (await p.$$('#rv-photo-list li')).length === 15 && (await p.textContent('#rv-form-msg')).includes('최대 15장'));
 
   // ---------- 입력 검증 ----------
-  p = await open({ role: 'member', businessStatus: 'approved' });
+  p = await open({ role: 'admin' });
   await p.click('#rv-go'); await p.waitForTimeout(100);
   ok('empty name -> client-side validation message, no call made', (await p.textContent('#rv-form-msg')).includes('상호명') && (await p.evaluate(() => (window.__fn || []).length)) === 0);
 
   // ---------- 서버 오류: 일일 한도 ----------
-  p = await open({ role: 'member', businessStatus: 'approved', fnError: 'daily_limit' });
+  p = await open({ role: 'admin', fnError: 'daily_limit' });
   await p.fill('#rv-name', '새가게'); await p.fill('#rv-reviews', '리뷰 하나입니다');
   await p.click('#rv-go'); await p.waitForTimeout(400);
   ok('daily_limit error -> readable message', (await p.textContent('#rv-form-msg')).includes('오늘 만들 수 있는'));
 
   // ---------- 운영자도 사용 가능 ----------
   p = await open({ role: 'admin', businessStatus: 'none' });
-  ok('admin (not approved advertiser) still sees the form', await p.isVisible('#rv-form-box'));
+  ok('admin still sees the form', await p.isVisible('#rv-form-box'));
+
+  // ---------- 인플루언서: 사진 + 상호명만 ----------
+  p = await open({ role: 'member', community: 'influencer' });
+  ok('influencer sees form; reviews box hidden; menu link visible; title says photos-only', await p.isVisible('#rv-form-box') && !(await p.isVisible('#rv-reviews')) && await p.isVisible('#gnb-rd') && (await p.textContent('h1')).includes('사진만 넣으면'));
+  await p.fill('#rv-name', '성수루프'); await p.click('#rv-go'); await p.waitForTimeout(150);
+  ok('influencer: no photo -> message, no call', (await p.textContent('#rv-form-msg')).includes('사진을 1장') && (await p.evaluate(() => (window.__fn || []).length)) === 0);
+  await p.setInputFiles('#rv-photo-file', [{ name: 'c.png', mimeType: 'image/png', buffer: PNG_BYTES }]); await p.waitForTimeout(100);
+  await p.click('#rv-go'); await p.waitForTimeout(500);
+  const ib = (await p.evaluate(() => window.__fn))[0].body;
+  ok('influencer: sends photo mode, no reviews, own-folder photo url', ib.business.mode === 'photo' && ib.business.name === '성수루프' && ib.reviews.length === 0 && ib.photoUrls[0].startsWith('https://cdn.example.com/u1/'));
+  p = await open({ role: 'member', community: 'influencer', fnError: 'daily_limit' });
+  await p.fill('#rv-name', '성수루프'); await p.setInputFiles('#rv-photo-file', [{ name: 'c.png', mimeType: 'image/png', buffer: PNG_BYTES }]); await p.waitForTimeout(100);
+  await p.click('#rv-go'); await p.waitForTimeout(400);
+  ok('influencer daily_limit message mentions 1 per day', (await p.textContent('#rv-form-msg')).includes('하루 1건'));
 
   // ---------- 모바일·메뉴 ----------
-  const m = await open({ role: 'member', businessStatus: 'approved' }, 390);
+  const m = await open({ role: 'admin' }, 390);
   ok('mobile no xscroll', !(await m.evaluate(() => document.documentElement.scrollWidth > innerWidth)));
   await m.screenshot({ path: OUT + '/review-draft-member-m.png', fullPage: true });
-  const d = await open({ role: 'member', businessStatus: 'approved' });
+  const d = await open({ role: 'admin' });
   await d.screenshot({ path: OUT + '/review-draft-member-d.png', fullPage: true });
-  ok('nav includes AI 리뷰 원고 link, highlighted active on this page', (await d.$$('.gnb a[href="review-draft.html"]')).length === 1 && (await d.$eval('.gnb a[href="review-draft.html"]', el => el.classList.contains('on'))));
+  ok('nav includes AI 리뷰 원고 link (admin), highlighted active on this page', (await d.$$('.gnb a[href="review-draft.html"]')).length === 1 && (await d.$eval('.gnb a[href="review-draft.html"]', el => el.classList.contains('on'))));
   console.log('page errors:', errs.filter(x => !/supabase|Cannot read|reading/i.test(x)));
   await b.close();
 })();

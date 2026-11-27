@@ -6,10 +6,11 @@
 //
 // 누가 쓸 수 있나 (rank.html "내 플레이스 순위확인하기" 와 같은 등급 구조)
 //  · 운영자(profiles.role = 'admin'): 전부 가능. 일일 한도 없음. 수정 저장(action:"save")도 운영자만.
-//  · 사업자 인증 승인 회원(profiles.business_status = 'approved'): 원고 생성(action 없음/"generate")만 가능,
-//    하루 REVIEW_DRAFT_DAILY_LIMIT(기본 5)건까지. 수정 저장은 못 함 — 생성된 원고를 그대로 복사해서 쓰는
-//    용도예요.
-//  · 그 외(비로그인·미인증 회원): 403.
+//  · 인플루언서(profiles.community = 'influencer', 운영자가 승인한 인플루언서 커뮤니티 회원): "사진만 넣으면 원고"
+//    (mode:"photo") 생성만 가능, 하루 INFLUENCER_DRAFT_DAILY_LIMIT(기본 1)건. 한국 시간 자정에 초기화.
+//    상호명 필수, 사진 1~15장 필수(자기 폴더에 올린 사진만), 리뷰 텍스트는 받지 않아요. 수정 저장은 못 함.
+//  · 사업자 인증 회원은 더 이상 쓸 수 없어요(인플루언서 전용으로 전환).
+//  · 그 외(비로그인·미승인 회원): 403.
 //  · 조회(review_drafts 읽기)는 이 함수가 아니라 DB RLS(028_review_drafts_member.sql)가 처리해요 —
 //    운영자는 전체, 회원은 자기가 만든 것만.
 //
@@ -19,7 +20,7 @@
 //    과장·금지어 자동 차단은 하지 않아요 — 손님 후기 기반 홍보 원고는 의료광고 같은 규제 대상이 아니라서,
 //    최종 문구 확인은 사람 눈으로 합니다(회원이 직접 쓰는 경우엔 본인이, 운영자 화면에서는 운영자가).
 //  · 비밀값: GEMINI_API_KEY (aeo-draft 와 같은 키를 씁니다). 선택: GEMINI_MODEL(쉼표로 여러 개 가능, 기본
-//    gemini-3.8-flash), REVIEW_DRAFT_DAILY_LIMIT(회원 1인당 하루 생성 한도, 기본 5 — 공유 Gemini 무료
+//    gemini-3.8-flash), INFLUENCER_DRAFT_DAILY_LIMIT(인플루언서 1인당 하루 생성 한도, 기본 1 — 공유 Gemini 무료
 //    티어 한도를 회원 여러 명이 동시에 쓰면 금방 소진되는 걸 막기 위함)
 //  · "승인"(운영자 화면의 검수 완료)은 발행이 아니라 검수 기록이에요 — 이 서비스는 발행 파이프라인이 없고,
 //    원고를 복사해서 네이버 블로그 등에 직접 올리는 걸 전제로 합니다.
@@ -41,16 +42,18 @@ export function parseInput(b) {
   const bi = (b && b.business) || {};
   const business = { name: clean(bi.name, 60), area: clean(bi.area, 40), category: clean(bi.category, 40), signatureMenu: clean(bi.signatureMenu, 120) };
   if (business.name.length < 2) return { error: "bad_name" };
-  const reviews = (Array.isArray(b && b.reviews) ? b.reviews : []).map(x => clean(x, 500)).filter(Boolean).slice(0, MAX_REVIEWS);
-  if (reviews.length < 1) return { error: "need_reviews" };          // 리뷰가 없으면 AI 가 지어내므로 최소 1개 필요(권장은 여러 건)
+  const photoOnly = !!(bi && bi.mode === "photo");                      // 인플루언서: 사진 + 상호명만으로 작성
+  const reviews = photoOnly ? [] : (Array.isArray(b && b.reviews) ? b.reviews : []).map(x => clean(x, 500)).filter(Boolean).slice(0, MAX_REVIEWS);
+  if (!photoOnly && reviews.length < 1) return { error: "need_reviews" };          // 리뷰가 없으면 AI 가 지어내므로 최소 1개 필요(권장은 여러 건)
   const photoUrls = [];
   for (const u of (Array.isArray(b && b.photoUrls) ? b.photoUrls : []).slice(0, MAX_PHOTOS)) {
     const url = safeUrl(u);
     if (u && !url) return { error: "bad_photo_url" };
     if (url) photoUrls.push(url);
   }
+  if (photoOnly && photoUrls.length < 1) return { error: "need_photos" };
   const customInstructions = clean(b && b.customInstructions, 500);
-  return { business, reviews, photoUrls, customInstructions };
+  return { business, reviews, photoUrls, customInstructions, photoOnly };
 }
 
 // ---------- 프롬프트 ----------
@@ -60,12 +63,16 @@ export function buildParts(input) {
   const b = input.business;
   const hasPhotos = input.photoUrls.length > 0;
   const reviewBlock = input.reviews.map((r, i) => `${i + 1}. ${r}`).join("\n");
-  const parts = [{
+  const extra = `${b.signatureMenu ? `\n[참고: 알려준 시그니처 메뉴] ${b.signatureMenu}\n` : ""}${input.customInstructions ? `\n[요청사항 — 반드시 반영할 것] ${input.customInstructions}\n` : ""}`;
+  const parts = [input.photoOnly ? {
+    text: `당신은 실제 방문 경험을 바탕으로 자연스러운 블로그 후기를 쓰는 한국어 블로거입니다. 방문한 곳은 "${b.name}"${b.area || b.category ? `(${[b.area, b.category].filter(Boolean).join(", ")})` : ""}이고, 방문자가 직접 찍은 사진이 첨부되어 있습니다. 사진에 실제로 보이는 것과 아래에 적힌 정보만 근거로 쓰세요 — 사진과 정보에 없는 내용(가격, 맛 평가의 구체적 수치, 효능, 순위, 영업시간 등)을 지어내지 마세요. 맛이나 분위기는 사진에서 짐작되는 범위에서만, 단정하지 말고 담백하게 표현하세요.
+${extra}`,
+  } : {
     text: `당신은 실제 방문 경험을 바탕으로 자연스러운 블로그 후기를 쓰는 한국어 블로거입니다. 아래는 "${b.name}"(${b.area}, ${b.category})에 실제로 달린 리뷰 ${input.reviews.length}건입니다. 이 리뷰들에 공통적으로 나타나는 표현과 평가만 근거로 사용하세요 — 리뷰에 없는 내용(가격, 효능, 순위 등)을 지어내지 마세요.
 
 [리뷰 목록]
 ${reviewBlock}
-${b.signatureMenu ? `\n[참고: 알려준 시그니처 메뉴] ${b.signatureMenu}\n` : ""}${input.customInstructions ? `\n[운영자의 추가 요청사항 — 반드시 반영할 것] ${input.customInstructions}\n` : ""}`,
+${extra.replace("[요청사항 —", "[운영자의 추가 요청사항 —")}`,
   }];
   return { parts, hasPhotos };
 }
@@ -162,7 +169,7 @@ export async function handle(req, deps) {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
   const actor = await deps.actor(req.headers.get("authorization") || "");
-  if (!actor || !(actor.isAdmin || actor.approved)) return json({ error: actor ? "not_approved" : "forbidden" }, 403);
+  if (!actor || !(actor.isAdmin || actor.isInfluencer)) return json({ error: actor ? "not_approved" : "forbidden" }, 403);   // 운영자 또는 승인된 인플루언서만
   const body = await req.json().catch(() => ({}));
   if (body && body.action === "save") {
     if (!actor.isAdmin) return json({ error: "forbidden" }, 403);        // 수정 저장은 운영자만
@@ -172,13 +179,17 @@ export async function handle(req, deps) {
 }
 
 async function generate(body, actor, deps) {
+  if (!actor.isAdmin) body = { ...body, business: { ...((body && body.business) || {}), mode: "photo" } };   // 인플루언서는 항상 '사진만' 방식
   const input = parseInput(body);
   if (input.error) return json({ error: input.error }, 400);
-  const { apiKey, models, dailyLimit } = deps.config();
+  const { apiKey, models, influencerLimit } = deps.config();
   if (!apiKey) return json({ error: "not_configured" }, 503);
   if (!actor.isAdmin) {
+    // 서버가 가져오는 사진은 '본인 폴더에 올린 사진'만 (임의 주소를 서버가 열어 보지 않도록)
+    const prefix = deps.photoPrefix(actor.id);
+    if (!input.photoUrls.every(u => u.startsWith(prefix))) return json({ error: "bad_photo_url" }, 400);
     const used = await deps.countToday(actor.id);
-    if (used >= dailyLimit) return json({ error: "daily_limit", limit: dailyLimit }, 429);
+    if (used >= influencerLimit) return json({ error: "daily_limit", limit: influencerLimit }, 429);
   }
 
   const photoDatas = await Promise.all(input.photoUrls.map(u => deps.fetchPhoto(u).catch(() => null)));
@@ -227,8 +238,9 @@ function realDeps() {
     config: () => ({
       apiKey: env("GEMINI_API_KEY"),
       models: String(env("GEMINI_MODEL") || "gemini-3.8-flash").split(",").map(x => x.trim()).filter(Boolean),
-      dailyLimit: Math.max(1, parseInt(env("REVIEW_DRAFT_DAILY_LIMIT"), 10) || 5),
+      influencerLimit: Math.max(1, parseInt(env("INFLUENCER_DRAFT_DAILY_LIMIT"), 10) || 1),   // 인플루언서 1인당 하루 한도(기본 1건)
     }),
+    photoPrefix: id => `${URL_}/storage/v1/object/public/review-draft-photos/${id}/`,
     gemini: (body, models, key) => callGemini(body, models, key),
     fetchPhoto: url => fetchPhoto(url),
     async actor(authHeader) {                                          // 로그인한 사람의 role·사업자 인증 상태 확인 (읽기만 함)
@@ -236,14 +248,14 @@ function realDeps() {
       const u = await fetch(`${URL_}/auth/v1/user`, { headers: { apikey: KEY, authorization: authHeader } });
       if (!u.ok) { console.error("review-draft actor: /auth/v1/user rejected the token", u.status, await u.text().catch(() => "")); return null; }
       const { id } = await u.json();
-      const p = await fetch(`${URL_}/rest/v1/profiles?id=eq.${encodeURIComponent(id)}&select=role,business_status`, { headers: { apikey: KEY, authorization: authHeader } });
+      const p = await fetch(`${URL_}/rest/v1/profiles?id=eq.${encodeURIComponent(id)}&select=role,community`, { headers: { apikey: KEY, authorization: authHeader } });
       const rows = p.ok ? await p.json() : [];
       const row = rows[0];
       if (!row) { console.error("review-draft actor: no profiles row for authenticated user", id, "rest status", p.status); return null; }
-      return { id, isAdmin: row.role === "admin", approved: row.business_status === "approved" };
+      return { id, isAdmin: row.role === "admin", isInfluencer: row.community === "influencer" };
     },
-    async countToday(ownerId) {                                        // 오늘(UTC 자정 기준) 그 회원이 만든 원고 수
-      const since = new Date(); since.setUTCHours(0, 0, 0, 0);
+    async countToday(ownerId) {                                        // 오늘(한국 시간 자정 기준) 그 회원이 만든 원고 수
+      const k = new Date(Date.now() + 9 * 3600e3); k.setUTCHours(0, 0, 0, 0); const since = new Date(k.getTime() - 9 * 3600e3);
       const r = await fetch(`${URL_}/rest/v1/review_drafts?select=id&created_by=eq.${encodeURIComponent(ownerId)}&created_at=gte.${since.toISOString()}`, { headers: { ...h, prefer: "count=exact", range: "0-0" } });
       const range = r.headers.get("content-range") || "";             // 형식: "0-0/7"
       const m = /\/(\d+)$/.exec(range);

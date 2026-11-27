@@ -12,8 +12,8 @@
 <div id="header-slot"></div>
 
 <main class="wrap camp">
-  <div class="camp-head"><h1>AI 리뷰 원고</h1><a class="muted" href="my.html">← 내 체험단 관리</a></div>
-  <p class="muted small">내 매장 리뷰를 붙여넣으면 AI(Gemini)가 블로그 홍보 원고를 써줘요. 사업자 인증이 승인된 회원만 쓸 수 있고, 하루에 만들 수 있는 개수에 한도가 있어요. <b>리뷰는 직접 모아서 붙여넣어야 해요</b> — 네이버 플레이스·스마트스토어·구글 리뷰를 모으는 별도 도구(크롬 확장프로그램)로 모은 뒤, 그 결과(CSV)에서 옮겨 붙이는 방식이에요. 사진은 파일로 바로 올리면 돼요.</p>
+  <div class="camp-head"><h1>AI 리뷰 원고 <small class="rv-sub">사진만 넣으면 원고가 써져요</small></h1><a class="muted" href="mypage.html">← 마이페이지</a></div>
+  <p class="muted small" id="rv-intro">다녀온 곳의 <b>사진을 올리고 상호명만 적으면</b> AI가 블로그 후기 원고를 써 줘요. 사진에 보이는 내용만 바탕으로 쓰고, 최종 내용은 직접 확인해서 올려 주세요. <b>인플루언서 승인을 받은 회원</b>만 쓸 수 있고, 하루 1건까지 만들 수 있어요.</p>
   <p class="empty" id="rv-msg" hidden></p>
 
   <section id="rv-form-box" class="panel" hidden>
@@ -26,7 +26,7 @@
         <label>업종/카테고리 <input id="rv-cat" maxlength="40" placeholder="예) 한정식, 고깃집" autocomplete="off"></label>
         <label>시그니처 메뉴 <small class="muted">(쉼표로 구분, 선택)</small> <input id="rv-sig" maxlength="120" placeholder="예) 갈비코스, 육회비빔밥" autocomplete="off"></label>
         <label>원고 요청사항 <small class="muted">(선택)</small> <input id="rv-instr" maxlength="200" placeholder="예: 캐주얼하게 써줘 / 가격 얘기는 빼줘"></label>
-        <label>리뷰 * <small class="muted">(한 줄에 하나씩, 여러 건 권장)</small> <textarea id="rv-reviews" rows="8" placeholder="분위기도 좋고 친절하시고 메뉴 설명도 잘해주셨어요&#10;갈비탕이 진하고 양도 많아서 만족했습니다"></textarea></label>
+        <label id="rv-reviews-row">리뷰 * <small class="muted">(한 줄에 하나씩, 여러 건 권장)</small> <textarea id="rv-reviews" rows="8" placeholder="분위기도 좋고 친절하시고 메뉴 설명도 잘해주셨어요&#10;갈비탕이 진하고 양도 많아서 만족했습니다"></textarea></label>
         <div class="rv-photo-f">
           <label for="rv-photo-file">사진 <small class="muted">(선택, 최대 15장, 장당 8MB, JPG·PNG·WebP)</small></label>
           <input type="file" id="rv-photo-file" accept="image/jpeg,image/png,image/webp" multiple>

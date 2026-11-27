@@ -1,5 +1,5 @@
-// AI 리뷰 원고 (회원용): 사업자 인증이 승인된 회원이 자기 매장 리뷰로 블로그 원고를 만듭니다 (본인 것만 보임).
-// rank.js(내 플레이스 순위확인하기)와 같은 등급 구조(사업자 인증 승인 또는 운영자만) — window.sb/sbReady 는
+// AI 리뷰 원고 (인플루언서용): 운영자가 승인한 인플루언서 회원이 '사진 + 상호명'만으로 블로그 원고를 만듭니다 (본인 것만 보임).
+// 운영자는 기존 방식(리뷰 붙여넣기)도 쓸 수 있어요. window.sb/sbReady 는
 // auth.js 가 만들어둔 걸 그대로 씁니다. 원고 생성·일일 한도는 Edge Function review-draft 가 처리해요.
 const $ = id => document.getElementById(id);
 const msg = t => { $("rv-msg").hidden = !t; $("rv-msg").textContent = t || ""; };
@@ -8,10 +8,10 @@ const formMsg = (t, ok) => { const el = $("rv-form-msg"); el.hidden = !t; el.tex
 const fmt = iso => { const d = new Date(iso); return isNaN(d) ? "" : `${d.getMonth() + 1}.${String(d.getDate()).padStart(2, "0")}`; };
 
 const ERR = {
-  forbidden: "로그인이 필요해요.", not_approved: "사업자 인증이 승인된 회원만 쓸 수 있어요.",
+  forbidden: "로그인이 필요해요.", not_approved: "인플루언서 승인을 받은 회원만 쓸 수 있어요.", need_photos: "사진을 1장 이상 올려 주세요.",
   bad_name: "상호명을 2자 이상 입력해 주세요.", need_reviews: "리뷰를 1건 이상 입력해 주세요. (한 줄에 하나씩)",
-  bad_photo_url: "사진 URL은 http(s):// 로 시작해야 해요.", not_configured: "지금은 이용할 수 없어요. 잠시 후 다시 시도해 주세요.",
-  daily_limit: "오늘 만들 수 있는 원고 개수를 다 썼어요. 내일 다시 시도해 주세요.",
+  bad_photo_url: "사진을 다시 올려 주세요. (올린 사진만 사용할 수 있어요)", not_configured: "지금은 이용할 수 없어요. 잠시 후 다시 시도해 주세요.",
+  daily_limit: "오늘 만들 수 있는 원고(하루 1건)를 다 썼어요. 내일 다시 시도해 주세요.",
   auth_failed: "AI 연결에 실패했어요.", rate_limited: "지금 요청이 몰려 있어요. 잠시 후 다시 시도해 주세요.",
   timeout: "AI 응답이 오래 걸려 중단됐어요. 잠시 후 다시 시도해 주세요.", network: "AI에 연결하지 못했어요.",
   api_error: "AI 호출에 실패했어요. (모델 과부하일 수 있어요)", bad_model_output: "AI가 쓴 원고의 형식이 맞지 않아요. 다시 시도해 주세요.",
@@ -31,7 +31,7 @@ const sniffImage = async f => {
   if (asc(0, 4) === "RIFF" && asc(8, 4) === "WEBP") return "image/webp";
   return null;
 };
-let picked = [];
+let picked = [], photoMode = false;
 function drawPhotos() {
   const ul = $("rv-photo-list"); ul.replaceChildren();
   picked.forEach((x, i) => {
@@ -74,7 +74,7 @@ function renderDraft(r) {
   const el = document.createElement("div");
   el.className = "rvp-card";
   el.innerHTML = `<h3>${esc((r.business && r.business.name) || "")}</h3>
-    <div class="muted">${fmt(r.created_at)} · 리뷰 ${(r.reviews || []).length}건 · 사진 ${(r.photo_urls || []).length}장</div>
+    <div class="muted">${fmt(r.created_at)}${(r.reviews || []).length ? ` · 리뷰 ${r.reviews.length}건` : ""} · 사진 ${(r.photo_urls || []).length}장</div>
     ${titles ? `<ul class="rvp-titles">${titles}</ul>` : ""}
     <div class="rvp-body">${esc(a.draft || "")}</div>
     ${hashtags ? `<div class="rvp-tags">${esc(hashtags)}</div>` : ""}
@@ -95,9 +95,9 @@ async function loadList(me) {
   const rows = data || [];
   $("rv-list-empty").hidden = rows.length > 0;
   const now = new Date();
-  const madeToday = rows.filter(r => { const d = new Date(r.created_at); return d.getUTCFullYear() === now.getUTCFullYear() && d.getUTCMonth() === now.getUTCMonth() && d.getUTCDate() === now.getUTCDate(); }).length;
+  const kstDay = t => new Date(new Date(t).getTime() + 9 * 3600e3).toISOString().slice(0, 10), madeToday = rows.filter(r => kstDay(r.created_at) === kstDay(now)).length;   // 한국 시간 기준 오늘
   rows.forEach(r => box.append(renderDraft(r)));
-  $("rv-quota").textContent = `오늘 ${madeToday}개 만들었어요. (하루 한도가 있어요 — 한도에 걸리면 생성 시 안내돼요)`;
+  $("rv-quota").textContent = photoMode ? (madeToday >= 1 ? "오늘 만들 수 있는 1건을 다 썼어요. 내일(한국 시간 0시 이후) 다시 만들 수 있어요." : "오늘 1건 만들 수 있어요.") : `오늘 ${madeToday}개 만들었어요.`;
 }
 
 $("rv-form").addEventListener("submit", async e => {
@@ -107,8 +107,9 @@ $("rv-form").addEventListener("submit", async e => {
   const lines = s => s.split("\n").map(x => x.trim()).filter(Boolean);
   const name = $("rv-name").value.trim();
   if (name.length < 2) return formMsg("상호명을 2자 이상 입력해 주세요.");
-  const reviews = lines($("rv-reviews").value);
-  if (!reviews.length) return formMsg("리뷰를 1건 이상 입력해 주세요. (한 줄에 하나씩)");
+  const reviews = photoMode ? [] : lines($("rv-reviews").value);
+  if (!photoMode && !reviews.length) return formMsg("리뷰를 1건 이상 입력해 주세요. (한 줄에 하나씩)");
+  if (photoMode && !picked.length) return formMsg("사진을 1장 이상 올려 주세요.");
   const me = (await sb.auth.getSession()).data.session.user;
   $("rv-go").disabled = true;
   let photoUrls = [];
@@ -117,7 +118,7 @@ $("rv-form").addEventListener("submit", async e => {
     try { photoUrls = await uploadPhotos(me.id); }
     catch (_) { $("rv-go").disabled = false; return formMsg("사진을 올리지 못했어요. 잠시 후 다시 시도해 주세요."); }
   }
-  const body = { business: { name, area: $("rv-area").value.trim(), category: $("rv-cat").value.trim(), signatureMenu: $("rv-sig").value.trim() }, reviews, photoUrls, customInstructions: $("rv-instr").value.trim() };
+  const body = { business: { mode: photoMode ? "photo" : undefined, name, area: $("rv-area").value.trim(), category: $("rv-cat").value.trim(), signatureMenu: $("rv-sig").value.trim() }, reviews, photoUrls, customInstructions: $("rv-instr").value.trim() };
   formMsg(photoUrls.length ? "AI가 원고를 쓰는 중이에요. 사진이 있어서 1~2분쯤 걸려요…" : "AI가 원고를 쓰는 중이에요…");
   const { data, error } = await sb.functions.invoke("review-draft", { body });
   $("rv-go").disabled = false;
@@ -132,14 +133,16 @@ $("rv-form").addEventListener("submit", async e => {
   const { data } = await sb.auth.getSession();
   const me = data.session && data.session.user;
   if (!me) return location.replace("login.html?next=review-draft.html");
-  const { data: p } = await sb.from("profiles").select("role,business_status").eq("id", me.id).maybeSingle();
-  const approved = !!p && p.business_status === "approved";
-  if (!approved && !(p && p.role === "admin")) {
-    msg("사업자 인증이 승인된 회원만 AI 리뷰 원고를 쓸 수 있어요. 광고주 인증(사업자등록번호·대표자 이름 입력) 후 이용해 주세요.");
-    const a = document.createElement("a"); a.href = "biz.html"; a.className = "btn-primary"; a.textContent = "광고주 인증하러 가기";
+  const { data: p } = await sb.from("profiles").select("role,community").eq("id", me.id).maybeSingle();
+  const admin = !!p && p.role === "admin", influencer = !!p && p.community === "influencer";
+  if (!admin && !influencer) {
+    msg("인플루언서 승인을 받은 회원만 AI 리뷰 원고를 쓸 수 있어요. 인플루언서 커뮤니티 가입을 신청하면 운영자가 확인해 열어 드려요.");
+    const a = document.createElement("a"); a.href = "board.html?b=influencer"; a.className = "btn-primary"; a.textContent = "인플루언서 커뮤니티 가입 신청하기";
     $("rv-msg").append(" ", a);
     return;
   }
+  photoMode = !admin;                       // 인플루언서는 '사진만' 방식, 운영자는 기존 방식(리뷰 붙여넣기)도 가능
+  $("rv-reviews-row").hidden = photoMode;
   $("rv-form-box").hidden = false; $("rv-list-box").hidden = false;
   await loadList(me);
 })();
