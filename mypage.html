@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="robots" content="noindex">
+  <title>마이페이지 - 우리들 체험단</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="campaigns">
+<div id="header-slot"></div>
+
+<main class="wrap camp mp-page">
+  <h1 class="mp-title">마이페이지</h1>
+  <p class="notice-box" id="mp-login" hidden>로그인이 필요해요. <a href="login.html?next=mypage.html">로그인하러 가기 →</a></p>
+  <p class="notice-box" id="mp-flash" role="status" hidden></p>
+
+  <div id="mp-body" hidden>
+    <section class="panel mp-box">
+      <h2>내 정보</h2>
+      <p class="muted small">체험단 신청에 쓰는 정보예요. SNS마다 따로 묻지 않고 여기에 한 번만 등록해요.</p>
+      <form class="mp-row" id="phone-form" novalidate>
+        <label>휴대폰번호 <small>(선정 안내용 · 010-0000-0000)</small>
+          <input id="phone" inputmode="tel" maxlength="13" autocomplete="tel" placeholder="010-0000-0000"></label>
+        <button class="btn-line" type="submit">저장</button>
+      </form>
+      <p class="mp-msg" id="phone-msg" role="alert"></p>
+    </section>
+
+    <section class="panel mp-box">
+      <h2>SNS 계정 연동</h2>
+      <p class="muted small">체험단 신청에 쓸 SNS를 등록해요. 등록한 SNS는 캠페인에서 다시 입력하지 않고 바로 쓸 수 있어요.</p>
+      <ul class="sns-list">
+        <li class="sns-item" id="it-naver">
+          <div class="sns-head"><b>네이버 로그인</b><span class="pill" id="st-naver">확인 중</span></div>
+          <p class="muted small">네이버 계정으로 로그인하는 수단이에요. <b>블로그 소유를 확인하는 것이 아니에요.</b> 블로그는 아래에서 따로 등록해요.</p>
+          <div class="sns-acts" id="ac-naver"></div>
+        </li>
+        <li class="sns-item" id="it-blog">
+          <div class="sns-head"><b>네이버 블로그</b><span class="pill" id="st-blog">확인 중</span></div>
+          <p class="sns-val" id="val-blog"></p>
+          <form class="sns-form" id="blog-form" novalidate>
+            <input id="blog-in" inputmode="url" maxlength="200" autocomplete="off" placeholder="blog.naver.com/내아이디 (https:// 없이 써도 돼요)" aria-label="네이버 블로그 주소">
+            <button class="btn-line" type="submit">등록</button><button class="btn-line danger" type="button" id="blog-rm" hidden>삭제</button>
+          </form>
+          <p class="mp-msg" id="blog-msg" role="alert"></p>
+        </li>
+        <li class="sns-item" id="it-insta">
+          <div class="sns-head"><b>인스타그램</b><span class="pill" id="st-insta">확인 중</span></div>
+          <p class="sns-val" id="val-insta"></p>
+          <form class="sns-form" id="insta-form" novalidate>
+            <input id="insta-in" maxlength="200" autocomplete="off" placeholder="@아이디 또는 instagram.com/아이디" aria-label="인스타그램 아이디 또는 주소">
+            <input id="insta-fol" type="number" min="0" max="1000000000" inputmode="numeric" placeholder="팔로워 수 (선택)" aria-label="팔로워 수">
+            <button class="btn-line" type="submit">등록</button><button class="btn-line danger" type="button" id="insta-rm" hidden>삭제</button>
+          </form>
+          <p class="mp-msg" id="insta-msg" role="alert"></p>
+          <p class="muted small">입력한 주소가 본인 계정인지는 확인하지 않아요. 그래서 "프로필 등록 완료"로만 표시돼요.</p>
+        </li>
+      </ul>
+    </section>
+
+    <section class="panel mp-box">
+      <h2>신청 내역</h2>
+      <p class="muted small">"신청 완료"는 접수됐다는 뜻이에요. 선정 여부는 광고주가 확인한 뒤 알려 드려요.</p>
+      <div id="apps"><p class="muted">불러오는 중…</p></div>
+    </section>
+  </div>
+</main>
+
+<div id="footer-slot"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="auth.js"></script>
+<script src="naver.js"></script>
+<script src="mypage.js"></script>
+</body>
+</html>

@@ -37,6 +37,20 @@ form.password.addEventListener("input", checkPw); form.password2.addEventListene
 document.querySelectorAll(".sns-btn").forEach(b => b.onclick = () => {      // SNS 연동 전: 안내만 (가입·로그인은 하지 않음)
   const m = $("sns-msg"); m.hidden = false; m.textContent = `${b.dataset.sns} 간편 가입은 준비 중이에요. 아래에서 이메일로 가입하거나 로그인해 주세요.`;
 });
+// 네이버로 계속하기: 공식 OAuth (서버에서 검증). 로그인 후 원래 보던 화면(next)으로 돌아옴
+const nextParam = () => { const n = new URLSearchParams(location.search).get("next") || ""; return /^[a-z]+\.html(\?[\w=&%.-]*)?$/.test(n) ? n : ""; };
+$("naver-btn").onclick = async () => {
+  const m = $("sns-msg"), b = $("naver-btn"); m.hidden = true; b.disabled = true;
+  try { await naverStart("login", nextParam()); }
+  catch (e) { m.hidden = false; m.textContent = e.message; b.disabled = false; }
+};
+(async () => {   // 네이버에서 돌아온 경우
+  const q = new URLSearchParams(location.search), m = $("sns-msg");
+  if (q.get("naver_error")) { m.hidden = false; m.textContent = naverErr(q.get("naver_error")); history.replaceState(null, "", location.pathname + (nextParam() ? "?next=" + encodeURIComponent(nextParam()) : "")); return; }
+  if (!q.get("naver_state") || !window.sbReady) return;
+  try { const to = await naverFinish(); if (to) location.href = to; }
+  catch (e) { m.hidden = false; m.textContent = e.message; }
+})();
 $("tab-login").onclick = () => setMode("login");
 $("tab-signup").onclick = () => setMode("signup");
 setMode(mode);

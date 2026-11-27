@@ -26,7 +26,7 @@ async function load() {
     reviewDeadline: data.review_deadline, photos: data.mission_photos, chars: data.mission_chars,
     link: data.mission_link, video: data.mission_video, disclosure: data.mission_disclosure !== false,
     addr: data.address, weekdays: data.visit_weekdays, times: data.visit_times, vnotes: data.visit_notes, detailImg: data.detail_photo_url,
-    applied: mine ? Number(mine.applied) : 0, open: data.status === "open" && daysLeft(data.deadline) >= 0 };
+    applied: mine ? Number(mine.applied) : 0, open: data.status === "open" && new Date(data.deadline + "T23:59:59") >= Date.now() };   // 마감일 당일 자정까지만 모집 (지난 날짜는 닫힘)
 }
 
 // ---- 일정 달력: 모집 기간(회색) / 체험·리뷰 기간(파랑) / 오늘
