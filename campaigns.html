@@ -37,15 +37,18 @@
     <div class="cl-chips" id="region-chips"></div>
   </div>
 
+  <div class="cl-tabs" id="cl-tabs" role="tablist" aria-label="체험단 보기"></div>
+
   <div class="cl-filters">
     <select id="f-cat" aria-label="카테고리"><option value="">카테고리</option></select>
     <select id="f-ch" aria-label="채널"><option value="">채널</option></select>
     <select id="f-mode" aria-label="유형"><option value="">유형</option><option value="방문형">방문형</option><option value="배송형">배송형</option></select>
-    <select id="f-sort" aria-label="정렬"><option value="new">최신순</option><option value="deadline">마감임박순</option><option value="hot">신청 많은순</option></select>
+    <select id="f-sort" aria-label="정렬"><option value="">기본 정렬</option><option value="new">최신순</option><option value="deadline">마감임박순</option><option value="hot">신청 많은순</option></select>
   </div>
 
+  <p class="cl-note" id="cl-note" role="status" hidden></p>
   <ul class="cl-cards" id="cards"></ul>
-  <p class="empty" id="empty" hidden>조건에 맞는 체험단이 없어요.</p>
+  <div class="empty" id="empty" role="status" hidden></div>
   <div class="more"><button id="more" type="button">더보기</button></div>
 </main>
 

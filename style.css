@@ -806,3 +806,39 @@ a.ws-ad:focus-visible{outline:3px solid #7fb0ff;outline-offset:2px}
 .dv-state.done{color:#1c8f5a;font-weight:700}
 @media(max-width:700px){.sa-cols{grid-template-columns:1fr;gap:6px}.sa-dialog{padding:16px;width:96vw}.sa-submit{bottom:-16px}}
 .sa-dialog .reg{max-width:none;padding:0;margin-top:8px}
+
+/* 체험단 목록: 탭 · D-day · 상태 안내 */
+.cl-tabs{display:flex;gap:6px;margin:6px 0 4px;border-bottom:1px solid var(--line);overflow-x:auto}
+.cl-tabs button{border:0;background:none;padding:11px 14px;font:inherit;font-size:14px;font-weight:600;color:#777;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+.cl-tabs button.on{color:var(--primary);border-bottom-color:var(--primary)}
+.cl-note{margin:0 0 12px;font-size:12px;color:#a35f00;background:#fff3e0;border-radius:6px;padding:8px 12px}
+.cl-dd{position:absolute;left:8px;top:8px;background:rgba(0,0,0,.62);color:#fff;font-size:11px;font-weight:700;border-radius:99px;padding:2px 9px}
+.cl-dd.hot{background:#e5484d}
+.cl-mode{align-items:flex-start;line-height:1.4}.cl-mode>span:last-child{flex:1;min-width:0;word-break:keep-all;overflow-wrap:anywhere}
+.cl-title{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.cl-reward{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;color:#555}
+.cl-meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin:8px 0 0;font-size:12px;color:#555}
+.cl-meta i{width:1px;height:10px;background:#ccc}.cl-meta b{color:#222}
+.cl-d{font-weight:800;color:#3aa935}.cl-d.hot{color:#e5484d}
+.empty{display:flex;flex-direction:column;align-items:center;gap:8px;padding:56px 12px}
+.empty .em-t{font-size:16px;color:#333}.empty .em-s{font-size:13px}
+.empty .em-btn{margin-top:8px;border:1px solid var(--primary);background:#fff;color:var(--primary);font:inherit;font-weight:700;border-radius:6px;padding:10px 22px;cursor:pointer}
+.cl-sk .cl-th{background:#eceef2;animation:clsk 1.2s infinite}.cl-sk p{height:12px;margin:10px 0 0;background:#eceef2;border-radius:4px;animation:clsk 1.2s infinite}.cl-sk p+p{width:60%}
+@keyframes clsk{50%{opacity:.5}}
+@media(max-width:560px){.cl-cards{gap:20px 10px}.cl-title,.cl-reward{font-size:12px}}
+
+/* 마이페이지 신청 진행 상황 */
+.ap-h{margin:18px 0 8px;font-size:14px}.ap-h small{font-weight:400;color:var(--muted)}
+.ap-list{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.ap-card{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:#fff}.ap-card.stop{background:#fafafa}
+.ap-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.ap-title{font-weight:700;font-size:15px;color:var(--ink)}
+.ap-card p{margin:6px 0 0}
+.ap-steps{list-style:none;margin:12px 0 0;padding:0;display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.ap-steps li{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:#98a0ad;text-align:center;position:relative}
+.ap-steps li i{width:22px;height:22px;border-radius:50%;background:#eef0f4;color:#98a0ad;font-style:normal;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:11px}
+.ap-steps li.done i{background:#1c8f5a;color:#fff}.ap-steps li.done{color:#1c8f5a}
+.ap-steps li.cur i{background:var(--primary);color:#fff}.ap-steps li.cur{color:var(--primary);font-weight:700}
+.ap-steps li.off{text-decoration:line-through}
+.ap-next{background:#f4f7ff;border-radius:6px;padding:9px 12px;font-size:13px}.ap-next b{color:var(--primary);margin-right:6px}
+.ap-act{display:inline-block;margin-top:10px;padding:9px 16px;font-size:13px;text-decoration:none;color:var(--ink)}
+.rv-note{color:#a33;font-size:12px}
