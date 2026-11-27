@@ -125,7 +125,7 @@
     busy = true; b.disabled = true; b.textContent = "접수 중…";
     const { data, error } = await sb.rpc("apply_simple", { p_campaign: id, p_channel: chan, p_phone: d, p_answers: a });
     busy = false;
-    if (error || !data || (!data.ok && !data.error)) { b.disabled = false; b.textContent = CH[chan].btn; return fail("신청하지 못했어요. 잠시 후 다시 시도해 주세요."); }
+    if (error || !data || (!data.ok && !data.error)) { b.disabled = false; b.textContent = CH[chan].btn; return fail("신청하지 못했어요. 잠시 후 다시 시도해 주세요." + (error && error.message ? ` (원인: ${error.message})` : "")); }
     if (data.error === "duplicate") { applied = true; markApplied(); f.hidden = true; $("sa-done").hidden = false; $("sa-done").querySelector("h2").textContent = "이미 신청한 캠페인이에요"; return; }
     if (data.error) { b.disabled = false; b.textContent = CH[chan].btn; return fail(ERR[data.error] || "신청하지 못했어요."); }
     applied = true; markApplied(); f.hidden = true; $("sa-done").hidden = false;
