@@ -9,6 +9,7 @@ function setMode(m) {
   $("agree-row").hidden = m !== "signup"; form.agree.required = m === "signup";
   form.nickname.required = m === "signup";
   form.password.autocomplete = m === "signup" ? "new-password" : "current-password";
+  $("pw2-row").hidden = m !== "signup"; form.password2.required = m === "signup"; form.password2.value = ""; $("pw-hint").textContent = "";
   $("submit").textContent = m === "signup" ? "가입하기" : "로그인";
   msg.textContent = "";
 }
@@ -30,6 +31,9 @@ async function kindTarget() {
   if (kind === "agency" && !p.community && p.community_req !== "agency") return "board.html?b=agency";
   return null;
 }
+// 비밀번호 확인: 입력하는 동안 같은지 바로 알려 줌
+const checkPw = () => { const h = $("pw-hint"), a = form.password.value, b = form.password2.value; if (!b) { h.textContent = ""; return; } const ok = a === b; h.textContent = ok ? "✓ 비밀번호가 같아요." : "비밀번호가 서로 달라요."; h.style.color = ok ? "#0c8f66" : "#d63a3a"; };
+form.password.addEventListener("input", checkPw); form.password2.addEventListener("input", checkPw);
 document.querySelectorAll(".sns-btn").forEach(b => b.onclick = () => {      // SNS 연동 전: 안내만 (가입·로그인은 하지 않음)
   const m = $("sns-msg"); m.hidden = false; m.textContent = `${b.dataset.sns} 간편 가입은 준비 중이에요. 아래에서 이메일로 가입하거나 로그인해 주세요.`;
 });
@@ -56,6 +60,7 @@ form.onsubmit = async e => {
   const email = form.email.value.trim(), password = form.password.value;
   try {
     if (mode === "signup") {
+      if (form.password2.value !== password) throw new Error("비밀번호가 서로 달라요. 다시 확인해 주세요.");
       const nickname = form.nickname.value.trim();
       if (nickname.length < 2) throw new Error("닉네임은 2자 이상 입력해 주세요.");
       const kind = form.kind.value;
