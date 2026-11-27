@@ -100,6 +100,9 @@ alter table public.applications
   add column if not exists sns_verified boolean,
   add column if not exists answers jsonb;
 
+-- 신청 내역 화면이 새 칸을 읽을 수 있게 (연락처 칸은 006 규칙대로 계속 막힘)
+grant select (via, applied_channel, sns_verified) on public.applications to authenticated;
+
 -- 3) 간편 신청 (서버에서 로그인·모집기간·채널·필수항목·동의를 모두 다시 확인) -----------------
 create or replace function public.apply_simple(p_campaign uuid, p_channel text, p_phone text, p_answers jsonb default '{}'::jsonb)
 returns jsonb
