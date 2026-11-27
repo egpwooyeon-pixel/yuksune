@@ -41,10 +41,10 @@ function lockBox(B, st, host) {
   const h = document.createElement("b"); h.textContent = `${kind} 회원만 이용할 수 있는 공간이에요.`; box.append(h);
   const p = document.createElement("p"); p.className = "muted"; box.append(p);
   if (!st.logged) { p.textContent = "로그인한 뒤 가입을 신청해 주세요."; const a = document.createElement("a"); a.className = "btn-primary"; a.href = "login.html?next=" + encodeURIComponent(location.pathname.split("/").pop() + location.search); a.textContent = "로그인"; box.append(a); }
-  else if (st.req === B.only) p.textContent = B.only === "agency" ? "대행사 가입 신청과 사업자등록증이 접수됐어요. 운영자가 서류를 확인하면 이용할 수 있어요." : `${kind} 가입 신청이 접수됐어요. 운영자가 확인하면 이용할 수 있어요.`;
+  else if (st.req === B.only) p.textContent = B.only === "agency" ? "대행사 가입 신청과 사업자등록증이 접수됐어요. 운영자가 서류를 확인해 24시간 이내에 승인해 드려요." : `${kind} 가입 신청이 접수됐어요. 운영자가 확인하면 이용할 수 있어요.`;
   else {
     const agency = B.only === "agency";
-    p.textContent = agency ? "대행사 커뮤니티는 사업자등록증을 확인한 뒤 열어 드려요. 서류는 운영자만 볼 수 있고, 확인이 끝나면 삭제돼요." : `${kind} 커뮤니티는 운영자 승인이 필요해요. 신청하면 운영자가 확인한 뒤 열어 드려요.`;
+    p.textContent = agency ? "대행사 커뮤니티는 사업자등록증을 확인한 뒤 24시간 이내에 열어 드려요. 서류는 운영자만 볼 수 있고, 확인이 끝나면 삭제돼요." : `${kind} 커뮤니티는 운영자 승인이 필요해요. 신청하면 운영자가 확인한 뒤 열어 드려요.`;
     if (st.req) p.textContent += ` (지금은 '${KIND[st.req]}' 신청이 접수되어 있어요. 새로 신청하면 바뀌어요.)`;
     let file = null, err = document.createElement("p"); err.className = "form-err"; err.setAttribute("role", "alert");
     if (agency) { file = document.createElement("input"); file.type = "file"; file.accept = ".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"; file.setAttribute("aria-label", "사업자등록증 파일 (JPG·PNG·PDF, 5MB 이하)"); box.append(file); }
@@ -63,7 +63,7 @@ function lockBox(B, st, host) {
       }
       b.disabled = true; const { error } = await sb.from("profiles").update(patch).eq("id", st.id);
       if (error) { b.disabled = false; return err.textContent = /agency_doc_required/.test(error.message) ? "사업자등록증이 필요해요." : "신청하지 못했어요. (031 SQL 실행 여부를 확인해 주세요)"; }
-      p.textContent = agency ? "대행사 가입 신청과 사업자등록증이 접수됐어요. 운영자가 서류를 확인하면 이용할 수 있어요." : `${kind} 가입 신청이 접수됐어요. 운영자가 확인하면 이용할 수 있어요.`;
+      p.textContent = agency ? "대행사 가입 신청과 사업자등록증이 접수됐어요. 운영자가 서류를 확인해 24시간 이내에 승인해 드려요." : `${kind} 가입 신청이 접수됐어요. 운영자가 확인하면 이용할 수 있어요.`;
       b.remove(); if (file) file.remove(); err.remove();
     };
     box.append(b, err);

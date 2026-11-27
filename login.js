@@ -13,9 +13,9 @@ function setMode(m) {
   msg.textContent = "";
 }
 const KIND_HINT = {
-  business: "체험단을 등록하려면 가입 후 사업자등록증을 제출해 운영자 승인을 받아야 해요.",
+  business: "가입 후 사업자등록번호와 대표자 이름만 입력하면 바로 광고주로 체험단을 등록할 수 있어요.",
   influencer: "가입 후 인플루언서 커뮤니티 가입을 신청하면 운영자가 확인해 열어 드려요.",
-  agency: "가입 후 사업자등록증을 제출해 운영자 승인을 받아야 대행사 커뮤니티를 쓸 수 있어요.",
+  agency: "가입 후 사업자등록증을 제출하면 운영자가 확인해 24시간 이내에 승인해 드려요.",
 };
 document.querySelectorAll('input[name="kind"]').forEach(r => r.onchange = () => { $("kind-hint").textContent = KIND_HINT[r.value]; });
 // 가입 유형에 맞는 다음 단계 안내 (이미 마친 단계는 건너뜀). 가입 유형은 화면 안내용이고, 실제 권한은 운영자 승인이 정해요.

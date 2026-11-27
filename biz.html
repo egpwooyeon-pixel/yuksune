@@ -19,13 +19,15 @@
     <div class="biz-state" id="b-state"></div>
 
     <form class="reg" id="b-form" hidden>
-      <p class="muted small">체험단을 등록하려면 <b>사업자등록증</b>을 제출해 운영자 승인을 받아야 해요. 승인까지 영업일 기준 1~2일 정도 걸릴 수 있어요. (정확한 소요 시간은 운영 상황에 따라 달라요)</p>
-      <label>사업자등록증 파일 <small>(JPG·PNG·PDF, 5MB 이하)</small>
-        <input type="file" id="b-file" accept="image/jpeg,image/png,image/webp,application/pdf" required></label>
+      <p class="muted small">체험단을 등록하려면 <b>사업자등록번호와 대표자 이름</b>만 입력해 주세요. 사업자등록증은 필요 없고, 입력하면 <b>바로</b> 광고주로 이용할 수 있어요.</p>
+      <label>사업자등록번호 <small>(10자리, 하이픈은 있어도 없어도 돼요)</small>
+        <input id="b-no" inputmode="numeric" maxlength="12" placeholder="000-00-00000" autocomplete="off" required></label>
+      <label>대표자 이름
+        <input id="b-ceo" maxlength="20" placeholder="사업자등록증에 적힌 대표자 이름" autocomplete="off" required></label>
       <label class="check"><input type="checkbox" id="b-consent" required>
-        <span><b>개인정보 수집·이용에 동의합니다.</b><br><small>수집 항목: 사업자등록증에 적힌 정보(상호, 대표자명, 사업장 주소, 사업자등록번호 등) / 목적: 광고주 확인 / 보관: 운영자만 볼 수 있게 비공개로 보관하며, 승인 후 삭제할 수 있어요.</small></span></label>
+        <span><b>개인정보 수집·이용에 동의합니다.</b><br><small>수집 항목: 사업자등록번호, 대표자 이름 / 이용 목적: 광고주 확인, 체험단 등록 권한 부여 / <a href="privacy.html" target="_blank" rel="noopener">처리방침 보기</a></small></span></label>
       <p class="msg" id="b-err" role="alert"></p>
-      <button class="btn-primary submit" id="b-btn" type="submit">제출하고 승인 요청하기</button>
+      <button class="btn-primary submit" id="b-btn" type="submit">광고주 인증하기</button>
     </form>
   </section>
 </main>

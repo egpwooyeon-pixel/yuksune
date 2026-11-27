@@ -112,7 +112,7 @@ $("rk-form").onsubmit = async e => {
   if (!me) return location.replace("login.html?next=rank.html");
   const { data: p } = await sb.from("profiles").select("role,business_status").eq("id", me.id).maybeSingle();
   const approved = !!p && p.business_status === "approved";
-  if (!approved && !(p && p.role === "admin")) { msg("사업자 인증이 승인된 회원만 내 플레이스 순위를 확인할 수 있어요. 광고주 인증(사업자등록증 제출) 후 이용해 주세요."); const a = document.createElement("a"); a.href = "biz.html"; a.className = "btn-primary"; a.textContent = "광고주 인증하러 가기"; $("rk-msg").append(" ", a); return; }
+  if (!approved && !(p && p.role === "admin")) { msg("사업자 인증을 마친 회원만 내 플레이스 순위를 확인할 수 있어요. 광고주 인증(사업자등록번호·대표자 이름 입력) 후 이용해 주세요."); const a = document.createElement("a"); a.href = "biz.html"; a.className = "btn-primary"; a.textContent = "광고주 인증하러 가기"; $("rk-msg").append(" ", a); return; }
   await loadAll(me, approved);
   window.__rkCount = (await sb.from("rank_trackers").select("id", { count: "exact", head: true }).eq("owner_id", me.id)).count || 0;
 })();

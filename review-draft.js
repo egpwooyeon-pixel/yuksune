@@ -135,7 +135,7 @@ $("rv-form").addEventListener("submit", async e => {
   const { data: p } = await sb.from("profiles").select("role,business_status").eq("id", me.id).maybeSingle();
   const approved = !!p && p.business_status === "approved";
   if (!approved && !(p && p.role === "admin")) {
-    msg("사업자 인증이 승인된 회원만 AI 리뷰 원고를 쓸 수 있어요. 광고주 인증(사업자등록증 제출) 후 이용해 주세요.");
+    msg("사업자 인증이 승인된 회원만 AI 리뷰 원고를 쓸 수 있어요. 광고주 인증(사업자등록번호·대표자 이름 입력) 후 이용해 주세요.");
     const a = document.createElement("a"); a.href = "biz.html"; a.className = "btn-primary"; a.textContent = "광고주 인증하러 가기";
     $("rv-msg").append(" ", a);
     return;

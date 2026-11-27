@@ -132,7 +132,7 @@ let mTimer; $("m-q").oninput = e => { clearTimeout(mTimer); mTimer = setTimeout(
 $("m-more").onclick = () => loadMembers(false);
 $("m-st").onchange = e => { mStatus = e.target.value; loadMembers(true); };
 $("pend").onclick = e => { e.preventDefault(); mStatus = "pending"; $("m-st").value = "pending"; location.hash = "#members"; if (location.hash === "#members") loadMembers(true); };
-const BS = { none: ["미신청", ""], pending: ["승인 대기", "mid"], approved: ["승인됨", "ok"], rejected: ["반려", "bad"] };
+const BS = { none: ["미인증", ""], pending: ["서류 확인 중(예전 방식)", "mid"], approved: ["인증됨", "ok"], rejected: ["제한", "bad"] };
 async function loadMembers(reset) {
   if (reset) { mPage = 0; $("members").innerHTML = ""; await sb.rpc("process_expired_campaigns"); await loadPenMap(); }
   const { data, error } = await sb.rpc("admin_members", { p_search: mQuery || null, p_lim: 50, p_off: mPage * 50, p_status: mStatus || null });
@@ -143,9 +143,9 @@ async function loadMembers(reset) {
     const [t, k] = BS[m.business_status] || BS.none, admin = m.role === "admin";
     const doc = m.business_doc_path ? `<button class="btn" data-bs="doc" data-path="${esc(m.business_doc_path)}">서류 보기</button>` : "";
     return `<tr data-id="${m.id}"><td>${full(m.created_at)}</td><td><b>${esc(m.nickname)}</b></td><td>${esc(m.email)}</td><td>${admin ? '<span class="tag blue">관리자</span>' : "회원"}</td>
-      <td><span class="tag ${k}">${t}</span>${m.business_note ? `<br><small class="muted">${esc(m.business_note)}</small>` : ""}</td>
+      <td><span class="tag ${k}">${t}</span>${m.business_no ? `<br><small>${esc(m.business_no.replace(/^(\d{3})(\d{2})(\d{5})$/, "$1-$2-$3"))} · ${esc(m.business_ceo || "")}</small>` : ""}${m.business_note ? `<br><small class="muted">${esc(m.business_note)}</small>` : ""}</td>
       <td>${admin ? "" : penBadge(m.id)}</td>
-      <td>${admin ? "" : `${doc}<button class="btn ok" data-bs="approved" ${m.business_status === "approved" ? "disabled" : ""}>승인</button><button class="btn bad" data-bs="rejected" ${m.business_status === "rejected" ? "disabled" : ""}>반려</button><button class="btn" data-bs="none" ${m.business_status === "none" ? "disabled" : ""}>해제</button><button class="btn" data-bs="pen">페널티</button>${m.business_doc_path ? '<button class="btn bad" data-bs="deldoc">서류 삭제</button>' : ""}`}</td></tr>`;
+      <td>${admin ? "" : `${doc}<button class="btn ok" data-bs="approved" ${m.business_status === "approved" ? "disabled" : ""}>인증</button><button class="btn bad" data-bs="rejected" ${m.business_status === "rejected" ? "disabled" : ""}>제한</button><button class="btn" data-bs="none" ${m.business_status === "none" ? "disabled" : ""}>해제</button><button class="btn" data-bs="pen">페널티</button>${m.business_doc_path ? '<button class="btn bad" data-bs="deldoc">서류 삭제</button>' : ""}`}</td></tr>`;
   }).join(""));
   $("m-empty").hidden = reset ? rows.length > 0 : true; $("m-empty").textContent = "회원이 없어요.";
   $("m-more").hidden = rows.length < 50; mPage++;
@@ -169,8 +169,8 @@ $("members").onclick = async e => {
   }
   const patch = { business_status: st };
   if (st === "rejected") {
-    const why = prompt(`${name} 님의 반려 사유를 적어 주세요. (신청자에게 보여요)`);
-    if (why === null) return; if (!why.trim()) return alert("반려 사유를 입력해 주세요.");
+    const why = prompt(`${name} 님을 제한하는 사유를 적어 주세요. (본인에게 보여요. 제한하면 스스로 다시 인증할 수 없어요)`);
+    if (why === null) return; if (!why.trim()) return alert("제한 사유를 입력해 주세요.");
     patch.business_note = why.trim().slice(0, 200);
   } else {
     if (!confirm(`${name} 님의 광고주 상태를 '${BS[st][0]}'로 바꿀까요?`)) return;
@@ -478,9 +478,16 @@ $("posts").onclick = async e => {
 const CM_KIND = { influencer: "인플루언서", agency: "대행사" };
 let cmAgencyDoc = true;                                                    // 031 SQL(서류 칸) 유무
 async function cmSelect(filter) {
-  let r = await filter(sb.from("profiles").select("id,nickname,community,community_req,community_doc_path,created_at"));
-  if (r.error) { cmAgencyDoc = false; r = await filter(sb.from("profiles").select("id,nickname,community,community_req,created_at")); } else cmAgencyDoc = true;
+  let r = await filter(sb.from("profiles").select("id,nickname,community,community_req,community_doc_path,community_req_at,created_at"));
+  if (r.error) { r = await filter(sb.from("profiles").select("id,nickname,community,community_req,community_doc_path,created_at")); if (r.error) { cmAgencyDoc = false; r = await filter(sb.from("profiles").select("id,nickname,community,community_req,created_at")); } } else cmAgencyDoc = true;
   return r;
+}
+// 신청한 지 얼마나 지났는지 (대행사는 24시간 이내 처리가 원칙)
+function cmElapsed(p) {
+  if (!p.community_req_at) return "";
+  const h = (Date.now() - new Date(p.community_req_at).getTime()) / 3600e3, late = p.community_req === "agency" && h >= 24;
+  const t = h < 1 ? "방금" : h < 24 ? `${Math.floor(h)}시간 전` : `${Math.floor(h / 24)}일 ${Math.floor(h % 24)}시간 전`;
+  return ` <small class="${late ? "tag bad" : "muted"}">${late ? "24시간 초과 · " : ""}신청 ${t}</small>`;
 }
 const cmDocBtns = p => p.community_doc_path ? `<button type="button" class="btn" data-cm="doc" data-path="${esc(p.community_doc_path)}">서류 보기</button> <button type="button" class="btn" data-cm="deldoc" data-path="${esc(p.community_doc_path)}">서류 삭제</button>` : "";
 async function loadCommunity() {
@@ -488,7 +495,7 @@ async function loadCommunity() {
   $("cm-box").hidden = !!(rq.error && ok.error);                           // 028 SQL 이 없으면 숨김
   if (rq.error && ok.error) return;
   const rows = (rq.data || []).filter(p => p.community !== p.community_req);
-  $("cm-list").innerHTML = rows.length ? rows.map(p => `<li data-id="${esc(p.id)}"><b>${esc(p.nickname)}</b> <span class="tag blue">${esc(CM_KIND[p.community_req] || p.community_req)} 신청</span>${p.community_req === "agency" ? (p.community_doc_path ? ' <span class="tag ok">사업자등록증 첨부됨</span>' : ' <span class="tag bad">서류 없음</span>') : ""}${p.community ? ` <small class="muted">(현재 ${esc(CM_KIND[p.community] || p.community)} 승인됨)</small>` : ""} ${p.community_req === "agency" ? cmDocBtns(p) : ""} <button type="button" class="btn ok" data-cm="ok">승인</button> <button type="button" class="btn bad" data-cm="no">반려</button></li>`).join("") : '<li class="muted">대기 중인 신청이 없어요.</li>';
+  $("cm-list").innerHTML = rows.length ? rows.map(p => `<li data-id="${esc(p.id)}"><b>${esc(p.nickname)}</b> <span class="tag blue">${esc(CM_KIND[p.community_req] || p.community_req)} 신청</span>${cmElapsed(p)}${p.community_req === "agency" ? (p.community_doc_path ? ' <span class="tag ok">사업자등록증 첨부됨</span>' : ' <span class="tag bad">서류 없음</span>') : ""}${p.community ? ` <small class="muted">(현재 ${esc(CM_KIND[p.community] || p.community)} 승인됨)</small>` : ""} ${p.community_req === "agency" ? cmDocBtns(p) : ""} <button type="button" class="btn ok" data-cm="ok">승인</button> <button type="button" class="btn bad" data-cm="no">반려</button></li>`).join("") : '<li class="muted">대기 중인 신청이 없어요.</li>';
   const mem = ok.data || [];
   $("cm-members").innerHTML = mem.length ? mem.map(p => { const other = p.community === "agency" ? "influencer" : "agency"; return `<li data-id="${esc(p.id)}"><b>${esc(p.nickname)}</b> <span class="tag ${p.community === "agency" ? "mid" : "blue"}">${esc(CM_KIND[p.community] || p.community)}</span> ${cmDocBtns(p)} <button type="button" class="btn" data-cm="switch" data-to="${other}">${esc(CM_KIND[other])}로 변경</button> <button type="button" class="btn bad" data-cm="revoke">해제</button></li>`; }).join("") : '<li class="muted">승인된 회원이 아직 없어요.</li>';
 }

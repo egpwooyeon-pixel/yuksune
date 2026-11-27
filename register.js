@@ -57,9 +57,9 @@ let user = null;
     }
     return;
   }
-  const msg = { none: "체험단은 <b>운영자가 승인한 광고주</b>만 등록할 수 있어요. <a href=\"biz.html\"><b>광고주 인증하러 가기 →</b></a> (사업자등록증 제출)",
-    pending: "광고주 심사가 진행 중이에요. 승인되면 등록할 수 있어요. (<a href=\"biz.html\">상태 보기</a>)",
-    rejected: "광고주 심사가 반려되었어요." + (p && p.business_note ? " 사유: " + esc(p.business_note) : "") + " <a href=\"biz.html\"><b>다시 제출하기 →</b></a>" };
+  const msg = { none: "체험단은 <b>광고주 인증을 마친 사장님</b>만 등록할 수 있어요. <a href=\"biz.html\"><b>광고주 인증하러 가기 →</b></a> (사업자등록번호·대표자 이름만 입력하면 바로 돼요)",
+    pending: "이전에 낸 서류를 확인하는 중이에요. <a href=\"biz.html\"><b>사업자등록번호·대표자 이름을 입력하면 바로 인증돼요 →</b></a>",
+    rejected: "광고주 인증이 제한된 계정이에요." + (p && p.business_note ? " 사유: " + esc(p.business_note) : "") + " 운영자에게 문의해 주세요. <a href=\"biz.html\">상태 보기</a>" };
   lock(msg[st] || msg.none);
 })();
 
