@@ -97,13 +97,22 @@ form.addEventListener("submit", async e => {
     if (form.mission_link.checked) row.mission_link = true;
     if (form.mission_video.checked) row.mission_video = true;
     if (!form.mission_disclosure.checked) row.mission_disclosure = false;
-    const { error } = await sb.from("campaigns").insert(row);
-    if (error) throw error;
+    // 서버에 상세 항목 칸(003 SQL)이 아직 없으면, 그 항목만 빼고 다시 올림 (상세 항목은 선택 사항이라 등록은 되게 함)
+    const LABEL = { keywords: "검색 키워드", shipping_info: "배송·방문 안내", product_url: "상품정보 주소", notice: "상단 안내", review_deadline: "후기 작성 마감일", mission_photos: "사진 수", mission_chars: "글자 수", mission_link: "링크 미션", mission_video: "영상 미션", mission_disclosure: "광고 표기", address: "방문 주소", visit_notes: "방문·예약 안내", visit_weekdays: "방문 가능 요일", visit_times: "방문 가능 시간대", detail_photo_url: "상세 이미지" };
+    const dropped = []; let res;
+    for (let i = 0; i < 20; i++) {
+      res = await sb.from("campaigns").insert(row);
+      const col = res.error && (/'([a-z_]+)' column/.exec(res.error.message || "") || [])[1];
+      if (!col || !(col in LABEL) || !(col in row)) break;
+      dropped.push(LABEL[col]); delete row[col];
+    }
+    if (res.error) throw res.error;
+    if (dropped.length) alert("체험단을 올렸어요. 다만 서버가 아직 준비되지 않아 아래 항목은 저장되지 않았어요.\n- " + dropped.join("\n- ") + "\n(운영자가 준비를 마친 뒤 수정해서 다시 올려 주세요.)");
     location.href = "campaigns.html?type=" + encodeURIComponent(d.type);
   } catch (err) {
     const m = err.message || "";
     alert(m.includes("row-level security") ? "등록 권한이 없어요. 운영자 승인을 받은 광고주만 등록할 수 있어요."
-      : m.includes("column") ? "서버에 상세 항목이 아직 준비되지 않았어요. 운영자에게 문의해 주세요. (" + m + ")" : "등록하지 못했어요: " + m);
+      : m.includes("column") ? "서버가 아직 준비되지 않은 항목이 있어요. 운영자에게 문의해 주세요. (" + m + ")" : "등록하지 못했어요: " + m);
     btn.disabled = false;
   }
 });
