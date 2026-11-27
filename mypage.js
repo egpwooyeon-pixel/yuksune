@@ -102,7 +102,8 @@ function progress(a, rv, c) {
   }
   const late = c.review_deadline && c.review_deadline < kstToday();
   return { ...base, done: 2, badge: ["선정됨", "ok"], review: true,
-    next: visit ? "방문 일정을 확인해 주세요" : "배송 안내를 확인해 주세요", after: late ? "리뷰 마감일이 지났어요. 필요하면 광고주에게 문의해 주세요." : (c.review_deadline ? "체험 후 리뷰 마감일까지 링크를 제출해 주세요" : "체험 후 리뷰 링크를 제출해 주세요") };
+    next: visit ? "광고주(대행사)가 직접 연락해 방문 일정을 정해요. 연락을 기다려 주세요" : "광고주(대행사)가 직접 연락해 배송 안내를 드려요. 연락을 기다려 주세요",
+    after: late ? "리뷰 마감일이 지났어요. 필요하면 광고주에게 문의해 주세요." : "연락은 신청할 때 등록한 휴대폰번호(또는 카카오톡)로 와요. 일정이 정해진 뒤 체험하고, " + (c.review_deadline ? "리뷰 마감일까지 링크를 제출해 주세요." : "리뷰 링크를 제출해 주세요.") };
 }
 function card(a, rv, c) {
   const p = progress(a, rv, c), ch = a.applied_channel ? (a.applied_channel === "instagram" ? "인스타그램" : "네이버 블로그") : "";
